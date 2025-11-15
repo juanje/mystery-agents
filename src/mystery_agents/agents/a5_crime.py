@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import CrimeSpec, GameState
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import MOCK_VICTIM_NAME
 from mystery_agents.utils.prompts import A5_CRIME_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
@@ -33,7 +33,7 @@ class CrimeAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the crime agent."""
-        super().__init__(llm=LLMConfig.get_model("tier1"), response_format=A5Output)
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=A5Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

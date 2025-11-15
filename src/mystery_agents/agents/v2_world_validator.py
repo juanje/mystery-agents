@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import GameState
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import V2_WORLD_VALIDATOR_SYSTEM_PROMPT
 
 from .base import BaseAgent
@@ -35,7 +35,7 @@ class WorldValidatorAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the world validator agent."""
-        super().__init__(llm=LLMConfig.get_model("tier2"), response_format=V2Output)
+        super().__init__(llm=LLMCache.get_model("tier2"), response_format=V2Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

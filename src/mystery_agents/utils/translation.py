@@ -7,10 +7,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import (
     GameState,
 )
+from mystery_agents.utils.cache import LLMCache
 
 
 class BatchTranslationOutput(BaseModel):
@@ -41,7 +41,7 @@ def translate_content(state: GameState) -> GameState:
         return state
 
     # Get LLM for translation
-    llm = LLMConfig.get_model("tier3")
+    llm = LLMCache.get_model("tier3")
     target_lang = "Spanish" if state.config.language == "es" else "English"
 
     print(f"[INFO] Translating content to {target_lang} (batch mode)...")
@@ -382,7 +382,7 @@ def translate_file_content(content: str, target_language: str, max_retries: int 
     target_lang_name = "Spanish" if target_language == "es" else "English"
 
     # Get LLM for translation
-    llm = LLMConfig.get_model("tier3")
+    llm = LLMCache.get_model("tier3")
 
     system_prompt = f"""You are a professional translator. Translate the following text from English to {target_lang_name}.
 

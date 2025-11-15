@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import AudioScript, ClueSpec, GameState, HostGuide
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import (
     MIN_CLUES_PER_GAME,
     MOCK_DETECTIVE_NAME,
@@ -51,7 +51,7 @@ class ContentGenerationAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the content generation agent."""
-        super().__init__(llm=LLMConfig.get_model("tier2"), response_format=A8Output)
+        super().__init__(llm=LLMCache.get_model("tier2"), response_format=A8Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

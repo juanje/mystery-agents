@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import GameState, WorldBible
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import MOCK_WORLD_NAME
 from mystery_agents.utils.prompts import A2_WORLD_SYSTEM_PROMPT
 
@@ -28,7 +28,7 @@ class WorldAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the world agent."""
-        super().__init__(llm=LLMConfig.get_model("tier1"), response_format=A2Output)
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=A2Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

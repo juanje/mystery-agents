@@ -1,7 +1,7 @@
 """A7: Killer Selection Agent - Chooses the culprit and ensures logic is sound."""
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import GameState, KillerSelection
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A7_SYSTEM_PROMPT
 
 from .base import BaseAgent
@@ -17,7 +17,7 @@ class KillerSelectionAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the killer selection agent."""
-        super().__init__(llm=LLMConfig.get_model("tier1"), response_format=KillerSelection)
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=KillerSelection)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

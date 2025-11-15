@@ -1,7 +1,7 @@
 """A6: Timeline Global Agent - Creates the event sequence."""
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import GameState, GlobalTimeline
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A6_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     safe_get_crime_time_of_death,
@@ -21,7 +21,7 @@ class TimelineAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the timeline agent."""
-        super().__init__(llm=LLMConfig.get_model("tier2"), response_format=GlobalTimeline)
+        super().__init__(llm=LLMCache.get_model("tier2"), response_format=GlobalTimeline)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

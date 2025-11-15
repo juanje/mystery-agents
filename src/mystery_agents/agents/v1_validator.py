@@ -1,7 +1,7 @@
 """V1: Validation Agent - Validates game logic consistency."""
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import GameState, ValidationReport
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import V1_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     safe_get_crime_method_description,
@@ -26,7 +26,7 @@ class ValidationAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the validation agent."""
-        super().__init__(llm=LLMConfig.get_model("tier1"), response_format=ValidationReport)
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=ValidationReport)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

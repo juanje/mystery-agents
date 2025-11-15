@@ -25,6 +25,9 @@ class LLMConfig:
         """
         Get LLM model for the specified tier.
 
+        This method creates NEW instances each time. For cached instances,
+        use LLMCache.get_model() instead (recommended for production).
+
         Args:
             tier: Model tier selection
                 - tier1: Logic/creativity (gemini-2.5-pro)

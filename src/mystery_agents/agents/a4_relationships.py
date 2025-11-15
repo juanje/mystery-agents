@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import GameState, RelationshipSpec
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A4_RELATIONSHIPS_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     safe_get_world_epoch,
@@ -31,7 +31,7 @@ class RelationshipsAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the relationships agent."""
-        super().__init__(llm=LLMConfig.get_model("tier2"), response_format=A4Output)
+        super().__init__(llm=LLMCache.get_model("tier2"), response_format=A4Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """

@@ -5,8 +5,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from mystery_agents.config import LLMConfig
 from mystery_agents.models.state import FileDescriptor, GameState, PackagingInfo
+from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import (
     AUDIO_SCRIPT_FILENAME,
     CHARACTER_SHEET_FILENAME,
@@ -42,7 +42,7 @@ class PackagingAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the packaging agent."""
-        super().__init__(llm=LLMConfig.get_model("tier3"))
+        super().__init__(llm=LLMCache.get_model("tier3"))
 
     def _get_game_context(self, state: GameState) -> tuple[str, str]:
         """

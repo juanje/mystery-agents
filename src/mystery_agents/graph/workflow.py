@@ -17,20 +17,21 @@ from mystery_agents.agents.a9_packaging import PackagingAgent
 from mystery_agents.agents.v1_validator import ValidationAgent
 from mystery_agents.agents.v2_world_validator import WorldValidatorAgent
 from mystery_agents.models.state import GameState
+from mystery_agents.utils.cache import AgentFactory
 from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
 
 
-# Node functions for the graph
+# Node functions for the graph (using cached agents for better performance)
 def a1_config_node(state: GameState) -> GameState:
     """A1: Configuration wizard node."""
-    agent = ConfigWizardAgent()
+    agent = AgentFactory.get_agent(ConfigWizardAgent)
     return agent.run(state)
 
 
 def a2_world_node(state: GameState) -> GameState:
     """A2: World generation node."""
     click.echo("Generating world...")
-    agent = WorldAgent()
+    agent = AgentFactory.get_agent(WorldAgent)
     result = agent.run(state)
     click.echo("✓ World generated")
     return result
@@ -43,7 +44,7 @@ def v2_world_validator_node(state: GameState) -> GameState:
         f"Validating world coherence (attempt {current_attempt}/{state.max_world_retries + 1})..."
     )
 
-    agent = WorldValidatorAgent()
+    agent = AgentFactory.get_agent(WorldValidatorAgent)
     result = agent.run(state)
 
     result.world_retry_count = state.world_retry_count + 1
@@ -63,7 +64,7 @@ def v2_world_validator_node(state: GameState) -> GameState:
 def a3_characters_node(state: GameState) -> GameState:
     """A3: Characters generation node (no relationships)."""
     click.echo("Generating characters...")
-    agent = CharactersAgent()
+    agent = AgentFactory.get_agent(CharactersAgent)
     result = agent.run(state)
     click.echo(f"✓ Generated {len(result.characters)} characters")
     return result
@@ -72,7 +73,7 @@ def a3_characters_node(state: GameState) -> GameState:
 def a4_relationships_node(state: GameState) -> GameState:
     """A4: Relationships generation node."""
     click.echo("Generating relationships between characters...")
-    agent = RelationshipsAgent()
+    agent = AgentFactory.get_agent(RelationshipsAgent)
     result = agent.run(state)
     click.echo(f"✓ Generated {len(result.relationships)} relationships")
     return result
@@ -81,7 +82,7 @@ def a4_relationships_node(state: GameState) -> GameState:
 def a5_crime_node(state: GameState) -> GameState:
     """A5: Crime generation node."""
     click.echo("Generating crime...")
-    agent = CrimeAgent()
+    agent = AgentFactory.get_agent(CrimeAgent)
     result = agent.run(state)
     click.echo("✓ Crime generated")
     return result
@@ -90,7 +91,7 @@ def a5_crime_node(state: GameState) -> GameState:
 def a6_timeline_node(state: GameState) -> GameState:
     """A6: Timeline generation node."""
     click.echo("Generating timeline...")
-    agent = TimelineAgent()
+    agent = AgentFactory.get_agent(TimelineAgent)
     result = agent.run(state)
     click.echo("✓ Timeline generated")
     return result
@@ -99,7 +100,7 @@ def a6_timeline_node(state: GameState) -> GameState:
 def a7_killer_node(state: GameState) -> GameState:
     """A7: Killer selection node."""
     click.echo("Selecting killer and finalizing logic...")
-    agent = KillerSelectionAgent()
+    agent = AgentFactory.get_agent(KillerSelectionAgent)
     result = agent.run(state)
     click.echo("✓ Killer selected")
     return result
@@ -110,7 +111,7 @@ def v1_validator_node(state: GameState) -> GameState:
     current_attempt = state.retry_count + 1
     click.echo(f"Validating game logic (attempt {current_attempt}/{state.max_retries + 1})...")
 
-    agent = ValidationAgent()
+    agent = AgentFactory.get_agent(ValidationAgent)
     result = agent.run(state)
 
     result.retry_count = state.retry_count + 1
@@ -130,7 +131,7 @@ def v1_validator_node(state: GameState) -> GameState:
 def a8_content_node(state: GameState) -> GameState:
     """A8: Content generation node."""
     click.echo("Generating all written content...")
-    agent = ContentGenerationAgent()
+    agent = AgentFactory.get_agent(ContentGenerationAgent)
     result = agent.run(state)
     click.echo(f"✓ Content generated ({len(result.clues)} clues)")
     return result
@@ -139,7 +140,7 @@ def a8_content_node(state: GameState) -> GameState:
 def a9_packaging_node(state: GameState) -> GameState:
     """A9: Packaging node."""
     click.echo("Packaging final deliverables...")
-    agent = PackagingAgent()
+    agent = AgentFactory.get_agent(PackagingAgent)
     result = agent.run(state, output_dir=DEFAULT_OUTPUT_DIR)
     click.echo("✓ Package created")
     return result
