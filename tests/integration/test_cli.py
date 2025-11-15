@@ -1,0 +1,406 @@
+"""Integration tests for the CLI entry point."""
+
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from mystery_agents.models.state import (
+    GameConfig,
+    GameState,
+    MetaInfo,
+    PlayerConfig,
+    ValidationReport,
+)
+from mystery_agents.utils.constants import TEST_MIN_DURATION, TEST_MIN_PLAYERS
+
+
+@pytest.fixture
+def test_output_dir(tmp_path: Path) -> Path:
+    """Create a temporary output directory."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    return output_dir
+
+
+def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
+    """
+    Test that CLI correctly handles LangGraph's dict-based state output.
+
+    This test specifically prevents regression of the bug where CLI tried to
+    access state.validation when state was a dict instead of GameState object.
+
+    The test verifies that the CLI can access nested objects (like validation)
+    correctly when the state is returned as a dict from LangGraph.
+    """
+    from mystery_agents.graph.workflow import create_workflow
+    from mystery_agents.utils.constants import DEFAULT_RECURSION_LIMIT
+
+    # Create initial state
+    initial_state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_MIN_PLAYERS),
+            host_gender="male",
+            country="Spain",
+            duration_minutes=TEST_MIN_DURATION,
+            dry_run=True,
+        ),
+    )
+
+    # Mock all workflow nodes to avoid executing agents - we only need the state structure
+    # This test verifies dict access, not agent execution
+    with (
+        patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
+        patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
+        patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
+        patch("mystery_agents.graph.workflow.a5_crime_node") as mock_a4,
+        patch("mystery_agents.graph.workflow.a6_timeline_node") as mock_a5,
+        patch("mystery_agents.graph.workflow.a7_killer_node") as mock_a6,
+        patch("mystery_agents.graph.workflow.v1_validator_node") as mock_v1,
+        patch("mystery_agents.graph.workflow.a8_content_node") as mock_a7,
+        patch("mystery_agents.graph.workflow.a9_packaging_node") as mock_a8,
+    ):
+        # Pre-populate state with minimal data to avoid agent execution
+        from mystery_agents.models.state import (
+            AudioScript,
+            ClueSpec,
+            CrimeScene,
+            CrimeSpec,
+            FileDescriptor,
+            GlobalTimeline,
+            HostGuide,
+            KillerSelection,
+            MurderMethod,
+            PackagingInfo,
+            ValidationReport,
+            VictimSpec,
+            WorldBible,
+        )
+
+        initial_state.world = WorldBible(
+            epoch="Modern",
+            location_type="Mansion",
+            location_name="Test Manor",
+            summary="Test",
+            visual_keywords=["test"],
+            constraints=[],
+        )
+        initial_state.crime = CrimeSpec(
+            victim=VictimSpec(
+                name="Test Victim",
+                age=50,
+                gender="female",
+                role_in_setting="Owner",
+                public_persona="Test",
+                secrets=[],
+            ),
+            murder_method=MurderMethod(type="poison", description="Test", weapon_used="Test"),
+            crime_scene=CrimeScene(
+                room_id="study", description="Test", scene_description_post_discovery="Test"
+            ),
+            time_of_death_approx="22:00",
+            possible_weapons=[],
+            possible_opportunities=[],
+        )
+        initial_state.characters = []
+        initial_state.timeline_global = GlobalTimeline(
+            time_blocks=[], live_action_murder_event=None
+        )
+        initial_state.killer_selection = KillerSelection(
+            killer_id="test", rationale="Test", modified_events=[], truth_narrative="Test"
+        )
+        initial_state.validation = ValidationReport(
+            is_consistent=True, issues=[], suggested_fixes=[]
+        )
+        initial_state.host_guide = HostGuide(
+            spoiler_free_intro="Test",
+            host_act1_role_description="Test",
+            setup_instructions=[],
+            runtime_tips=[],
+            live_action_murder_event_guide="Test",
+            act_2_intro_script="Test",
+            host_act2_detective_role=None,
+        )
+        initial_state.audio_script = AudioScript(
+            title="Test", approximate_duration_sec=60, intro_narration="Test"
+        )
+        initial_state.clues = [
+            ClueSpec(
+                type="note",
+                title="Test",
+                description="Test",
+                incriminates=[],
+                exonerates=[],
+                is_red_herring=False,
+            )
+        ]
+        initial_state.packaging = PackagingInfo(
+            host_guide_file=FileDescriptor(type="markdown", name="host_guide.md", path="test.md"),
+            index_summary="Test package",
+        )
+
+        # Mock nodes to just pass through state (fast - no agent execution)
+        def pass_through(state: GameState) -> GameState:
+            return state
+
+        mock_a1.side_effect = pass_through
+        mock_a2.side_effect = pass_through
+        mock_a3.side_effect = pass_through
+        mock_a4.side_effect = pass_through
+        mock_a5.side_effect = pass_through
+        mock_a6.side_effect = pass_through
+        mock_v1.side_effect = pass_through
+        mock_a7.side_effect = pass_through
+        mock_a8.side_effect = pass_through
+
+        # Run workflow to get dict state (simulating what CLI does)
+        workflow = create_workflow()
+        config = {"recursion_limit": DEFAULT_RECURSION_LIMIT}
+        all_states = []
+
+        for output in workflow.stream(initial_state, config=config):
+            for node_name, state in output.items():
+                all_states.append((node_name, state))
+
+        # Get final state (this is what CLI receives)
+        final_node_name, final_state = all_states[-1]
+
+        # Verify it's a dict (this is what LangGraph returns)
+        assert isinstance(final_state, dict), "State should be a dict from LangGraph"
+
+        # This is the critical test: accessing validation like CLI does
+        # This pattern was failing before the fix
+        validation = final_state.get("validation")
+        assert validation is not None, "Validation should exist"
+
+        # Access nested object attribute (this was the bug - trying to do
+        # final_state.validation.is_consistent when final_state is a dict)
+        assert hasattr(validation, "is_consistent"), "Should access nested object attribute"
+        assert validation.is_consistent is not None, "Should be able to read is_consistent"
+
+
+def test_cli_handles_validation_failure_correctly() -> None:
+    """
+    Test that CLI correctly handles validation failures when state is a dict.
+
+    This ensures the validation check in CLI works with dict-based state.
+    The test simulates the exact pattern used in CLI to check validation.
+    """
+    from mystery_agents.graph.workflow import create_workflow
+    from mystery_agents.utils.constants import DEFAULT_RECURSION_LIMIT
+
+    # Create initial state
+    initial_state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_MIN_PLAYERS),
+            host_gender="male",
+            country="Spain",
+            duration_minutes=TEST_MIN_DURATION,
+            dry_run=True,
+        ),
+    )
+
+    # Mock workflow nodes to avoid agent execution - we only need validation logic
+    from mystery_agents.models.state import ValidationIssue
+
+    # Pre-populate state with validation failure
+    initial_state.validation = ValidationReport(
+        is_consistent=False,
+        issues=[ValidationIssue(type="timeline_conflict", description="Test issue")],
+        suggested_fixes=["Fix timeline"],
+    )
+
+    with (
+        patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
+        patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
+        patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
+        patch("mystery_agents.graph.workflow.v2_world_validator_node") as mock_v2,
+        patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
+        patch("mystery_agents.graph.workflow.a4_relationships_node") as mock_a4,
+        patch("mystery_agents.graph.workflow.a5_crime_node") as mock_a5,
+        patch("mystery_agents.graph.workflow.a6_timeline_node") as mock_a6,
+        patch("mystery_agents.graph.workflow.a7_killer_node") as mock_a7,
+        patch("mystery_agents.graph.workflow.v1_validator_node") as mock_v1,
+        patch("mystery_agents.graph.workflow.a8_content_node") as mock_a8,
+        patch("mystery_agents.graph.workflow.a9_packaging_node") as mock_a9,
+    ):
+        # Mock nodes to pass through state (fast - no agent execution)
+        def pass_through(state: GameState) -> GameState:
+            return state
+
+        mock_a1.side_effect = pass_through
+        mock_a2.side_effect = pass_through
+        mock_v2.side_effect = pass_through
+        mock_a3.side_effect = pass_through
+        mock_a4.side_effect = pass_through
+        mock_a5.side_effect = pass_through
+        mock_a6.side_effect = pass_through
+        mock_a7.side_effect = pass_through
+
+        # v1_validator_node needs to increment retry_count to prevent infinite loop
+        def mock_validator(state: GameState) -> GameState:
+            state.retry_count += 1
+            # Keep the pre-populated validation (is_consistent=False)
+            return state
+
+        mock_v1.side_effect = mock_validator
+        mock_a8.side_effect = pass_through
+        mock_a9.side_effect = pass_through
+
+        # Run workflow
+        workflow = create_workflow()
+        config = {"recursion_limit": DEFAULT_RECURSION_LIMIT}
+        all_states = []
+
+        for output in workflow.stream(initial_state, config=config):
+            for node_name, state in output.items():
+                all_states.append((node_name, state))
+
+        # Get final state (as dict, like CLI receives it)
+        final_node_name, final_state = all_states[-1]
+        assert isinstance(final_state, dict), "State should be a dict"
+
+        # This is the exact pattern used in CLI (line 93-94)
+        validation = final_state.get("validation")
+
+        # This is the critical check that was failing before
+        # CLI does: if validation and not validation.is_consistent:
+        # This should work even when final_state is a dict
+        assert validation is not None, "Validation should exist"
+        assert not validation.is_consistent, "Validation should be inconsistent"
+
+        # Verify we can access issues (like CLI does on line 97)
+        assert len(validation.issues) > 0, "Should have issues"
+        # ValidationIssue is a Pydantic model, access attributes not dict keys
+        assert validation.issues[0].type == "timeline_conflict"
+
+
+def test_cli_accesses_nested_objects_correctly() -> None:
+    """
+    Test that CLI correctly accesses nested Pydantic objects within dict state.
+
+    This verifies that when state is a dict, nested objects like validation
+    are still accessed correctly using attribute notation.
+    """
+    from mystery_agents.graph.workflow import create_workflow
+    from mystery_agents.utils.constants import DEFAULT_RECURSION_LIMIT
+
+    # Create initial state
+    initial_state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_MIN_PLAYERS),
+            host_gender="male",
+            country="Spain",
+            duration_minutes=TEST_MIN_DURATION,
+            dry_run=True,
+        ),
+    )
+
+    # Pre-populate state with minimal required data
+    from mystery_agents.models.state import (
+        AudioScript,
+        ClueSpec,
+        FileDescriptor,
+        GlobalTimeline,
+        HostGuide,
+        KillerSelection,
+        PackagingInfo,
+    )
+
+    initial_state.timeline_global = GlobalTimeline(time_blocks=[], live_action_murder_event=None)
+    initial_state.killer_selection = KillerSelection(
+        killer_id="test", rationale="Test", modified_events=[], truth_narrative="Test"
+    )
+    initial_state.validation = ValidationReport(is_consistent=True, issues=[], suggested_fixes=[])
+    initial_state.host_guide = HostGuide(
+        spoiler_free_intro="Test",
+        host_act1_role_description="Test",
+        setup_instructions=[],
+        runtime_tips=[],
+        live_action_murder_event_guide="Test",
+        act_2_intro_script="Test",
+        host_act2_detective_role=None,
+    )
+    initial_state.audio_script = AudioScript(
+        title="Test", approximate_duration_sec=60, intro_narration="Test"
+    )
+    initial_state.clues = [
+        ClueSpec(
+            type="note",
+            title="Test",
+            description="Test",
+            incriminates=[],
+            exonerates=[],
+            is_red_herring=False,
+        )
+    ]
+    initial_state.packaging = PackagingInfo(
+        host_guide_file=FileDescriptor(type="markdown", name="host_guide.md", path="test.md"),
+        index_summary="Test",
+    )
+
+    # Mock workflow nodes to avoid agent execution - we only need the state structure
+    with (
+        patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
+        patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
+        patch("mystery_agents.graph.workflow.v2_world_validator_node") as mock_v2,
+        patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
+        patch("mystery_agents.graph.workflow.a4_relationships_node") as mock_a4,
+        patch("mystery_agents.graph.workflow.a5_crime_node") as mock_a5,
+        patch("mystery_agents.graph.workflow.a6_timeline_node") as mock_a6,
+        patch("mystery_agents.graph.workflow.a7_killer_node") as mock_a7,
+        patch("mystery_agents.graph.workflow.v1_validator_node") as mock_v1,
+        patch("mystery_agents.graph.workflow.a8_content_node") as mock_a8,
+        patch("mystery_agents.graph.workflow.a9_packaging_node") as mock_a9,
+    ):
+        # Mock nodes to pass through state (fast - no agent execution)
+        def pass_through(state: GameState) -> GameState:
+            return state
+
+        mock_a1.side_effect = pass_through
+        mock_a2.side_effect = pass_through
+        mock_v2.side_effect = pass_through
+        mock_a3.side_effect = pass_through
+        mock_a4.side_effect = pass_through
+        mock_a5.side_effect = pass_through
+        mock_a6.side_effect = pass_through
+        mock_a7.side_effect = pass_through
+        mock_v1.side_effect = pass_through
+        mock_a8.side_effect = pass_through
+        mock_a9.side_effect = pass_through
+        mock_a8.side_effect = pass_through
+
+        # Run workflow to get dict state
+        workflow = create_workflow()
+        config = {"recursion_limit": DEFAULT_RECURSION_LIMIT}
+        all_states = []
+
+        for output in workflow.stream(initial_state, config=config):
+            for node_name, state in output.items():
+                all_states.append((node_name, state))
+
+    # Get final state
+    final_node_name, final_state = all_states[-1]
+
+    # Verify it's a dict
+    assert isinstance(final_state, dict), "State should be a dict from LangGraph"
+
+    # Verify we can access nested objects correctly (the pattern used in CLI)
+    validation = final_state.get("validation")
+    assert validation is not None, "Validation should exist"
+
+    # This is the critical test: accessing nested object attributes
+    # This is what the CLI does and what was failing before
+    assert validation.is_consistent is not None, "Should access nested object attribute"
+
+    # Verify other nested accesses work
+    packaging = final_state.get("packaging")
+    assert packaging is not None, "Packaging should exist"
+    assert packaging.index_summary is not None, "Should access nested object attribute"
+
+    meta = final_state.get("meta")
+    assert meta is not None, "Meta should exist"
+    assert meta.id is not None, "Should access nested object attribute"
