@@ -47,7 +47,6 @@ class GameConfig(BaseModel):
     host_gender: Literal["male", "female"] = "male"
     duration_minutes: int = Field(90, ge=60, le=180)
     difficulty: DifficultyLevel = "medium"
-    pre_game_delivery: bool = True
     generate_images: bool = False
     dry_run: bool = False
     debug_model: bool = False

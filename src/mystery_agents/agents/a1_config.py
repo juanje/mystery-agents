@@ -81,7 +81,6 @@ class ConfigWizardAgent:
             host_gender=data["host_gender"],
             duration_minutes=data.get("duration_minutes", 90),
             difficulty=data.get("difficulty", "medium"),
-            pre_game_delivery=data.get("pre_game_delivery", True),
             # CLI flags override YAML
             generate_images=state.config.generate_images,
             dry_run=state.config.dry_run,
@@ -287,7 +286,6 @@ class ConfigWizardAgent:
             host_gender=host_gender,
             duration_minutes=duration,
             difficulty=difficulty,
-            pre_game_delivery=True,
             generate_images=state.config.generate_images,
             dry_run=state.config.dry_run,
             debug_model=state.config.debug_model,
