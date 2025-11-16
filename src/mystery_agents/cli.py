@@ -158,7 +158,11 @@ def generate(output_dir: Path, dry_run: bool, debug: bool, no_images: bool) -> N
         click.echo("\nHave fun! 🎭\n")
 
     except KeyboardInterrupt:
-        click.echo("\n\n⚠ Generation cancelled by user", err=True)
+        click.echo("\n\n⚠️  Generation cancelled by user (Ctrl-C)", err=True)
+        sys.exit(130)
+    except click.exceptions.Abort:
+        click.echo("\n\n⚠️  Configuration cancelled by user", err=True)
+        click.echo("   No game was generated.", err=True)
         sys.exit(130)
     except Exception as e:
         click.echo(f"\n\n❌ Error during generation: {e}", err=True)
