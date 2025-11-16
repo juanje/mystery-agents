@@ -51,6 +51,7 @@ class GameConfig(BaseModel):
     generate_images: bool = False
     dry_run: bool = False
     debug_model: bool = False
+    config_file: str | None = None  # Path to YAML config file (skips wizard if provided)
 
 
 # --- Mundo ---

@@ -48,15 +48,62 @@ export GOOGLE_API_KEY='your-api-key-here'
 
 ## Usage
 
+### Interactive Mode (Wizard)
+
 ```bash
-# Generate a mystery party game
+# Generate a mystery party game (interactive wizard)
 uv run mystery-agents
 
 # With options
 uv run mystery-agents --dry-run     # Use mock data (fast testing)
 uv run mystery-agents --debug       # Enable debug logging
 uv run mystery-agents --no-images   # Skip character portrait generation (enabled by default)
+
+# Using configuration file (skips wizard)
+uv run mystery-agents --config config.yaml
+uv run mystery-agents --config config.yaml --dry-run  # Test with config file
 ```
+
+### Configuration File Mode
+
+For repeated testing or automation, you can use a YAML configuration file to skip the interactive wizard:
+
+**1. Create a configuration file:**
+
+```bash
+# Copy the example file
+cp config.example.yaml config.yaml
+
+# Edit it with your preferences
+nano config.yaml  # or your preferred editor
+```
+
+**2. Run with config file:**
+
+```bash
+uv run mystery-agents --config config.yaml
+```
+
+**Configuration file format:**
+
+```yaml
+language: es              # es or en
+country: Spain            # Country for character names
+region: Andalucía         # Optional: specific region
+epoch: modern             # modern, 1920s, victorian, custom
+theme: family_mansion     # family_mansion, corporate_retreat, cruise, train, custom
+players:
+  male: 3                 # Number of male suspects
+  female: 3               # Number of female suspects
+host_gender: male         # male or female
+duration_minutes: 90      # 60-180
+difficulty: medium        # easy, medium, hard
+```
+
+**Notes:**
+- CLI flags (`--dry-run`, `--debug`, `--no-images`) still work with config files
+- Config file skips the interactive wizard entirely
+- See `config.example.yaml` for a complete annotated example
 
 ### Character Image Generation
 

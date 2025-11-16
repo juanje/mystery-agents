@@ -51,6 +51,10 @@ dmypy.json
 output/
 *.zip
 
+# Configuration files (keep example)
+config.yaml
+!config.example.yaml
+
 # OS
 .DS_Store
 Thumbs.db
