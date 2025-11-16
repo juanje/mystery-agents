@@ -69,6 +69,9 @@ class WorldBible(BaseModel):
     summary: str = Field(
         description="A 2-3 sentence summary of the setting, atmosphere, and context for the mystery party."
     )
+    gathering_reason: str = Field(
+        description="The in-game reason why all characters are gathered at this location (e.g., 'Memorial dinner honoring the late Lord Cavendish', 'Reading of the will', '60th birthday celebration', 'Annual family reunion'). This provides narrative context for the event."
+    )
     visual_keywords: list[str] = Field(
         default_factory=list,
         description="List of visual/atmospheric keywords to describe the setting (e.g., ['gothic', 'elegant', 'candlelit', 'opulent']).",

@@ -87,6 +87,7 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
             location_type="Mansion",
             location_name="Test Manor",
             summary="Test",
+            gathering_reason="Test gathering",
             visual_keywords=["test"],
             constraints=[],
         )

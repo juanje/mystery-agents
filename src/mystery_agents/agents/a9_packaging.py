@@ -329,6 +329,7 @@ ZIP file: {zip_path}
 
         hg = state.host_guide
         era, location_detail = self._get_game_context(state)
+        gathering_reason = state.world.gathering_reason if state.world else "A special gathering"
 
         content = f"""# Mystery Party Host Guide
 
@@ -340,6 +341,7 @@ ZIP file: {zip_path}
 - **Language**: {state.config.language}
 - **Era**: {era}
 - **Location**: {location_detail}
+- **Gathering Reason**: {gathering_reason}
 
 ## Introduction (Read to Guests)
 
@@ -527,11 +529,13 @@ Duration: ~{state.audio_script.approximate_duration_sec} seconds
     def _write_invitation(self, state: GameState, character: Any, path: Path) -> None:
         """Write an invitation for a character with full translation."""
         era, location_detail = self._get_game_context(state)
+        gathering_reason = state.world.gathering_reason if state.world else "A special gathering"
 
         content = f"""You are invited to a mystery party!
 
 **Era**: {era}
 **Setting**: {location_detail}
+**Occasion**: {gathering_reason}
 
 You will be playing: {character.name}
 
@@ -606,6 +610,7 @@ See you there!
             personality_traits_section = "- No personality traits defined."
 
         era, location_detail = self._get_game_context(state)
+        gathering_reason = state.world.gathering_reason if state.world else "A special gathering"
 
         # Add character image if available
         image_section = ""
@@ -626,6 +631,7 @@ See you there!
 ## Game Context
 - **Era**: {era}
 - **Location**: {location_detail}
+- **Occasion**: {gathering_reason}
 
 ## Basic Information
 - **Age Range**: {character.age_range}

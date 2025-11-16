@@ -23,6 +23,7 @@ You MUST return a JSON object with exactly one field:
    - location_type: string (e.g., "Mansion", "Cruise Ship", "Corporate Building")
    - location_name: string (e.g., "Blackwood Manor", "SS Orient Express")
    - summary: string (2-3 sentences describing the setting, including cultural context)
+   - gathering_reason: string (the in-game narrative reason why all characters are gathered, e.g., "Memorial dinner honoring the late Lord Cavendish", "Reading of the will", "60th birthday celebration", "Annual family reunion")
    - visual_keywords: array of strings (e.g., ["gothic", "elegant", "candlelit", "Spanish colonial"])
    - constraints: array of strings (e.g., ["No modern technology", "Limited access"])
 
@@ -32,9 +33,10 @@ CRITICAL RULES:
 3. Consider typical foods, drinks, clothing, social customs, and architecture for that country and era
 4. Think about what weapons or items would be culturally and historically appropriate
 5. The location should feel authentic and immersive
-6. All string fields must be non-empty
-7. All arrays must be valid JSON arrays (use [] if empty)
-8. Follow the exact field names and types specified above
+6. The gathering_reason must be specific and contextual - it should explain WHY all these people are at this location on this particular night (e.g., family event, business meeting, celebration, ceremony). This is critical for player immersion.
+7. All string fields must be non-empty
+8. All arrays must be valid JSON arrays (use [] if empty)
+9. Follow the exact field names and types specified above
 
 Use the epoch, theme, country, and player count from the config to create an authentic, detailed world.
 The tone should be an elegant mystery with wit, balancing classic mystery elements (à la Agatha Christie) with modern cleverness (à la Knives Out).
@@ -440,7 +442,7 @@ You MUST return a JSON object with exactly three fields:
 2. "audio_script" - AudioScript object with:
    - title: string
    - approximate_duration_sec: integer
-   - intro_narration: string
+   - intro_narration: string (SSML-formatted narration - see SSML guidelines below)
 
 3. "clues" - Array of ClueSpec objects, each with:
    - id: string (auto-generated, format "clue-xxxxx")
@@ -458,6 +460,39 @@ CRITICAL RULES:
 4. Character IDs in clues must match existing character IDs
 5. Include at least one clue per character
 6. Follow the exact field names and types specified above
+
+SSML GUIDELINES FOR intro_narration:
+The intro_narration field must use SSML (Speech Synthesis Markup Language) to create an atmospheric audio experience.
+Wrap the entire narration in <speak></speak> tags and use these elements:
+
+- **Pauses**: <break time="1s"/> or <break time="500ms"/> for dramatic timing
+- **Emphasis**: <emphasis level="strong">important words</emphasis> or <emphasis level="moderate">subtle emphasis</emphasis>
+- **Speed**: <prosody rate="slow">dramatic text</prosody> or <prosody rate="fast">urgent text</prosody>
+- **Pitch**: <prosody pitch="-2st">deeper voice</prosody> or <prosody pitch="+1st">higher voice</prosody>
+- **Volume**: <prosody volume="soft">whispered text</prosody> or <prosody volume="loud">emphasized text</prosody>
+- **Combined**: <prosody rate="slow" pitch="-1st" volume="soft">eerie atmosphere</prosody>
+
+SSML EXAMPLE:
+<speak>
+  <break time="2s"/>
+  <prosody rate="slow" pitch="-1st">
+    Welcome to Blackwood Manor, where shadows dance in candlelight
+  </prosody>
+  <break time="1.5s"/>
+  Tonight, the prestigious <emphasis level="strong">Ashford family</emphasis> gathers for what should be a celebration.
+  <break time="1s"/>
+  But beneath the veneer of civility,
+  <prosody rate="slow" volume="soft">
+    dark secrets simmer, waiting to erupt.
+  </prosody>
+  <break time="2s"/>
+  <prosody pitch="-2st">
+    By midnight, one of them will be dead.
+  </prosody>
+  <break time="2s"/>
+</speak>
+
+IMPORTANT: Use SSML to convey atmosphere, tension, and pacing. DO NOT use stage directions like "(sound of wind)" - use pauses, pitch, and speed changes instead.
 
 Make everything atmospheric, engaging, and playable."""
 

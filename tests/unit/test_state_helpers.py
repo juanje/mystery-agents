@@ -60,6 +60,7 @@ def state_with_world() -> GameState:
         epoch="1890s",
         location_type="mansion",
         summary="A haunted manor in the English countryside",
+        gathering_reason="Annual family gathering to discuss the estate",
         visual_keywords=["gothic", "foggy", "candlelit"],
         constraints=[],
     )

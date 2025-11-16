@@ -96,12 +96,13 @@ HISTORICAL & CULTURAL REQUIREMENTS (ALL MUST BE SATISFIED):
 10. **NO Regional Mixing**: If a region is specified, do NOT use cultural elements from other regions of {state.config.country}
 
 REQUIREMENTS:
-1. Create a "world" object with epoch, location_type, location_name, summary, visual_keywords, and constraints
+1. Create a "world" object with epoch, location_type, location_name, summary, gathering_reason, visual_keywords, and constraints
 2. The world should be rich in detail and feel authentic to {state.config.country} in the {state.config.epoch} era
-3. Include cultural elements that will inform character creation, costume suggestions, and crime details later
-4. The location should be suitable for a mystery party with {state.config.players.total} suspects
-5. All string fields must have values - do not leave any empty
-6. Visual keywords should reflect the cultural and historical atmosphere
+3. The gathering_reason must explain WHY all these people are at this location tonight (e.g., family event, memorial service, celebration, business meeting, ceremony)
+4. Include cultural elements that will inform character creation, costume suggestions, and crime details later
+5. The location should be suitable for a mystery party with {state.config.players.total} suspects
+6. All string fields must have values - do not leave any empty
+7. Visual keywords should reflect the cultural and historical atmosphere
 
 Return the response in the exact JSON format specified in the system prompt.
 """
@@ -123,6 +124,7 @@ Return the response in the exact JSON format specified in the system prompt.
             location_type="Mansion",
             location_name=MOCK_WORLD_NAME,
             summary="A grand family mansion in the countryside, hosting a reunion.",
+            gathering_reason="Annual family reunion to commemorate the patriarch's legacy",
             visual_keywords=["gothic", "elegant", "mysterious", "candlelit"],
             constraints=["Limited access to certain rooms", "No modern technology in some areas"],
         )
