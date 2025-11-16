@@ -118,7 +118,7 @@ def test_validation_retry_loop() -> None:
     from mystery_agents.graph.workflow import should_retry_validation
     from mystery_agents.models.state import ValidationReport
 
-    # Note: retry_count is incremented in v1_validator_node, not in should_retry_validation
+    # Note: retry_count is incremented in v2_game_logic_validator_node, not in should_retry_validation
     # This test verifies that should_retry_validation correctly routes based on retry_count
 
     # Scenario 1: First attempt fails, can retry (retry_count will be 1 after validator node)

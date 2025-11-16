@@ -1,16 +1,16 @@
-"""V2: World Validator - Validates world consistency and coherence."""
+"""V1: World Validator - Validates world consistency and coherence."""
 
 from pydantic import BaseModel, Field
 
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import LLMCache
-from mystery_agents.utils.prompts import V2_WORLD_VALIDATOR_SYSTEM_PROMPT
+from mystery_agents.utils.prompts import V1_WORLD_VALIDATOR_SYSTEM_PROMPT
 
 from .base import BaseAgent
 
 
-class V2Output(BaseModel):
-    """Output format for V2 World Validator agent."""
+class V1Output(BaseModel):
+    """Output format for V1 World Validator agent."""
 
     is_coherent: bool = Field(
         description="Whether the world is historically, geographically, and culturally coherent"
@@ -27,15 +27,16 @@ class V2Output(BaseModel):
 
 class WorldValidatorAgent(BaseAgent):
     """
-    V2: World Validator Agent.
+    V1: World Validator Agent.
 
     Validates the generated world for historical, geographical, and cultural coherence.
     This is a tier 2 agent (analysis - powerful LLM).
+    Runs FIRST in the validation sequence (after A2: World Generation).
     """
 
     def __init__(self) -> None:
         """Initialize the world validator agent."""
-        super().__init__(llm=LLMCache.get_model("tier2"), response_format=V2Output)
+        super().__init__(llm=LLMCache.get_model("tier2"), response_format=V1Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """
@@ -47,7 +48,7 @@ class WorldValidatorAgent(BaseAgent):
         Returns:
             System prompt string
         """
-        return V2_WORLD_VALIDATOR_SYSTEM_PROMPT
+        return V1_WORLD_VALIDATOR_SYSTEM_PROMPT
 
     def run(self, state: GameState) -> GameState:
         """

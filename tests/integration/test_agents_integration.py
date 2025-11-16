@@ -9,7 +9,7 @@ from mystery_agents.agents.a1_config import ConfigWizardAgent
 from mystery_agents.agents.a2_world import WorldAgent
 from mystery_agents.agents.a5_crime import CrimeAgent
 from mystery_agents.agents.a7_killer_selection import KillerSelectionAgent
-from mystery_agents.agents.v1_validator import ValidationAgent
+from mystery_agents.agents.v2_game_logic_validator import GameLogicValidatorAgent
 from mystery_agents.models.state import (
     CrimeSpec,
     GameConfig,
@@ -148,7 +148,7 @@ def test_killer_selection_dry_run(state_with_crime: GameState) -> None:
 @pytest.mark.slow
 def test_validation_agent_dry_run(state_with_crime: GameState) -> None:
     """Test validation agent in dry run mode."""
-    agent = ValidationAgent()
+    agent = GameLogicValidatorAgent()
     result = agent.run(state_with_crime)
 
     assert result.validation is not None

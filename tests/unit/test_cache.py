@@ -4,7 +4,7 @@ import pytest
 
 from mystery_agents.agents.a2_world import WorldAgent
 from mystery_agents.agents.a3_characters import CharactersAgent
-from mystery_agents.agents.v1_validator import ValidationAgent
+from mystery_agents.agents.v2_game_logic_validator import GameLogicValidatorAgent
 from mystery_agents.utils.cache import (
     AgentFactory,
     LLMCache,
@@ -107,7 +107,7 @@ def test_agent_factory_different_classes(mock_google_api_key: None) -> None:
     """Test that AgentFactory returns different instances for different classes."""
     world_agent = AgentFactory.get_agent(WorldAgent)
     char_agent = AgentFactory.get_agent(CharactersAgent)
-    val_agent = AgentFactory.get_agent(ValidationAgent)
+    val_agent = AgentFactory.get_agent(GameLogicValidatorAgent)
 
     # Each agent class should have a different instance
     assert world_agent is not char_agent
@@ -122,7 +122,7 @@ def test_agent_factory_reuses_llm(mock_google_api_key: None) -> None:
 
     # Get agents that use tier1
     world_agent = AgentFactory.get_agent(WorldAgent)
-    val_agent = AgentFactory.get_agent(ValidationAgent)
+    val_agent = AgentFactory.get_agent(GameLogicValidatorAgent)
 
     # Both agents should use the same LLM instance
     assert world_agent.llm is tier1_llm

@@ -54,14 +54,14 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
     with (
         patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
         patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
-        patch("mystery_agents.graph.workflow.v2_world_validator_node") as mock_v2,
+        patch("mystery_agents.graph.workflow.v1_world_validator_node") as mock_v1_world,
         patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
         patch("mystery_agents.graph.workflow.a3_5_character_images_node") as mock_a3_5,
         patch("mystery_agents.graph.workflow.a4_relationships_node") as mock_a4,
         patch("mystery_agents.graph.workflow.a5_crime_node") as mock_a5,
         patch("mystery_agents.graph.workflow.a6_timeline_node") as mock_a6,
         patch("mystery_agents.graph.workflow.a7_killer_node") as mock_a7,
-        patch("mystery_agents.graph.workflow.v1_validator_node") as mock_v1,
+        patch("mystery_agents.graph.workflow.v2_game_logic_validator_node") as mock_v2_logic,
         patch("mystery_agents.graph.workflow.a8_content_node") as mock_a8,
         patch("mystery_agents.graph.workflow.a9_packaging_node") as mock_a9,
     ):
@@ -150,14 +150,14 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
 
         mock_a1.side_effect = pass_through
         mock_a2.side_effect = pass_through
-        mock_v2.side_effect = pass_through
+        mock_v1_world.side_effect = pass_through
         mock_a3.side_effect = pass_through
         mock_a3_5.side_effect = pass_through
         mock_a4.side_effect = pass_through
         mock_a5.side_effect = pass_through
         mock_a6.side_effect = pass_through
         mock_a7.side_effect = pass_through
-        mock_v1.side_effect = pass_through
+        mock_v2_logic.side_effect = pass_through
         mock_a8.side_effect = pass_through
         mock_a9.side_effect = pass_through
 
@@ -223,14 +223,14 @@ def test_cli_handles_validation_failure_correctly() -> None:
     with (
         patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
         patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
-        patch("mystery_agents.graph.workflow.v2_world_validator_node") as mock_v2,
+        patch("mystery_agents.graph.workflow.v1_world_validator_node") as mock_v1_world,
         patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
         patch("mystery_agents.graph.workflow.a3_5_character_images_node") as mock_a3_5,
         patch("mystery_agents.graph.workflow.a4_relationships_node") as mock_a4,
         patch("mystery_agents.graph.workflow.a5_crime_node") as mock_a5,
         patch("mystery_agents.graph.workflow.a6_timeline_node") as mock_a6,
         patch("mystery_agents.graph.workflow.a7_killer_node") as mock_a7,
-        patch("mystery_agents.graph.workflow.v1_validator_node") as mock_v1,
+        patch("mystery_agents.graph.workflow.v2_game_logic_validator_node") as mock_v2_logic,
         patch("mystery_agents.graph.workflow.a8_content_node") as mock_a8,
         patch("mystery_agents.graph.workflow.a9_packaging_node") as mock_a9,
     ):
@@ -240,7 +240,7 @@ def test_cli_handles_validation_failure_correctly() -> None:
 
         mock_a1.side_effect = pass_through
         mock_a2.side_effect = pass_through
-        mock_v2.side_effect = pass_through
+        mock_v1_world.side_effect = pass_through
         mock_a3.side_effect = pass_through
         mock_a3_5.side_effect = pass_through
         mock_a4.side_effect = pass_through
@@ -248,13 +248,13 @@ def test_cli_handles_validation_failure_correctly() -> None:
         mock_a6.side_effect = pass_through
         mock_a7.side_effect = pass_through
 
-        # v1_validator_node needs to increment retry_count to prevent infinite loop
+        # v2_game_logic_validator_node needs to increment retry_count to prevent infinite loop
         def mock_validator(state: GameState) -> GameState:
             state.retry_count += 1
             # Keep the pre-populated validation (is_consistent=False)
             return state
 
-        mock_v1.side_effect = mock_validator
+        mock_v2_logic.side_effect = mock_validator
         mock_a8.side_effect = pass_through
         mock_a9.side_effect = pass_through
 
@@ -356,14 +356,14 @@ def test_cli_accesses_nested_objects_correctly() -> None:
     with (
         patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
         patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
-        patch("mystery_agents.graph.workflow.v2_world_validator_node") as mock_v2,
+        patch("mystery_agents.graph.workflow.v1_world_validator_node") as mock_v1_world,
         patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
         patch("mystery_agents.graph.workflow.a3_5_character_images_node") as mock_a3_5,
         patch("mystery_agents.graph.workflow.a4_relationships_node") as mock_a4,
         patch("mystery_agents.graph.workflow.a5_crime_node") as mock_a5,
         patch("mystery_agents.graph.workflow.a6_timeline_node") as mock_a6,
         patch("mystery_agents.graph.workflow.a7_killer_node") as mock_a7,
-        patch("mystery_agents.graph.workflow.v1_validator_node") as mock_v1,
+        patch("mystery_agents.graph.workflow.v2_game_logic_validator_node") as mock_v2_logic,
         patch("mystery_agents.graph.workflow.a8_content_node") as mock_a8,
         patch("mystery_agents.graph.workflow.a9_packaging_node") as mock_a9,
     ):
@@ -373,14 +373,14 @@ def test_cli_accesses_nested_objects_correctly() -> None:
 
         mock_a1.side_effect = pass_through
         mock_a2.side_effect = pass_through
-        mock_v2.side_effect = pass_through
+        mock_v1_world.side_effect = pass_through
         mock_a3.side_effect = pass_through
         mock_a3_5.side_effect = pass_through
         mock_a4.side_effect = pass_through
         mock_a5.side_effect = pass_through
         mock_a6.side_effect = pass_through
         mock_a7.side_effect = pass_through
-        mock_v1.side_effect = pass_through
+        mock_v2_logic.side_effect = pass_through
         mock_a8.side_effect = pass_through
         mock_a9.side_effect = pass_through
 

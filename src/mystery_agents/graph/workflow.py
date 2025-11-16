@@ -15,8 +15,8 @@ from mystery_agents.agents.a6_timeline import TimelineAgent
 from mystery_agents.agents.a7_killer_selection import KillerSelectionAgent
 from mystery_agents.agents.a8_content import ContentGenerationAgent
 from mystery_agents.agents.a9_packaging import PackagingAgent
-from mystery_agents.agents.v1_validator import ValidationAgent
-from mystery_agents.agents.v2_world_validator import WorldValidatorAgent
+from mystery_agents.agents.v1_world_validator import WorldValidatorAgent
+from mystery_agents.agents.v2_game_logic_validator import GameLogicValidatorAgent
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import AgentFactory
 from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
@@ -38,8 +38,8 @@ def a2_world_node(state: GameState) -> GameState:
     return cast(GameState, result)
 
 
-def v2_world_validator_node(state: GameState) -> GameState:
-    """V2: World validation node."""
+def v1_world_validator_node(state: GameState) -> GameState:
+    """V1: World validation node."""
     current_attempt = state.world_retry_count + 1
     click.echo(
         f"Validating world coherence (attempt {current_attempt}/{state.max_world_retries + 1})..."
@@ -136,12 +136,12 @@ def a7_killer_node(state: GameState) -> GameState:
     return cast(GameState, result)
 
 
-def v1_validator_node(state: GameState) -> GameState:
-    """V1: Validation node."""
+def v2_game_logic_validator_node(state: GameState) -> GameState:
+    """V2: Game logic validation node (validates entire game logic)."""
     current_attempt = state.retry_count + 1
     click.echo(f"Validating game logic (attempt {current_attempt}/{state.max_retries + 1})...")
 
-    agent = AgentFactory.get_agent(ValidationAgent)
+    agent = AgentFactory.get_agent(GameLogicValidatorAgent)
     result = agent.run(state)
 
     result.retry_count = state.retry_count + 1
@@ -238,25 +238,25 @@ def create_workflow() -> Any:
     # Add all agent nodes
     graph.add_node("a1_config", a1_config_node)
     graph.add_node("a2_world", a2_world_node)
-    graph.add_node("v2_world_validator", v2_world_validator_node)
+    graph.add_node("v1_world_validator", v1_world_validator_node)
     graph.add_node("a3_characters", a3_characters_node)
     graph.add_node("a3_5_character_images", a3_5_character_images_node)
     graph.add_node("a4_relationships", a4_relationships_node)
     graph.add_node("a5_crime", a5_crime_node)
     graph.add_node("a6_timeline", a6_timeline_node)
     graph.add_node("a7_killer", a7_killer_node)
-    graph.add_node("v1_validator", v1_validator_node)
+    graph.add_node("v2_game_logic_validator", v2_game_logic_validator_node)
     graph.add_node("a8_content", a8_content_node)
     graph.add_node("a9_packaging", a9_packaging_node)
 
     # Add linear edges for main flow
     graph.add_edge(START, "a1_config")
     graph.add_edge("a1_config", "a2_world")
-    graph.add_edge("a2_world", "v2_world_validator")
+    graph.add_edge("a2_world", "v1_world_validator")
 
     # World validation loop
     graph.add_conditional_edges(
-        "v2_world_validator",
+        "v1_world_validator",
         should_retry_world_validation,
         {
             "pass": "a3_characters",
@@ -271,11 +271,11 @@ def create_workflow() -> Any:
     graph.add_edge("a4_relationships", "a5_crime")
     graph.add_edge("a5_crime", "a6_timeline")
     graph.add_edge("a6_timeline", "a7_killer")
-    graph.add_edge("a7_killer", "v1_validator")
+    graph.add_edge("a7_killer", "v2_game_logic_validator")
 
     # Full validation loop
     graph.add_conditional_edges(
-        "v1_validator",
+        "v2_game_logic_validator",
         should_retry_validation,
         {
             "pass": "a8_content",

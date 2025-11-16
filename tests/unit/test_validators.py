@@ -8,8 +8,8 @@ from mystery_agents.agents.a4_relationships import RelationshipsAgent
 from mystery_agents.agents.a5_crime import CrimeAgent
 from mystery_agents.agents.a6_timeline import TimelineAgent
 from mystery_agents.agents.a7_killer_selection import KillerSelectionAgent
-from mystery_agents.agents.v1_validator import ValidationAgent
-from mystery_agents.agents.v2_world_validator import WorldValidatorAgent
+from mystery_agents.agents.v1_world_validator import WorldValidatorAgent
+from mystery_agents.agents.v2_game_logic_validator import GameLogicValidatorAgent
 from mystery_agents.models.state import (
     GameConfig,
     GameState,
@@ -120,16 +120,16 @@ def test_world_validator_run_dry_run(state_with_world: GameState) -> None:
 
 
 def test_validation_agent_initialization() -> None:
-    """Test ValidationAgent initializes correctly."""
-    agent = ValidationAgent()
+    """Test GameLogicValidatorAgent initializes correctly."""
+    agent = GameLogicValidatorAgent()
 
     assert agent.llm is not None
     assert agent.response_format is not None
 
 
 def test_validation_agent_get_system_prompt(state_with_full_game: GameState) -> None:
-    """Test ValidationAgent get_system_prompt."""
-    agent = ValidationAgent()
+    """Test GameLogicValidatorAgent get_system_prompt."""
+    agent = GameLogicValidatorAgent()
 
     prompt = agent.get_system_prompt(state_with_full_game)
 
@@ -138,8 +138,8 @@ def test_validation_agent_get_system_prompt(state_with_full_game: GameState) -> 
 
 
 def test_validation_agent_mock_output(state_with_full_game: GameState) -> None:
-    """Test ValidationAgent _mock_output."""
-    agent = ValidationAgent()
+    """Test GameLogicValidatorAgent _mock_output."""
+    agent = GameLogicValidatorAgent()
 
     result = agent._mock_output(state_with_full_game)
 
@@ -150,8 +150,8 @@ def test_validation_agent_mock_output(state_with_full_game: GameState) -> None:
 
 
 def test_validation_agent_run_dry_run(state_with_full_game: GameState) -> None:
-    """Test ValidationAgent run in dry run mode."""
-    agent = ValidationAgent()
+    """Test GameLogicValidatorAgent run in dry run mode."""
+    agent = GameLogicValidatorAgent()
 
     result = agent.run(state_with_full_game)
 
@@ -180,7 +180,7 @@ def test_world_validator_without_world() -> None:
 
 
 def test_validation_agent_without_full_state() -> None:
-    """Test ValidationAgent with incomplete state."""
+    """Test GameLogicValidatorAgent with incomplete state."""
     state = GameState(
         meta=MetaInfo(),
         config=GameConfig(
@@ -191,7 +191,7 @@ def test_validation_agent_without_full_state() -> None:
         ),
     )
 
-    agent = ValidationAgent()
+    agent = GameLogicValidatorAgent()
     result = agent._mock_output(state)
 
     # Should still return valid validation in mock mode

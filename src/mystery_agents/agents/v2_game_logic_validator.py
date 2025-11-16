@@ -1,8 +1,8 @@
-"""V1: Validation Agent - Validates game logic consistency."""
+"""V2: Game Logic Validator - Validates complete game logic consistency."""
 
 from mystery_agents.models.state import GameState, ValidationReport
 from mystery_agents.utils.cache import LLMCache
-from mystery_agents.utils.prompts import V1_SYSTEM_PROMPT
+from mystery_agents.utils.prompts import V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     safe_get_crime_method_description,
     safe_get_crime_scene_room_id,
@@ -15,22 +15,23 @@ from mystery_agents.utils.state_helpers import (
 from .base import BaseAgent
 
 
-class ValidationAgent(BaseAgent):
+class GameLogicValidatorAgent(BaseAgent):
     """
-    V1: Validation Agent.
+    V2: Game Logic Validator Agent.
 
     Validates the entire game state for logical consistency.
     This is a tier 1 agent (logic - most powerful LLM).
     CRITICAL: This agent controls the retry loop.
+    Runs SECOND in the validation sequence (after A7: Killer Selection).
     """
 
     def __init__(self) -> None:
-        """Initialize the validation agent."""
+        """Initialize the game logic validator agent."""
         super().__init__(llm=LLMCache.get_model("tier1"), response_format=ValidationReport)
 
     def get_system_prompt(self, state: GameState) -> str:
         """
-        Get the system prompt for validation.
+        Get the system prompt for game logic validation.
 
         Args:
             state: Current game state
@@ -38,7 +39,7 @@ class ValidationAgent(BaseAgent):
         Returns:
             System prompt string
         """
-        return V1_SYSTEM_PROMPT
+        return V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 
     def run(self, state: GameState) -> GameState:
         """

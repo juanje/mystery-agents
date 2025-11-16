@@ -68,7 +68,7 @@ def test_validation_routing_logic() -> None:
     """Test the validation routing function logic."""
     from mystery_agents.graph.workflow import should_retry_validation
 
-    # Note: retry_count is incremented in v1_validator_node, not in should_retry_validation
+    # Note: retry_count is incremented in v2_game_logic_validator_node, not in should_retry_validation
     # This test verifies that should_retry_validation correctly routes based on retry_count
 
     # Case 1: Validation passes
@@ -92,7 +92,7 @@ def test_validation_routing_logic() -> None:
 
     result = should_retry_validation(state)
     assert result == "retry"
-    # Note: retry_count is NOT incremented here - it's incremented in v1_validator_node
+    # Note: retry_count is NOT incremented here - it's incremented in v2_game_logic_validator_node
     assert state.retry_count == 0
 
     # Case 3: Max retries exceeded

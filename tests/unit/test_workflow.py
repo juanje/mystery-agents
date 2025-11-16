@@ -146,7 +146,10 @@ def test_node_functions_dry_run(basic_state: GameState) -> None:
 def test_validation_node_with_click_output(basic_state: GameState) -> None:
     """Test validation node outputs correct click messages."""
     from mystery_agents.agents.a2_world import WorldAgent
-    from mystery_agents.graph.workflow import v1_validator_node, v2_world_validator_node
+    from mystery_agents.graph.workflow import (
+        v1_world_validator_node,
+        v2_game_logic_validator_node,
+    )
 
     # Prepare state with world for world validation
     world_agent = WorldAgent()
@@ -156,7 +159,7 @@ def test_validation_node_with_click_output(basic_state: GameState) -> None:
     with patch("mystery_agents.graph.workflow.click.echo") as mock_echo:
         # Reset retry count before test
         state_with_world.world_retry_count = 0
-        result = v2_world_validator_node(state_with_world)
+        result = v1_world_validator_node(state_with_world)
 
         # Should have printed validation message
         assert mock_echo.call_count >= 1
@@ -187,7 +190,7 @@ def test_validation_node_with_click_output(basic_state: GameState) -> None:
     state_with_killer = killer_agent.run(state_with_timeline)
 
     with patch("mystery_agents.graph.workflow.click.echo") as mock_echo:
-        result = v1_validator_node(state_with_killer)
+        result = v2_game_logic_validator_node(state_with_killer)
 
         # Should have printed validation message
         assert mock_echo.call_count >= 1

@@ -155,7 +155,7 @@ uv run pytest
 mystery-agents/
 ├── src/mystery_agents/
 │   ├── models/         # Pydantic state models
-│   ├── agents/         # Agent implementations (A1-A9, V1, V2)
+│   ├── agents/         # Agent implementations (A1-A9, V1-World, V2-Logic)
 │   ├── graph/          # LangGraph workflow
 │   ├── utils/          # Prompt templates and helpers
 │   ├── config.py       # LLM configuration
@@ -176,18 +176,18 @@ The system uses a LangGraph workflow with conditional validation loops:
 graph TD
     START --> A1[A1: Config Wizard]
     A1 --> A2[A2: World Generation]
-    A2 --> V2[V2: World Validator]
-    V2 -->|pass| A3[A3: Characters]
-    V2 -->|retry| A2
-    V2 -->|fail| END
+    A2 --> V1[V1: World Validator]
+    V1 -->|pass| A3[A3: Characters]
+    V1 -->|retry| A2
+    V1 -->|fail| END
     A3 --> A4[A4: Relationships]
     A4 --> A5[A5: Crime]
     A5 --> A6[A6: Timeline]
     A6 --> A7[A7: Killer Selection]
-    A7 --> V1[V1: Validator]
-    V1 -->|pass| A8[A8: Content Generation]
-    V1 -->|retry| A6
-    V1 -->|fail| END
+    A7 --> V2[V2: Game Logic Validator]
+    V2 -->|pass| A8[A8: Content Generation]
+    V2 -->|retry| A6
+    V2 -->|fail| END
     A8 --> A9[A9: Packaging]
     A9 --> END
 ```
@@ -196,20 +196,20 @@ graph TD
 
 1. **A1: Config Wizard** - Collects user preferences (theme, era, country, region, tone, players, language, etc.)
 2. **A2: World Generation** - Creates setting, location, and atmosphere (culturally adapted)
-3. **V2: World Validator** - Validates world coherence (historical, geographical, cultural)
+3. **V1: World Validator** - Validates world coherence (historical, geographical, cultural)
 4. **A3: Characters** - Generates suspect characters with personality traits, secrets, goals, and Act 1 objectives
 5. **A4: Relationships** - Defines relationships between characters (coordinated with Act 1 objectives)
 6. **A5: Crime** - Creates crime specification (victim, method, scene)
 7. **A6: Timeline** - Generates global timeline with multiple suspect opportunities
 8. **A7: Killer Selection** - Chooses culprit and finalizes solution
-9. **V1: Validator** - Validates game logic consistency (timeline, clues, motives, false alibis)
+9. **V2: Game Logic Validator** - Validates complete game logic consistency (timeline, clues, motives, false alibis)
 10. **A8: Content Generation** - Creates all game materials (clues, host guide, detective role)
 11. **A9: Packaging** - Translates content, generates PDFs, assembles final ZIP package
 
 ### Validation Loops
 
-- **World Validation (V2)**: Retries up to 2 times if world coherence fails
-- **Game Validation (V1)**: Retries up to 3 times if game logic is inconsistent (returns to A6: Timeline)
+- **World Validation (V1)**: Retries up to 2 times if world coherence fails (returns to A2: World)
+- **Game Logic Validation (V2)**: Retries up to 3 times if game logic is inconsistent (returns to A6: Timeline)
 
 ## 🤖 AI Tools Disclaimer
 
