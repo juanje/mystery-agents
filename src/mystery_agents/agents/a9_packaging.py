@@ -1,7 +1,11 @@
 """A9: Packaging Agent - Organizes final deliverables."""
 
 import os
+import sys
+import time
 import zipfile
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +34,26 @@ from mystery_agents.utils.state_helpers import safe_get_world_location_name
 from mystery_agents.utils.translation import translate_file_content
 
 from .base import BaseAgent
+
+
+def _generate_pdf_worker(args: tuple[Path, Path]) -> tuple[bool, str]:
+    """
+    Worker function for parallel PDF generation.
+
+    This function must be at module level for ProcessPoolExecutor pickling.
+
+    Args:
+        args: Tuple of (markdown_path, pdf_path)
+
+    Returns:
+        Tuple of (success, error_message)
+    """
+    md_path, pdf_path = args
+    try:
+        markdown_to_pdf(md_path, pdf_path)
+        return True, ""
+    except Exception as e:
+        return False, str(e)
 
 
 class PackagingAgent(BaseAgent):
@@ -72,6 +96,74 @@ class PackagingAgent(BaseAgent):
         """
         return A9_SYSTEM_PROMPT
 
+    def _generate_all_pdfs(
+        self,
+        pdf_tasks: list[tuple[Path, Path]],
+        max_workers: int = 12,
+    ) -> None:
+        """
+        Generate all PDFs in parallel using process pool.
+
+        Args:
+            pdf_tasks: List of (markdown_path, pdf_path) tuples
+            max_workers: Maximum parallel workers (optimized for 16 CPUs)
+        """
+        if not pdf_tasks:
+            return
+
+        start_time = time.perf_counter()
+
+        print(f"  Generating {len(pdf_tasks)} PDFs in parallel (max {max_workers} workers)...")
+        sys.stdout.flush()
+
+        # Use ProcessPoolExecutor directly without asyncio
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks and get futures
+            futures = [executor.submit(_generate_pdf_worker, task) for task in pdf_tasks]
+
+            print(f"      Submitted {len(futures)} tasks, waiting for completion...")
+            sys.stdout.flush()
+
+            # Wait for all to complete and collect results
+            errors = []
+            completed = 0
+            for i, future in enumerate(futures):
+                try:
+                    # Use timeout to avoid hanging indefinitely
+                    success, error_msg = future.result(timeout=30)
+                    completed += 1
+
+                    # Show progress every 4 PDFs
+                    if completed % 4 == 0 or completed == len(futures):
+                        print(f"      Progress: {completed}/{len(futures)} PDFs")
+                        sys.stdout.flush()
+
+                    if not success:
+                        errors.append(error_msg)
+
+                except FutureTimeoutError:
+                    error_msg = f"Timeout after 30s: {pdf_tasks[i][0].name}"
+                    print(f"      ✗ {error_msg}")
+                    sys.stdout.flush()
+                    errors.append(error_msg)
+
+                except Exception as e:
+                    error_msg = f"{type(e).__name__}: {e}"
+                    print(f"      ✗ {error_msg}")
+                    sys.stdout.flush()
+                    errors.append(error_msg)
+
+            if errors:
+                print(f"      ⚠ {len(errors)} PDFs failed to generate:")
+                for err in errors[:3]:  # Show first 3 errors
+                    print(f"        - {err}")
+                sys.stdout.flush()
+
+        elapsed = time.perf_counter() - start_time
+        success_count = len(pdf_tasks) - len(errors)
+        print(f"  ✓ Generated {success_count}/{len(pdf_tasks)} PDFs in {elapsed:.2f}s")
+        sys.stdout.flush()
+
     def run(self, state: GameState, output_dir: str = DEFAULT_OUTPUT_DIR) -> GameState:
         """
         Package all generated materials into organized files.
@@ -92,16 +184,26 @@ class PackagingAgent(BaseAgent):
         game_dir = Path(output_dir) / f"{GAME_DIR_PREFIX}{game_id}"
         game_dir.mkdir(parents=True, exist_ok=True)
 
+        print("  Writing markdown files...")
+        sys.stdout.flush()
+
         packaging = PackagingInfo(
             host_package=[],
             individual_player_packages=[],
         )
 
-        # Create host directory
+        # Create all directories first
         host_dir = game_dir / HOST_DIR
         host_dir.mkdir(exist_ok=True)
+        players_dir = game_dir / PLAYERS_DIR
+        players_dir.mkdir(exist_ok=True)
+        clues_dir = game_dir / CLUES_DIR
+        clues_dir.mkdir(exist_ok=True)
 
-        # Save host guide (Markdown and PDF)
+        # Collect all PDF generation tasks
+        pdf_tasks: list[tuple[Path, Path]] = []
+
+        # 1. Host guide (markdown + PDF task)
         if state.host_guide:
             host_guide_md_path = host_dir / HOST_GUIDE_FILENAME
             self._write_host_guide(state, host_guide_md_path)
@@ -110,15 +212,14 @@ class PackagingAgent(BaseAgent):
             )
             packaging.host_package.append(packaging.host_guide_file)
 
-            # Generate PDF version from markdown
-            host_guide_pdf_path = host_dir / "host_guide.pdf"
             if not state.config.dry_run:
-                markdown_to_pdf(host_guide_md_path, host_guide_pdf_path)
+                host_guide_pdf_path = host_dir / "host_guide.pdf"
+                pdf_tasks.append((host_guide_md_path, host_guide_pdf_path))
                 packaging.host_package.append(
                     FileDescriptor(type="pdf", name="host_guide.pdf", path=str(host_guide_pdf_path))
                 )
 
-        # Save audio script
+        # 2. Audio script (markdown only)
         if state.audio_script:
             audio_script_path = host_dir / AUDIO_SCRIPT_FILENAME
             self._write_audio_script(state, audio_script_path)
@@ -127,7 +228,7 @@ class PackagingAgent(BaseAgent):
             )
             packaging.host_package.append(packaging.audio_script_file)
 
-        # Save solution
+        # 3. Solution (markdown only)
         solution_path = host_dir / SOLUTION_FILENAME
         self._write_solution(state, solution_path)
         solution_file = FileDescriptor(
@@ -135,34 +236,29 @@ class PackagingAgent(BaseAgent):
         )
         packaging.host_package.append(solution_file)
 
-        # Create players directory
-        players_dir = game_dir / PLAYERS_DIR
-        players_dir.mkdir(exist_ok=True)
-
-        # Save individual player packages
+        # 4. Player packages (markdown + PDF tasks)
         for idx, character in enumerate(state.characters, 1):
             player_dir = (
                 players_dir / f"{PLAYER_DIR_PREFIX}{idx}_{character.name.replace(' ', '_')}"
             )
             player_dir.mkdir(exist_ok=True)
 
-            # Invitation (includes costume suggestion) - Markdown and PDF
+            # Invitation
             invitation_txt_path = player_dir / INVITATION_FILENAME
             self._write_invitation(state, character, invitation_txt_path)
 
-            invitation_pdf_path = player_dir / "invitation.pdf"
             if not state.config.dry_run:
-                markdown_to_pdf(invitation_txt_path, invitation_pdf_path)
+                invitation_pdf_path = player_dir / "invitation.pdf"
+                pdf_tasks.append((invitation_txt_path, invitation_pdf_path))
 
-            # Character sheet (clean version for players, without meta instructions) - Markdown and PDF
+            # Character sheet
             char_sheet_md_path = player_dir / CHARACTER_SHEET_FILENAME
             self._write_character_sheet(state, character, char_sheet_md_path)
 
-            char_sheet_pdf_path = player_dir / "character_sheet.pdf"
             if not state.config.dry_run:
-                markdown_to_pdf(char_sheet_md_path, char_sheet_pdf_path)
+                char_sheet_pdf_path = player_dir / "character_sheet.pdf"
+                pdf_tasks.append((char_sheet_md_path, char_sheet_pdf_path))
 
-            # Create file descriptor for this player package
             player_package = FileDescriptor(
                 type="pdf",
                 name=f"player_{idx}_{character.name}",
@@ -170,35 +266,40 @@ class PackagingAgent(BaseAgent):
             )
             packaging.individual_player_packages.append(player_package)
 
-        # Create clues directory (clean versions for players)
-        clues_dir = game_dir / CLUES_DIR
-        clues_dir.mkdir(exist_ok=True)
-
-        # Save clean clues (for players - without metadata) - Markdown and PDF
+        # 5. Clues (markdown + PDF tasks)
         for idx, clue in enumerate(state.clues, 1):
-            # Markdown version
             clue_md_path = clues_dir / f"{CLUE_FILE_PREFIX}{idx}_{clue.id}.md"
             self._write_clue_clean(state, clue, clue_md_path)
 
-            # PDF version from markdown
-            clue_pdf_path = clues_dir / f"{CLUE_FILE_PREFIX}{idx}_{clue.id}.pdf"
             if not state.config.dry_run:
-                markdown_to_pdf(clue_md_path, clue_pdf_path)
+                clue_pdf_path = clues_dir / f"{CLUE_FILE_PREFIX}{idx}_{clue.id}.pdf"
+                pdf_tasks.append((clue_md_path, clue_pdf_path))
 
-        # Save clue reference with full metadata for host
+        # 6. Clue reference for host
         clue_ref_path = host_dir / "clue_reference.md"
         self._write_clue_reference(state, clue_ref_path)
         packaging.host_package.append(
             FileDescriptor(type="markdown", name="clue_reference.md", path=str(clue_ref_path))
         )
 
-        # Create README
+        print(f"  ✓ Wrote {len(state.characters) + len(state.clues) + 4} markdown files")
+        sys.stdout.flush()
+
+        # 7. Generate ALL PDFs in parallel
+        if pdf_tasks:
+            self._generate_all_pdfs(pdf_tasks, max_workers=12)
+
+        # 8. Create README
         readme_path = game_dir / README_FILENAME
         self._write_readme(state, readme_path, game_id)
 
-        # Create ZIP archive
+        # 9. Create ZIP archive (requires all PDFs to be ready)
+        print("  Creating ZIP archive...")
+        sys.stdout.flush()
         zip_path = Path(output_dir) / f"{ZIP_FILE_PREFIX}{game_id}.zip"
         self._create_zip(game_dir, zip_path)
+        print(f"  ✓ ZIP created: {zip_path.name}")
+        sys.stdout.flush()
 
         # Create index summary
         packaging.index_summary = f"""Mystery Party Game Package

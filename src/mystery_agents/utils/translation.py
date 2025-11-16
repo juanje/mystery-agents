@@ -1,5 +1,6 @@
 """Translation utilities for game content."""
 
+import asyncio
 import json
 import time
 
@@ -44,7 +45,7 @@ def translate_content(state: GameState) -> GameState:
     llm = LLMCache.get_model("tier3")
     target_lang = "Spanish" if state.config.language == "es" else "English"
 
-    print(f"[INFO] Translating content to {target_lang} (batch mode)...")
+    print(f"  Translating content to {target_lang} (batch mode)...")
 
     # Collect all texts to translate in batches
     texts_to_translate: dict[str, str] = {}
@@ -121,21 +122,11 @@ def translate_content(state: GameState) -> GameState:
                     char.act1_objectives
                 )
 
-    # Translate in batches (max 20 texts per batch to avoid token limits)
-    batch_size = 20
-    all_translations: dict[str, str] = {}
-
+    # Translate in parallel with rate limiting
     text_items = list(texts_to_translate.items())
-    total_batches = (len(text_items) + batch_size - 1) // batch_size
-
-    for batch_num in range(total_batches):
-        start_idx = batch_num * batch_size
-        end_idx = min(start_idx + batch_size, len(text_items))
-        batch = dict(text_items[start_idx:end_idx])
-
-        print(f"[INFO] Translating batch {batch_num + 1}/{total_batches} ({len(batch)} texts)...")
-        batch_translations = _translate_batch(batch, llm, target_lang)
-        all_translations.update(batch_translations)
+    all_translations = asyncio.run(
+        _translate_all_batches_async(text_items, llm, target_lang, batch_size=20, max_concurrent=3)
+    )
 
     # Apply translations back to state
     if state.host_guide:
@@ -227,7 +218,7 @@ def translate_content(state: GameState) -> GameState:
                     "\n"
                 )
 
-    print("[INFO] ✓ Translation complete")
+    print("  ✓ Translation complete")
     return state
 
 
@@ -362,6 +353,112 @@ Return a JSON object with the same keys and translated values."""
 
     # Fallback: return original texts if all retries failed
     return texts
+
+
+async def _translate_batch_async(
+    texts: dict[str, str],
+    llm: BaseChatModel,
+    target_lang: str,
+    max_retries: int = 3,
+) -> dict[str, str]:
+    """
+    Async wrapper for _translate_batch.
+
+    Args:
+        texts: Dictionary mapping field keys to English text
+        llm: Language model to use
+        target_lang: Target language name
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        Dictionary mapping field keys to translated text
+    """
+    # Use run_in_executor to make sync function async
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        _translate_batch,  # Existing sync function
+        texts,
+        llm,
+        target_lang,
+        max_retries,
+    )
+
+
+async def _translate_all_batches_async(
+    text_items: list[tuple[str, str]],
+    llm: BaseChatModel,
+    target_lang: str,
+    batch_size: int = 20,
+    max_concurrent: int = 3,
+) -> dict[str, str]:
+    """
+    Translate all batches in parallel with rate limiting.
+
+    Args:
+        text_items: List of (key, text) tuples to translate
+        llm: Language model to use
+        target_lang: Target language name
+        batch_size: Maximum texts per batch
+        max_concurrent: Maximum concurrent API calls (for rate limiting)
+
+    Returns:
+        Dictionary mapping keys to translated text
+    """
+    # Semaphore to respect API rate limits
+    sem = asyncio.Semaphore(max_concurrent)
+
+    async def _translate_with_limit(
+        batch: dict[str, str], batch_num: int
+    ) -> tuple[int, dict[str, str]]:
+        """Translate a batch with rate limiting."""
+        async with sem:
+            try:
+                result = await _translate_batch_async(batch, llm, target_lang)
+                return batch_num, result
+            except Exception as e:
+                print(f"[ERROR] Batch {batch_num + 1} failed: {e}")
+                # Return original text for failed batch
+                return batch_num, batch
+
+    # Create batches
+    batches = []
+    total_batches = (len(text_items) + batch_size - 1) // batch_size
+    for batch_num in range(total_batches):
+        start_idx = batch_num * batch_size
+        end_idx = min(start_idx + batch_size, len(text_items))
+        batch = dict(text_items[start_idx:end_idx])
+        batches.append(batch)
+
+    print(
+        f"      Translating {total_batches} batches in parallel "
+        f"(max {max_concurrent} concurrent)..."
+    )
+
+    start_time = time.perf_counter()
+
+    # Translate all batches in parallel
+    results = await asyncio.gather(
+        *[_translate_with_limit(batch, i) for i, batch in enumerate(batches)],
+        return_exceptions=True,
+    )
+
+    # Combine results and handle exceptions
+    all_translations = {}
+    errors = 0
+    for result in results:
+        if isinstance(result, Exception):
+            print(f"[ERROR] Translation task failed: {result}")
+            errors += 1
+        elif isinstance(result, tuple):
+            batch_num, translations = result
+            all_translations.update(translations)
+
+    elapsed = time.perf_counter() - start_time
+    success_batches = total_batches - errors
+    print(f"      Translated {success_batches}/{total_batches} batches in {elapsed:.2f}s")
+
+    return all_translations
 
 
 def translate_file_content(content: str, target_language: str, max_retries: int = 3) -> str:

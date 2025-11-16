@@ -24,6 +24,7 @@ def test_output_dir(tmp_path: Path) -> Path:
     return output_dir
 
 
+@pytest.mark.slow
 def test_workflow_dry_run(test_output_dir: Path) -> None:
     """Test the complete workflow in dry run mode (fast, no LLMs)."""
     # Mock all CLI prompts to run non-interactively (dry_run is now passed from CLI, not asked interactively)

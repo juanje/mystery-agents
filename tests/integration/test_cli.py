@@ -23,6 +23,7 @@ def test_output_dir(tmp_path: Path) -> Path:
     return output_dir
 
 
+@pytest.mark.slow
 def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
     """
     Test that CLI correctly handles LangGraph's dict-based state output.
@@ -53,6 +54,7 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
     with (
         patch("mystery_agents.graph.workflow.a1_config_node") as mock_a1,
         patch("mystery_agents.graph.workflow.a2_world_node") as mock_a2,
+        patch("mystery_agents.graph.workflow.v2_world_validator_node") as mock_v2,
         patch("mystery_agents.graph.workflow.a3_characters_node") as mock_a3,
         patch("mystery_agents.graph.workflow.a3_5_character_images_node") as mock_a3_5,
         patch("mystery_agents.graph.workflow.a4_relationships_node") as mock_a4,
@@ -148,6 +150,7 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
 
         mock_a1.side_effect = pass_through
         mock_a2.side_effect = pass_through
+        mock_v2.side_effect = pass_through
         mock_a3.side_effect = pass_through
         mock_a3_5.side_effect = pass_through
         mock_a4.side_effect = pass_through
@@ -184,6 +187,7 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
         assert validation.is_consistent is not None, "Should be able to read is_consistent"
 
 
+@pytest.mark.slow
 def test_cli_handles_validation_failure_correctly() -> None:
     """
     Test that CLI correctly handles validation failures when state is a dict.
@@ -282,6 +286,7 @@ def test_cli_handles_validation_failure_correctly() -> None:
         assert validation.issues[0].type == "timeline_conflict"
 
 
+@pytest.mark.slow
 def test_cli_accesses_nested_objects_correctly() -> None:
     """
     Test that CLI correctly accesses nested Pydantic objects within dict state.
