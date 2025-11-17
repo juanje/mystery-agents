@@ -6,6 +6,16 @@ from typing import Literal
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from mystery_agents.utils.constants import (
+    DRY_RUN_DUMMY_API_KEY,
+    LLM_MODEL_TIER1,
+    LLM_MODEL_TIER2,
+    LLM_MODEL_TIER3,
+    LLM_TEMPERATURE_TIER1,
+    LLM_TEMPERATURE_TIER2,
+    LLM_TEMPERATURE_TIER3,
+)
+
 
 class LLMConfig:
     """
@@ -30,38 +40,37 @@ class LLMConfig:
 
         Args:
             tier: Model tier selection
-                - tier1: Logic/creativity (gemini-2.5-pro)
-                - tier2: Content generation (gemini-2.5-pro)
-                - tier3: Validation/simple tasks (gemini-2.5-flash)
+                - tier1: Logic/creativity
+                - tier2: Content generation
+                - tier3: Validation/simple tasks
 
         Returns:
             Configured chat model instance
 
         Note:
-            Tier 1 and Tier 2 now use gemini-2.5-pro for better performance.
-            Tier 3 uses gemini-2.5-flash for faster validation tasks.
+            Model names and temperatures are configured in constants.py
         """
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             # In dry_run mode, agents use mocks, so API key not needed
             # Use a dummy key that will fail gracefully if actually used
-            api_key = "dry-run-dummy-key"
+            api_key = DRY_RUN_DUMMY_API_KEY
 
         models: dict[str, BaseChatModel] = {
             "tier1": ChatGoogleGenerativeAI(
-                model="gemini-2.5-pro",
+                model=LLM_MODEL_TIER1,
                 google_api_key=api_key,
-                temperature=0.6,
+                temperature=LLM_TEMPERATURE_TIER1,
             ),
             "tier2": ChatGoogleGenerativeAI(
-                model="gemini-2.5-pro",
+                model=LLM_MODEL_TIER2,
                 google_api_key=api_key,
-                temperature=0.7,
+                temperature=LLM_TEMPERATURE_TIER2,
             ),
             "tier3": ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
+                model=LLM_MODEL_TIER3,
                 google_api_key=api_key,
-                temperature=0.3,
+                temperature=LLM_TEMPERATURE_TIER3,
             ),
         }
         return models[tier]

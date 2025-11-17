@@ -18,8 +18,13 @@ from mystery_agents.utils.constants import (
     GAME_ID_LENGTH,
     HOST_DIR,
     HOST_GUIDE_FILENAME,
+    JPG_EXT,
+    MARKDOWN_EXT,
+    PDF_EXT,
     PLAYERS_DIR,
+    PNG_EXT,
     SOLUTION_FILENAME,
+    TEXT_EXT,
     ZIP_FILE_PREFIX,
 )
 from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
@@ -209,28 +214,30 @@ class PackagingAgent(BaseAgent):
             packaging.host_package.append(packaging.host_guide_file)
 
             if not state.config.dry_run:
-                host_guide_pdf_path = host_dir / "host_guide.pdf"
+                host_guide_pdf_path = host_dir / f"host_guide{PDF_EXT}"
                 pdf_tasks.append((host_guide_md_path, host_guide_pdf_path))
                 packaging.host_package.append(
-                    FileDescriptor(type="pdf", name="host_guide.pdf", path=str(host_guide_pdf_path))
+                    FileDescriptor(
+                        type="pdf", name=f"host_guide{PDF_EXT}", path=str(host_guide_pdf_path)
+                    )
                 )
 
         # 2. Victim character sheet - goes to /characters/ (markdown + PDF task)
         if state.crime and state.crime.victim:
-            victim_sheet_md_path = players_dir / "victim_character_sheet.md"
+            victim_sheet_md_path = players_dir / f"victim_character_sheet{MARKDOWN_EXT}"
             self._write_victim_sheet(state, victim_sheet_md_path)
 
             if not state.config.dry_run:
-                victim_sheet_pdf_path = players_dir / "victim_character_sheet.pdf"
+                victim_sheet_pdf_path = players_dir / f"victim_character_sheet{PDF_EXT}"
                 pdf_tasks.append((victim_sheet_md_path, victim_sheet_pdf_path))
 
         # 2.6. Detective character sheet - goes to /characters/ (markdown + PDF task)
         if state.host_guide and state.host_guide.host_act2_detective_role:
-            detective_sheet_md_path = players_dir / "detective_character_sheet.md"
+            detective_sheet_md_path = players_dir / f"detective_character_sheet{MARKDOWN_EXT}"
             self._write_detective_sheet(state, detective_sheet_md_path)
 
             if not state.config.dry_run:
-                detective_sheet_pdf_path = players_dir / "detective_character_sheet.pdf"
+                detective_sheet_pdf_path = players_dir / f"detective_character_sheet{PDF_EXT}"
                 pdf_tasks.append((detective_sheet_md_path, detective_sheet_pdf_path))
 
         # 3. Solution (markdown + PDF task)
@@ -242,10 +249,10 @@ class PackagingAgent(BaseAgent):
         packaging.host_package.append(solution_file)
 
         if not state.config.dry_run:
-            solution_pdf_path = host_dir / "solution.pdf"
+            solution_pdf_path = host_dir / f"solution{PDF_EXT}"
             pdf_tasks.append((solution_path, solution_pdf_path))
             packaging.host_package.append(
-                FileDescriptor(type="pdf", name="solution.pdf", path=str(solution_pdf_path))
+                FileDescriptor(type="pdf", name=f"solution{PDF_EXT}", path=str(solution_pdf_path))
             )
 
         # 4. Player packages - flat structure (all files in /characters/)
@@ -253,19 +260,19 @@ class PackagingAgent(BaseAgent):
             char_name_clean = character.name.replace(" ", "_")
 
             # Invitation (markdown for PDF generation, will be removed later)
-            invitation_md_path = players_dir / f"{char_name_clean}_invitation.md"
+            invitation_md_path = players_dir / f"{char_name_clean}_invitation{MARKDOWN_EXT}"
             self._write_invitation(state, character, invitation_md_path)
 
             if not state.config.dry_run:
-                invitation_pdf_path = players_dir / f"{char_name_clean}_invitation.pdf"
+                invitation_pdf_path = players_dir / f"{char_name_clean}_invitation{PDF_EXT}"
                 pdf_tasks.append((invitation_md_path, invitation_pdf_path))
 
             # Character sheet
-            char_sheet_md_path = players_dir / f"{char_name_clean}_character_sheet.md"
+            char_sheet_md_path = players_dir / f"{char_name_clean}_character_sheet{MARKDOWN_EXT}"
             self._write_character_sheet(state, character, char_sheet_md_path)
 
             if not state.config.dry_run:
-                char_sheet_pdf_path = players_dir / f"{char_name_clean}_character_sheet.pdf"
+                char_sheet_pdf_path = players_dir / f"{char_name_clean}_character_sheet{PDF_EXT}"
                 pdf_tasks.append((char_sheet_md_path, char_sheet_pdf_path))
 
             player_package = FileDescriptor(
@@ -278,25 +285,29 @@ class PackagingAgent(BaseAgent):
         # 5. Clues - simplified naming (clue_01.pdf, clue_02.pdf, ...)
         for idx, clue in enumerate(state.clues, 1):
             clue_num = f"{idx:02d}"  # Zero-padded 2 digits
-            clue_md_path = clues_dir / f"clue_{clue_num}.md"
+            clue_md_path = clues_dir / f"clue_{clue_num}{MARKDOWN_EXT}"
             self._write_clue_clean(state, clue, clue_md_path)
 
             if not state.config.dry_run:
-                clue_pdf_path = clues_dir / f"clue_{clue_num}.pdf"
+                clue_pdf_path = clues_dir / f"clue_{clue_num}{PDF_EXT}"
                 pdf_tasks.append((clue_md_path, clue_pdf_path))
 
         # 6. Clue reference for host (markdown + PDF task)
-        clue_ref_path = host_dir / "clue_reference.md"
+        clue_ref_path = host_dir / f"clue_reference{MARKDOWN_EXT}"
         self._write_clue_reference(state, clue_ref_path)
         packaging.host_package.append(
-            FileDescriptor(type="markdown", name="clue_reference.md", path=str(clue_ref_path))
+            FileDescriptor(
+                type="markdown", name=f"clue_reference{MARKDOWN_EXT}", path=str(clue_ref_path)
+            )
         )
 
         if not state.config.dry_run:
-            clue_ref_pdf_path = host_dir / "clue_reference.pdf"
+            clue_ref_pdf_path = host_dir / f"clue_reference{PDF_EXT}"
             pdf_tasks.append((clue_ref_path, clue_ref_pdf_path))
             packaging.host_package.append(
-                FileDescriptor(type="pdf", name="clue_reference.pdf", path=str(clue_ref_pdf_path))
+                FileDescriptor(
+                    type="pdf", name=f"clue_reference{PDF_EXT}", path=str(clue_ref_pdf_path)
+                )
             )
 
         print(f"  ✓ Wrote {len(state.characters) + len(state.clues) + 4} markdown files")
@@ -932,10 +943,10 @@ Players will receive clean versions of the clues without the metadata.
         sys.stdout.flush()
 
         # Collect all markdown, image, and text files
-        md_files = list(game_dir.rglob("*.md"))
-        png_files = list(game_dir.rglob("*.png"))
-        jpg_files = list(game_dir.rglob("*.jpg"))
-        txt_files = list(game_dir.rglob("*.txt"))
+        md_files = list(game_dir.rglob(f"*{MARKDOWN_EXT}"))
+        png_files = list(game_dir.rglob(f"*{PNG_EXT}"))
+        jpg_files = list(game_dir.rglob(f"*{JPG_EXT}"))
+        txt_files = list(game_dir.rglob(f"*{TEXT_EXT}"))
         all_files_to_move = md_files + png_files + jpg_files + txt_files
 
         if not all_files_to_move:

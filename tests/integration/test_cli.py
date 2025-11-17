@@ -12,7 +12,11 @@ from mystery_agents.models.state import (
     PlayerConfig,
     ValidationReport,
 )
-from mystery_agents.utils.constants import TEST_MIN_DURATION, TEST_MIN_PLAYERS
+from mystery_agents.utils.constants import (
+    HOST_GUIDE_FILENAME,
+    TEST_MIN_DURATION,
+    TEST_MIN_PLAYERS,
+)
 
 
 @pytest.fixture
@@ -137,7 +141,9 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
             )
         ]
         initial_state.packaging = PackagingInfo(
-            host_guide_file=FileDescriptor(type="markdown", name="host_guide.md", path="test.md"),
+            host_guide_file=FileDescriptor(
+                type="markdown", name=HOST_GUIDE_FILENAME, path="test.md"
+            ),
             index_summary="Test package",
         )
 
@@ -341,7 +347,7 @@ def test_cli_accesses_nested_objects_correctly() -> None:
         )
     ]
     initial_state.packaging = PackagingInfo(
-        host_guide_file=FileDescriptor(type="markdown", name="host_guide.md", path="test.md"),
+        host_guide_file=FileDescriptor(type="markdown", name=HOST_GUIDE_FILENAME, path="test.md"),
         index_summary="Test",
     )
 

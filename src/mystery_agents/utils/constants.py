@@ -14,6 +14,9 @@ CHARACTER_SHEET_FILENAME = "character_sheet.md"
 # File extensions
 MARKDOWN_EXT = ".md"
 TEXT_EXT = ".txt"
+PDF_EXT = ".pdf"
+PNG_EXT = ".png"
+JPG_EXT = ".jpg"
 
 # Game ID formatting
 GAME_ID_LENGTH = 8
@@ -35,6 +38,15 @@ MAX_TIMELINE_EVENTS_DISPLAY = 50
 
 # Clue generation
 MIN_CLUES_PER_GAME = 5
+
+# LLM model configuration
+LLM_MODEL_TIER1 = "gemini-2.5-pro"
+LLM_MODEL_TIER2 = "gemini-2.5-pro"
+LLM_MODEL_TIER3 = "gemini-2.5-flash"
+LLM_TEMPERATURE_TIER1 = 0.6
+LLM_TEMPERATURE_TIER2 = 0.7
+LLM_TEMPERATURE_TIER3 = 0.3
+DRY_RUN_DUMMY_API_KEY = "dry-run-dummy-key"
 
 # Image generation configuration
 IMAGE_GENERATION_MODEL = "models/gemini-2.5-flash-image"
