@@ -224,7 +224,35 @@ SETTING CONTEXT:
 
 COSTUME:
 {character.costume_suggestion if character.costume_suggestion else f"Period-appropriate attire for {epoch} in {country}"}
+"""
 
+        # Add visual style consistency if available
+        if state.visual_style:
+            vs = state.visual_style
+
+            prompt += f"""
+VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
+Style: {vs.style_description}
+Art Direction: {vs.art_direction}
+
+Color Palette: {", ".join(vs.color_palette) if vs.color_palette else "natural colors"}
+Color Grading: {vs.color_grading}
+
+Lighting: {vs.lighting_setup}
+Mood: {vs.lighting_mood}
+
+Background: {vs.background_aesthetic}
+Focus: {vs.background_blur}
+
+Technical: {vs.technical_specs}
+Camera: {vs.camera_specs}
+
+STRICT EXCLUSIONS (DO NOT INCLUDE):
+{chr(10).join(f"- {item}" for item in vs.negative_prompts)}
+"""
+        else:
+            # Fallback if no visual style (shouldn't happen, but safe)
+            prompt += f"""
 STYLE REQUIREMENTS:
 - Photorealistic, professional portrait
 - {epoch}-era fashion and styling appropriate for {country}
@@ -234,8 +262,13 @@ STYLE REQUIREMENTS:
 - Framing: Head and shoulders portrait
 - Background: Subtle, period-appropriate
 - Expression: {personality} demeanor
+- FULL COLOR (never black and white)
+- NO TEXT, labels, names, or captions
+"""
 
-The image should feel like a character from a high-quality period mystery film."""
+        prompt += (
+            "\n\nThe image should feel like a character from a high-quality period mystery film."
+        )
 
         return prompt
 

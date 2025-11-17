@@ -197,7 +197,37 @@ SETTING CONTEXT:
 
 COSTUME:
 {victim.costume_suggestion if victim.costume_suggestion else f"Period-appropriate formal attire for {epoch} in {country}"}
+"""
 
+        # Add visual style consistency if available
+        if state.visual_style:
+            vs = state.visual_style
+
+            prompt += f"""
+VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
+Style: {vs.style_description}
+Art Direction: {vs.art_direction}
+
+Color Palette: {", ".join(vs.color_palette) if vs.color_palette else "natural colors"}
+Color Grading: {vs.color_grading}
+
+Lighting: {vs.lighting_setup}
+Mood: {vs.lighting_mood}
+
+Background: {vs.background_aesthetic}
+Focus: {vs.background_blur}
+
+Technical: {vs.technical_specs}
+Camera: {vs.camera_specs}
+
+IMPORTANT: This is the VICTIM - a central, authoritative figure with commanding presence
+
+STRICT EXCLUSIONS (DO NOT INCLUDE):
+{chr(10).join(f"- {item}" for item in vs.negative_prompts)}
+"""
+        else:
+            # Fallback if no visual style
+            prompt += f"""
 STYLE REQUIREMENTS:
 - Photorealistic, professional portrait
 - {epoch}-era fashion and styling appropriate for {country}
@@ -207,8 +237,11 @@ STYLE REQUIREMENTS:
 - Framing: Head and shoulders portrait
 - Background: Elegant, period-appropriate setting
 - Expression: {personality} demeanor, commanding presence
+- FULL COLOR (never black and white)
+- NO TEXT, labels, names, or captions
+"""
 
-The image should feel like a character from a high-quality period mystery film - someone important enough to be the center of the story."""
+        prompt += "\n\nThe image should feel like a character from a high-quality period mystery film - someone important enough to be the center of the story."
 
         return prompt
 
@@ -251,7 +284,37 @@ SETTING CONTEXT:
 
 COSTUME:
 {detective.costume_suggestion if detective.costume_suggestion else f"Classic detective attire for {epoch} in {country}"}
+"""
 
+        # Add visual style consistency if available
+        if state.visual_style:
+            vs = state.visual_style
+
+            prompt += f"""
+VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
+Style: {vs.style_description}
+Art Direction: {vs.art_direction}
+
+Color Palette: {", ".join(vs.color_palette) if vs.color_palette else "natural colors"}
+Color Grading: {vs.color_grading}
+
+Lighting: {vs.lighting_setup}
+Mood: {vs.lighting_mood}
+
+Background: {vs.background_aesthetic}
+Focus: {vs.background_blur}
+
+Technical: {vs.technical_specs}
+Camera: {vs.camera_specs}
+
+IMPORTANT: This is the DETECTIVE - sharp, intelligent, investigative presence with perceptive gaze
+
+STRICT EXCLUSIONS (DO NOT INCLUDE):
+{chr(10).join(f"- {item}" for item in vs.negative_prompts)}
+"""
+        else:
+            # Fallback if no visual style
+            prompt += f"""
 STYLE REQUIREMENTS:
 - Photorealistic, professional portrait
 - {epoch}-era detective fashion and styling appropriate for {country}
@@ -261,8 +324,11 @@ STYLE REQUIREMENTS:
 - Framing: Head and shoulders portrait
 - Background: Subtle, atmospheric setting suggesting investigation
 - Expression: {personality} demeanor, sharp gaze, intelligent look
+- FULL COLOR (never black and white)
+- NO TEXT, labels, names, or captions
+"""
 
-The image should feel like a classic detective from a high-quality period mystery film - someone perceptive and methodical."""
+        prompt += "\n\nThe image should feel like a classic detective from a high-quality period mystery film - someone perceptive and methodical."
 
         return prompt
 

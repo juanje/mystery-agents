@@ -473,12 +473,80 @@ class ImagePromptSpec(BaseModel):
 
 
 class VisualStyle(BaseModel):
-    """Visual style specification."""
+    """Visual style specifications for consistent image generation across all characters."""
 
-    keywords: list[str] = []
-    palette_hints: list[str] = []
-    typography_hints: list[str] = []
-    image_prompts: list[ImagePromptSpec] = []
+    # Overall style
+    style_description: str = Field(
+        description="Overall visual style (e.g., '1920s film noir photography', 'Victorian portrait painting style')"
+    )
+    art_direction: str = Field(
+        description="Art direction approach (e.g., 'Cinematic period drama', 'Classic mystery aesthetic')"
+    )
+
+    # Color and palette
+    color_palette: list[str] = Field(
+        default_factory=list,
+        description="Color palette keywords (e.g., ['warm sepia tones', 'deep shadows', 'gold accents', 'rich burgundy'])",
+    )
+    color_grading: str = Field(
+        description="Color grading style (e.g., 'Warm vintage film', 'Cool noir tones', 'Natural period colors')"
+    )
+
+    # Lighting
+    lighting_setup: str = Field(
+        description="Lighting approach (e.g., 'Rembrandt lighting with warm key', 'Dramatic side lighting', 'Soft natural window light')"
+    )
+    lighting_mood: str = Field(
+        description="Lighting mood (e.g., 'Dramatic and mysterious', 'Elegant and formal', 'Atmospheric and moody')"
+    )
+
+    # Background and atmosphere
+    background_aesthetic: str = Field(
+        description="Background style (e.g., 'Subtle Victorian wallpaper patterns', 'Art deco geometric shapes', 'Period-appropriate interior')"
+    )
+    background_blur: str = Field(
+        default="Shallow depth of field, background softly blurred",
+        description="Background focus/blur approach",
+    )
+
+    # Technical quality
+    technical_specs: str = Field(
+        default="8K resolution, professional portrait photography, film grain texture",
+        description="Technical specifications for image quality",
+    )
+    camera_specs: str = Field(
+        default="85mm portrait lens, f/2.8, professional DSLR",
+        description="Camera and lens simulation",
+    )
+
+    # Constraints (what NOT to include)
+    negative_prompts: list[str] = Field(
+        default_factory=lambda: [
+            "text",
+            "labels",
+            "names",
+            "captions",
+            "watermarks",
+            "black and white",
+            "grayscale",
+            "monochrome",
+            "modern elements",
+            "smartphones",
+            "contemporary fashion",
+            "cartoon",
+            "anime",
+            "illustration",
+            "speech bubbles",
+            "thought bubbles",
+        ],
+        description="Elements to explicitly exclude from all images",
+    )
+
+    # Period references
+    period_references: list[str] = Field(
+        default_factory=list,
+        description="Visual references for the period (e.g., ['Victorian portrait photography', '1920s fashion plates'])",
+    )
 
 
 class FileDescriptor(BaseModel):

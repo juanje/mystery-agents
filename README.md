@@ -18,6 +18,7 @@ Mystery Agents is a multi-agent system that generates complete mystery party gam
 - **Cultural Context**: Adapts character names, customs, and setting details to selected country and region
 - **Dual-Format Output**: Both Markdown and professional PDFs for all materials
 - **Character Image Generation** (Optional): Generate AI-powered character portraits using Gemini Imagen 3 API with parallel processing
+- **Visual Style Consistency**: Automatic visual style guide ensures all character images share cohesive aesthetic (color palette, lighting, no text overlays)
 - **Google Gemini Integration**: Uses Google Gemini models (gemini-2.5-pro for generation, gemini-2.5-flash for validation)
 
 ## Installation
@@ -112,8 +113,10 @@ difficulty: medium        # easy, medium, hard
 
 **Features:**
 - ✅ Photorealistic character portraits coherent with the game world
+- ✅ **Visual Style Consistency**: All images share unified aesthetic (color palette, lighting, camera specs)
 - ✅ Period-appropriate styling (1920s, Victorian, Modern, etc.)
 - ✅ Cultural adaptation based on country and region
+- ✅ **No text/labels in images**: Explicit exclusion of text overlays and watermarks
 - ✅ Parallel generation (5 concurrent requests with rate limiting)
 - ✅ Automatic embedding in character sheet PDFs
 - ✅ Exponential backoff retry logic for API errors
@@ -233,10 +236,12 @@ graph TD
     START --> A1[A1: Config Wizard]
     A1 --> A2[A2: World Generation]
     A2 --> V1[V1: World Validator]
-    V1 -->|pass| A3[A3: Characters]
+    V1 -->|pass| A2_5[A2.5: Visual Style]
     V1 -->|retry| A2
     V1 -->|fail| END
-    A3 --> A4[A4: Relationships]
+    A2_5 --> A3[A3: Characters]
+    A3 --> A3_5[A3.5: Character Images]
+    A3_5 --> A4[A4: Relationships]
     A4 --> A5[A5: Crime]
     A5 --> A6[A6: Timeline]
     A6 --> A7[A7: Killer Selection]
@@ -244,7 +249,8 @@ graph TD
     V2 -->|pass| A8[A8: Content Generation]
     V2 -->|retry| A6
     V2 -->|fail| END
-    A8 --> A9[A9: Packaging]
+    A8 --> A8_5[A8.5: Host Images]
+    A8_5 --> A9[A9: Packaging]
     A9 --> END
 ```
 
@@ -253,14 +259,17 @@ graph TD
 1. **A1: Config Wizard** - Collects user preferences (theme, era, country, region, tone, players, language, etc.)
 2. **A2: World Generation** - Creates setting, location, and atmosphere (culturally adapted)
 3. **V1: World Validator** - Validates world coherence (historical, geographical, cultural)
-4. **A3: Characters** - Generates suspect characters with personality traits, secrets, goals, and Act 1 objectives
-5. **A4: Relationships** - Defines relationships between characters (coordinated with Act 1 objectives)
-6. **A5: Crime** - Creates crime specification (victim, method, scene)
-7. **A6: Timeline** - Generates global timeline with multiple suspect opportunities
-8. **A7: Killer Selection** - Chooses culprit and finalizes solution
-9. **V2: Game Logic Validator** - Validates complete game logic consistency (timeline, clues, motives, false alibis)
-10. **A8: Content Generation** - Creates all game materials (clues, host guide, detective role)
-11. **A9: Packaging** - Translates content, generates PDFs, assembles final ZIP package
+4. **A2.5: Visual Style** - Generates unified visual style guide (color palette, lighting, exclusions) for consistent character images
+5. **A3: Characters** - Generates suspect characters with personality traits, secrets, goals, and Act 1 objectives
+6. **A3.5: Character Images** - (Optional) Generates AI character portraits using unified visual style
+7. **A4: Relationships** - Defines relationships between characters (coordinated with Act 1 objectives)
+8. **A5: Crime** - Creates crime specification (victim, method, scene)
+9. **A6: Timeline** - Generates global timeline with multiple suspect opportunities
+10. **A7: Killer Selection** - Chooses culprit and finalizes solution
+11. **V2: Game Logic Validator** - Validates complete game logic consistency (timeline, clues, motives, false alibis)
+12. **A8: Content Generation** - Creates all game materials (clues, host guide, detective role)
+13. **A8.5: Host Images** - (Optional) Generates victim and detective portraits using unified visual style
+14. **A9: Packaging** - Translates content, generates PDFs, assembles final ZIP package
 
 ### Validation Loops
 

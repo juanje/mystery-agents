@@ -6,6 +6,7 @@ import click
 from langgraph.graph import END, START, StateGraph
 
 from mystery_agents.agents.a1_config import ConfigWizardAgent
+from mystery_agents.agents.a2_5_visual_style import VisualStyleAgent
 from mystery_agents.agents.a2_world import WorldAgent
 from mystery_agents.agents.a3_5_character_images import CharacterImageAgent
 from mystery_agents.agents.a3_characters import CharactersAgent
@@ -59,6 +60,20 @@ def v1_world_validator_node(state: GameState) -> GameState:
         if result.world_validation:
             for issue in result.world_validation.issues:
                 click.echo(f"  Issue: {issue}")
+
+    return cast(GameState, result)
+
+
+def a2_5_visual_style_node(state: GameState) -> GameState:
+    """A2.5: Visual style generation node."""
+    click.echo("Generating visual style guide...")
+    agent = AgentFactory.get_agent(VisualStyleAgent)
+    result = agent.run(state)
+
+    if result.visual_style:
+        click.echo(
+            click.style(f"✓ Visual style: {result.visual_style.style_description}", fg="green")
+        )
 
     return cast(GameState, result)
 
@@ -260,6 +275,7 @@ def create_workflow() -> Any:
     graph.add_node("a1_config", a1_config_node)
     graph.add_node("a2_world", a2_world_node)
     graph.add_node("v1_world_validator", v1_world_validator_node)
+    graph.add_node("a2_5_visual_style", a2_5_visual_style_node)
     graph.add_node("a3_characters", a3_characters_node)
     graph.add_node("a3_5_character_images", a3_5_character_images_node)
     graph.add_node("a4_relationships", a4_relationships_node)
@@ -281,11 +297,14 @@ def create_workflow() -> Any:
         "v1_world_validator",
         should_retry_world_validation,
         {
-            "pass": "a3_characters",
+            "pass": "a2_5_visual_style",
             "retry": "a2_world",
             "fail": END,
         },
     )
+
+    # Visual style generation (after world validation)
+    graph.add_edge("a2_5_visual_style", "a3_characters")
 
     # Continue main flow (with optional image generation)
     graph.add_edge("a3_characters", "a3_5_character_images")

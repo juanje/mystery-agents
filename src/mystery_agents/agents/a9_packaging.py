@@ -912,7 +912,6 @@ Players will receive clean versions of the clues without the metadata.
         }
         return labels.get(language, labels["en"])
 
-
     def _organize_final_package(
         self, game_dir: Path, keep_work_dir: bool, game_id: str, output_dir: str
     ) -> None:
