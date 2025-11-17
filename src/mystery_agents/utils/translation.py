@@ -52,6 +52,40 @@ def translate_content(state: GameState) -> GameState:
     # Collect all texts to translate in batches
     texts_to_translate: dict[str, str] = {}
 
+    # Collect config custom descriptions
+    if state.config.custom_epoch_description:
+        texts_to_translate["config.custom_epoch_description"] = (
+            state.config.custom_epoch_description
+        )
+    if state.config.custom_theme_description:
+        texts_to_translate["config.custom_theme_description"] = (
+            state.config.custom_theme_description
+        )
+
+    # Collect world texts
+    if state.world:
+        if state.world.summary:
+            texts_to_translate["world.summary"] = state.world.summary
+        if state.world.gathering_reason:
+            texts_to_translate["world.gathering_reason"] = state.world.gathering_reason
+        if state.world.location_name:
+            texts_to_translate["world.location_name"] = state.world.location_name
+
+    # Collect crime/victim texts
+    if state.crime and state.crime.victim:
+        victim = state.crime.victim
+        texts_to_translate["crime.victim.name"] = victim.name
+        texts_to_translate["crime.victim.role_in_setting"] = victim.role_in_setting
+        texts_to_translate["crime.victim.public_persona"] = victim.public_persona
+        if victim.costume_suggestion:
+            texts_to_translate["crime.victim.costume_suggestion"] = victim.costume_suggestion
+        if victim.personality_traits:
+            texts_to_translate["crime.victim.personality_traits"] = "\n".join(
+                victim.personality_traits
+            )
+        if victim.secrets:
+            texts_to_translate["crime.victim.secrets"] = "\n".join(victim.secrets)
+
     # Collect host guide texts
     if state.host_guide:
         guide = state.host_guide
@@ -72,7 +106,14 @@ def translate_content(state: GameState) -> GameState:
         # Detective role texts
         if guide.host_act2_detective_role:
             role = guide.host_act2_detective_role
+            texts_to_translate["detective_role.character_name"] = role.character_name
             texts_to_translate["detective_role.public_description"] = role.public_description
+            if role.costume_suggestion:
+                texts_to_translate["detective_role.costume_suggestion"] = role.costume_suggestion
+            if role.personality_traits:
+                texts_to_translate["detective_role.personality_traits"] = "\n".join(
+                    role.personality_traits
+                )
             texts_to_translate["detective_role.guiding_questions"] = "\n".join(
                 role.guiding_questions
             )
@@ -82,6 +123,21 @@ def translate_content(state: GameState) -> GameState:
                 texts_to_translate[f"detective_role.clue_{idx}.how_to_interpret"] = (
                     entry.how_to_interpret
                 )
+
+    # Collect killer selection texts (solution)
+    if state.killer_selection:
+        if state.killer_selection.rationale:
+            texts_to_translate["killer_selection.rationale"] = state.killer_selection.rationale
+        if state.killer_selection.truth_narrative:
+            texts_to_translate["killer_selection.truth_narrative"] = (
+                state.killer_selection.truth_narrative
+            )
+
+    # Collect relationship texts
+    if state.relationships:
+        for idx, rel in enumerate(state.relationships):
+            if rel.description:
+                texts_to_translate[f"relationship_{idx}.description"] = rel.description
 
     # Collect clue texts (batch all clues together)
     if state.clues:
@@ -125,6 +181,39 @@ def translate_content(state: GameState) -> GameState:
     )
 
     # Apply translations back to state
+    # Apply config custom descriptions
+    if "config.custom_epoch_description" in all_translations:
+        state.config.custom_epoch_description = all_translations["config.custom_epoch_description"]
+    if "config.custom_theme_description" in all_translations:
+        state.config.custom_theme_description = all_translations["config.custom_theme_description"]
+
+    # Apply world translations
+    if state.world:
+        if "world.summary" in all_translations:
+            state.world.summary = all_translations["world.summary"]
+        if "world.gathering_reason" in all_translations:
+            state.world.gathering_reason = all_translations["world.gathering_reason"]
+        if "world.location_name" in all_translations:
+            state.world.location_name = all_translations["world.location_name"]
+
+    # Apply crime/victim translations
+    if state.crime and state.crime.victim:
+        victim = state.crime.victim
+        if "crime.victim.name" in all_translations:
+            victim.name = all_translations["crime.victim.name"]
+        if "crime.victim.role_in_setting" in all_translations:
+            victim.role_in_setting = all_translations["crime.victim.role_in_setting"]
+        if "crime.victim.public_persona" in all_translations:
+            victim.public_persona = all_translations["crime.victim.public_persona"]
+        if "crime.victim.costume_suggestion" in all_translations:
+            victim.costume_suggestion = all_translations["crime.victim.costume_suggestion"]
+        if "crime.victim.personality_traits" in all_translations:
+            victim.personality_traits = all_translations["crime.victim.personality_traits"].split(
+                "\n"
+            )
+        if "crime.victim.secrets" in all_translations:
+            victim.secrets = all_translations["crime.victim.secrets"].split("\n")
+
     if state.host_guide:
         guide = state.host_guide
         guide.spoiler_free_intro = all_translations.get(
@@ -148,8 +237,16 @@ def translate_content(state: GameState) -> GameState:
         # Apply detective role translations
         if guide.host_act2_detective_role:
             role = guide.host_act2_detective_role
+            if "detective_role.character_name" in all_translations:
+                role.character_name = all_translations["detective_role.character_name"]
             if "detective_role.public_description" in all_translations:
                 role.public_description = all_translations["detective_role.public_description"]
+            if "detective_role.costume_suggestion" in all_translations:
+                role.costume_suggestion = all_translations["detective_role.costume_suggestion"]
+            if "detective_role.personality_traits" in all_translations:
+                role.personality_traits = all_translations[
+                    "detective_role.personality_traits"
+                ].split("\n")
             if "detective_role.guiding_questions" in all_translations:
                 role.guiding_questions = all_translations["detective_role.guiding_questions"].split(
                     "\n"
@@ -163,6 +260,22 @@ def translate_content(state: GameState) -> GameState:
                 key = f"detective_role.clue_{idx}.how_to_interpret"
                 if key in all_translations:
                     entry.how_to_interpret = all_translations[key]
+
+    # Apply killer selection translations
+    if state.killer_selection:
+        if "killer_selection.rationale" in all_translations:
+            state.killer_selection.rationale = all_translations["killer_selection.rationale"]
+        if "killer_selection.truth_narrative" in all_translations:
+            state.killer_selection.truth_narrative = all_translations[
+                "killer_selection.truth_narrative"
+            ]
+
+    # Apply relationship translations
+    if state.relationships:
+        for idx, rel in enumerate(state.relationships):
+            desc_key = f"relationship_{idx}.description"
+            if desc_key in all_translations:
+                rel.description = all_translations[desc_key]
 
     # Apply clue translations
     if state.clues:
