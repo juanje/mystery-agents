@@ -82,9 +82,14 @@ class PackagingAgent(BaseAgent):
         Returns:
             Tuple of (era, location_detail)
         """
-        era = state.world.epoch if state.world else "Unknown"
-        # Translate epoch to target language
-        era = translate_epoch(era, state.config.language)
+        # Use custom epoch description if provided (user's own text in their language)
+        # Otherwise use the generated epoch from WorldBible (needs translation)
+        if state.config.custom_epoch_description:
+            era = state.config.custom_epoch_description
+        else:
+            era = state.world.epoch if state.world else "Unknown"
+            # Translate standard epoch to target language
+            era = translate_epoch(era, state.config.language)
 
         location = safe_get_world_location_name(state)
         country = state.config.country
