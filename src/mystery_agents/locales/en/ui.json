@@ -84,7 +84,9 @@
     "no_relationships": "No specific relationships with other characters.",
     "relation_to_victim": "Your Relationship to the Victim",
     "relationships": "Relationships with Other Characters",
+    "tension_level": "Tension level",
     "remember_secrets": "Remember: use your secrets strategically during the investigation!",
+    "default_gathering": "A special gathering",
     "victim_sheet_title": "Victim Character Sheet",
     "host_act1_role": "Your Role in Act 1",
     "important_note": "Important Note",
@@ -117,7 +119,26 @@
     "metadata": "Metadata",
     "none": "None",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "type_document": "Document",
+    "type_testimony": "Testimony",
+    "type_physical_evidence": "Physical Evidence",
+    "type_observation": "Observation",
+    "type_note": "Note",
+    "type_letter": "Letter",
+    "type_object": "Object",
+    "type_forensic_report": "Forensic Report",
+    "type_map_snippet": "Map Snippet",
+    "type_photo": "Photo",
+    "type_other": "Other"
+  },
+  "relationship": {
+    "type_family": "Family",
+    "type_romantic": "Romantic",
+    "type_professional": "Professional",
+    "type_rivalry": "Rivalry",
+    "type_friendship": "Friendship",
+    "type_other": "Other"
   },
   "room": {
     "study": "Study",
@@ -153,6 +174,19 @@
   "language": {
     "en": "English",
     "es": "Spanish"
+  },
+  "country": {
+    "Spain": "Spain",
+    "United States": "United States",
+    "United Kingdom": "United Kingdom",
+    "France": "France",
+    "Germany": "Germany",
+    "Italy": "Italy",
+    "Mexico": "Mexico",
+    "Argentina": "Argentina",
+    "Chile": "Chile",
+    "Colombia": "Colombia",
+    "Peru": "Peru"
   }
 }
 

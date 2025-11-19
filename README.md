@@ -198,7 +198,7 @@ The new flat structure makes it easy to print all files at once - no need to nav
 - ✅ **Clear Naming**: `Name_character_sheet.pdf`, `Name_invitation.pdf`, `clue_01.pdf`
 - ✅ **Host Character Sheets**: Dedicated sheets for victim and detective roles
 - ✅ **Embedded Images**: Character portraits embedded in PDFs (images removed from final package)
-- ✅ **Full Translation**: All content translated to selected language (English-first generation → translation)
+- ✅ **Native Language Generation**: All content generated directly in the selected language for better quality and cultural appropriateness
 - ✅ **Professional Styling**: Beautiful PDFs with CSS-based formatting via WeasyPrint
 - ✅ **Unicode Support**: Native Unicode support for all languages
 - ✅ **Print-Ready**: Everything ready to print directly - just select the entire directory
@@ -277,9 +277,9 @@ graph TD
 9. **A6: Timeline** - Generates global timeline with multiple suspect opportunities
 10. **A7: Killer Selection** - Chooses culprit and finalizes solution
 11. **V2: Game Logic Validator** - Validates complete game logic consistency (timeline, clues, motives, false alibis)
-12. **A8: Content Generation** - Creates all game materials (clues, host guide, detective role)
+12. **A8: Content Generation** - Creates all game materials (clues, host guide, detective role) in target language
 13. **A8.5: Host Images** - (Optional) Generates victim and detective portraits using unified visual style
-14. **A9: Packaging** - Translates content, generates PDFs, assembles final ZIP package
+14. **A9: Packaging** - Generates PDFs and assembles final ZIP package
 
 ### Validation Loops
 

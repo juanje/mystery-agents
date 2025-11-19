@@ -100,7 +100,7 @@ class ContentGenerationAgent(BaseAgent):
         user_message = f"""Generate ALL written content for this mystery party game:
 
 GAME INFO:
-- Target language: {state.config.language} (but generate in ENGLISH - translation will happen later)
+- Target language: {state.config.language}
 - Tone: {GAME_TONE_STYLE}. {GAME_TONE_DESCRIPTION}
 - Duration: {state.config.duration_minutes} minutes
 - Players: {len(state.characters)}
@@ -140,7 +140,6 @@ REQUIREMENTS:
 4. Character IDs in clues must match existing character IDs
 5. All string fields must have values - do not leave any empty
 6. Arrays can be empty [] if not applicable
-7. Write everything in ENGLISH with a {GAME_TONE_STYLE} tone (translation to {state.config.language} will happen later)
 
 Return the response in the exact JSON format specified in the system prompt.
 """

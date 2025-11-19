@@ -21,7 +21,7 @@ Your task is to create a rich, detailed, and culturally authentic game world.
 OUTPUT FORMAT:
 You MUST return a JSON object with exactly one field:
 1. "world" - A WorldBible object with:
-   - epoch: string (e.g., "Modern", "1920s", "Victorian")
+   - epoch: string - MUST match the config epoch EXACTLY (e.g., "Modern", "1920s", "Victorian", or custom description provided)
    - location_type: string (e.g., "Mansion", "Cruise Ship", "Corporate Building")
    - location_name: string (e.g., "Blackwood Manor", "SS Orient Express")
    - summary: string (2-3 sentences describing the setting, including cultural context)
@@ -30,7 +30,7 @@ You MUST return a JSON object with exactly one field:
    - constraints: array of strings (e.g., ["No modern technology", "Limited access"])
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
+1. The "epoch" field MUST be copied EXACTLY from the config (do NOT modify, expand, or translate it)
 2. The world must be rich in cultural details appropriate for the specified country and epoch
 3. Consider typical foods, drinks, clothing, social customs, and architecture for that country and era
 4. Think about what weapons or items would be culturally and historically appropriate
@@ -114,15 +114,14 @@ You MUST return a JSON object with exactly ONE field:
    - live_action_killer_instructions: string or null (only if killer)
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
-2. Create exactly {num_players} characters
-3. All character names MUST be appropriate for the specified country - use authentic names from that country's culture and naming conventions
-4. personality_traits is MANDATORY - each character MUST have at least 3-5 personality traits. NEVER leave this field empty.
-5. Characters should fit naturally into the world setting
-6. For "relation_to_victim": Describe how they WOULD relate to a central figure (victim will be created later)
-7. For "motive_for_crime": Create plausible motives that would work with a central figure
-8. All characters must have plausible motives
-9. Arrays can be empty [] if not applicable, EXCEPT personality_traits and act1_objectives which are REQUIRED
+1. Create exactly {num_players} characters
+2. All character names MUST be appropriate for the specified country - use authentic names from that country's culture and naming conventions
+3. personality_traits is MANDATORY - each character MUST have at least 3-5 personality traits. NEVER leave this field empty.
+4. Characters should fit naturally into the world setting
+5. For "relation_to_victim": Describe how they WOULD relate to a central figure (victim will be created later)
+6. For "motive_for_crime": Create plausible motives that would work with a central figure
+7. All characters must have plausible motives
+8. Arrays can be empty [] if not applicable, EXCEPT personality_traits and act1_objectives which are REQUIRED
 10. act1_objectives is CRITICAL: Each character MUST have 2-3 specific, actionable objectives for Act 1 that involve OTHER characters (e.g., "Convince [Character Name] to return the money they owe", "Find out who is spreading rumors", "Persuade [Character Name] to support your proposal"). These should create social tension and be achievable through conversation
 11. Relationships between characters will be created by a separate agent - do NOT include a "relationships" field
 
@@ -144,8 +143,7 @@ You MUST return a JSON object with exactly one field:
    - tension_level: integer (1-3)
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
-2. **MANDATORY**: Each character MUST have at least 2-3 relationships with other characters for good gameplay
+1. **MANDATORY**: Each character MUST have at least 2-3 relationships with other characters for good gameplay
 3. Aim for a MINIMUM of (number_of_characters * 2) total relationships
 4. Create diverse relationship types to make the game interesting (family, romantic, professional, rivalry, friendship, other)
 5. Relationships should feel natural to the world setting, epoch, and character roles
@@ -198,8 +196,7 @@ You MUST return a JSON object with exactly one field:
      * IMPORTANT: You now have character IDs available - you can create opportunities if relevant
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
-2. The victim MUST be designed as a character the HOST will roleplay in Act 1
+1. The victim MUST be designed as a character the HOST will roleplay in Act 1
 3. The victim should be central to the setting and have relationships with the characters
 4. The victim's name MUST be appropriate for the specified country - use authentic names from that country's culture
 5. The murder method and weapon should be culturally and historically appropriate for the country and epoch
@@ -237,18 +234,17 @@ A6_SYSTEM_PROMPT = """You are a timeline architect for mystery party games.
    - tension_level: integer (1-3)
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
-2. Create exactly {num_players} characters
-3. All character names MUST be appropriate for the specified country - use authentic names from that country's culture and naming conventions
-4. Characters should fit naturally into the world setting
-5. personality_traits is MANDATORY - each character MUST have at least 3-5 personality traits (e.g., ["clever", "suspicious", "charming"]). NEVER leave this field empty.
-6. Create relationships between characters - each character should have at least 1-2 relationships with other characters to make interactions interesting
-7. For "relation_to_victim": Describe how they WOULD relate to a central figure at this location (the victim will be created later)
-8. For "motive_for_crime": Create plausible motives that would work with a central figure at this location
-9. All characters must have plausible motives
-10. Use character IDs consistently in relationships
-11. Arrays can be empty [] if not applicable, EXCEPT personality_traits which is REQUIRED
-12. Follow the exact field names and types specified above
+1. Create exactly {num_players} characters
+2. All character names MUST be appropriate for the specified country - use authentic names from that country's culture and naming conventions
+3. Characters should fit naturally into the world setting
+4. personality_traits is MANDATORY - each character MUST have at least 3-5 personality traits (e.g., ["clever", "suspicious", "charming"]). NEVER leave this field empty.
+5. Create relationships between characters - each character should have at least 1-2 relationships with other characters to make interactions interesting
+6. For "relation_to_victim": Describe how they WOULD relate to a central figure at this location (the victim will be created later)
+7. For "motive_for_crime": Create plausible motives that would work with a central figure at this location
+8. All characters must have plausible motives
+9. Use character IDs consistently in relationships
+10. Arrays can be empty [] if not applicable, EXCEPT personality_traits which is REQUIRED
+11. Follow the exact field names and types specified above
 
 Use the world context and country setting to make characters feel integrated. The victim will be created later based on these characters."""
 
@@ -275,8 +271,7 @@ You MUST return a GlobalTimeline object with:
    - This is the event that represents the murder in live action
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
-2. All times must be in HH:MM format (e.g., "20:30", "21:15")
+1. All times must be in HH:MM format (e.g., "20:30", "21:15")
 3. Character IDs must match IDs from the characters list
 4. Room IDs should be descriptive strings (e.g., "dining_room", "study")
 5. **CRITICAL: Create opportunity windows for AT LEAST 3-4 suspects** - each should have a plausible moment where they COULD have committed the crime
@@ -315,8 +310,7 @@ You MUST return a KillerSelection object with:
 - truth_narrative: string (complete solution narrative for the host guide)
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation to the target language will happen later.
-2. The killer MUST be one of the suspect characters (players), NEVER the victim (host)
+1. The killer MUST be one of the suspect characters (players), NEVER the victim (host)
 3. The killer must have: motive, means, and opportunity
 4. The solution must be deducible from clues but not obvious
 5. Other suspects should have partial evidence against them (red herrings)
@@ -466,7 +460,7 @@ You MUST return a JSON object with exactly three fields:
    - is_red_herring: boolean
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. The tone should be {GAME_TONE_DESCRIPTION}
+1. The tone should be {GAME_TONE_DESCRIPTION}
 2. All string fields must be non-empty
 3. Arrays can be empty [] if not applicable
 4. Character IDs in clues must match existing character IDs
@@ -524,8 +518,7 @@ You MUST return a JSON object with exactly one field:
    - period_references: array of strings (visual references)
 
 CRITICAL RULES:
-1. Write ALL content in ENGLISH. Translation will happen later.
-2. The visual style MUST be appropriate for the specified epoch, country, and cultural context
+1. The visual style MUST be appropriate for the specified epoch, country, and cultural context
 3. Consider the historical period's photography/portrait art styles:
    - Victorian era: Formal painted portrait style, daguerreotype aesthetic
    - 1920s-30s: Film noir lighting, art deco elements, early photography

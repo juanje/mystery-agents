@@ -72,11 +72,10 @@ class WorldAgent(BaseAgent):
         user_message = f"""Generate a rich, detailed mystery party game world based on these preferences:
 
 CONFIGURATION:
-- Target language: {state.config.language} (but generate in ENGLISH - translation will happen later)
+- Target language: {state.config.language}
 - Country: {state.config.country}
 {f"- Region: {state.config.region} (CRITICAL: The setting MUST be located in this specific region{region_context}, not in other parts of {state.config.country})" if state.config.region else ""}
-- Epoch: {state.config.epoch} (CRITICAL: ALL elements must be historically accurate for this time period)
-{f"- Custom epoch description: {state.config.custom_epoch_description}" if state.config.custom_epoch_description else ""}
+- Epoch: {epoch_desc} (CRITICAL: Use this EXACT value for the "epoch" field, and ALL world elements must be historically accurate for this time period)
 - Theme: {state.config.theme}
 {f"- Custom theme description: {state.config.custom_theme_description}" if state.config.custom_theme_description else ""}
 - Tone: {GAME_TONE_STYLE}
@@ -97,12 +96,13 @@ HISTORICAL & CULTURAL REQUIREMENTS (ALL MUST BE SATISFIED):
 
 REQUIREMENTS:
 1. Create a "world" object with epoch, location_type, location_name, summary, gathering_reason, visual_keywords, and constraints
-2. The world should be rich in detail and feel authentic to {state.config.country} in the {state.config.epoch} era
-3. The gathering_reason must explain WHY all these people are at this location tonight (e.g., family event, memorial service, celebration, business meeting, ceremony)
-4. Include cultural elements that will inform character creation, costume suggestions, and crime details later
-5. The location should be suitable for a mystery party with {state.config.players.total} suspects
-6. All string fields must have values - do not leave any empty
-7. Visual keywords should reflect the cultural and historical atmosphere
+2. The "epoch" field MUST be EXACTLY: {epoch_desc} (copy this value exactly, do NOT modify, expand, or translate it)
+3. The world should be rich in detail and feel authentic to {state.config.country} in the {epoch_desc} era
+4. The gathering_reason must explain WHY all these people are at this location tonight (e.g., family event, memorial service, celebration, business meeting, ceremony)
+5. Include cultural elements that will inform character creation, costume suggestions, and crime details later
+6. The location should be suitable for a mystery party with {state.config.players.total} suspects
+7. All string fields must have values - do not leave any empty
+8. Visual keywords should reflect the cultural and historical atmosphere
 
 Return the response in the exact JSON format specified in the system prompt.
 """

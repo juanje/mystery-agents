@@ -31,7 +31,10 @@ from mystery_agents.utils.constants import (
 from mystery_agents.utils.i18n import (
     get_clue_labels,
     get_document_labels,
+    translate_clue_type,
+    translate_country_name,
     translate_epoch,
+    translate_relationship_type,
     translate_room_name,
 )
 from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
@@ -92,7 +95,7 @@ class PackagingAgent(BaseAgent):
             era = translate_epoch(era, state.config.language)
 
         location = safe_get_world_location_name(state)
-        country = state.config.country
+        country = translate_country_name(state.config.country, state.config.language)
         region = state.config.region or ""
 
         location_detail = f"{location}, {region}, {country}" if region else f"{location}, {country}"
@@ -183,6 +186,9 @@ class PackagingAgent(BaseAgent):
         """
         Package all generated materials into organized files.
 
+        Content is already generated in the target language by agents with
+        automatic language injection, so no translation step is needed.
+
         Args:
             state: Current game state with all generated content
             output_dir: Base output directory
@@ -190,10 +196,6 @@ class PackagingAgent(BaseAgent):
         Returns:
             Updated game state with packaging info
         """
-        # Translate content to target language before packaging
-        from mystery_agents.utils.translation import translate_content
-
-        state = translate_content(state)
 
         game_id = state.meta.id[:GAME_ID_LENGTH]
         game_dir = Path(output_dir) / f"{GAME_DIR_PREFIX}{game_id}"
@@ -576,7 +578,9 @@ ZIP file: {zip_path}
         # Get translated labels
         labels = get_document_labels(state.config.language)
         era, location_detail = self._get_game_context(state)
-        gathering_reason = state.world.gathering_reason if state.world else "A special gathering"
+        gathering_reason = (
+            state.world.gathering_reason if state.world else labels["default_gathering"]
+        )
 
         # Build character image section
         image_section = ""
@@ -620,18 +624,32 @@ ZIP file: {zip_path}
                         (c for c in state.characters if c.id == rel.to_character_id), None
                     )
                     if other_char:
-                        relationship_desc = f"{other_char.name} ({rel.type}): {rel.description}"
+                        translated_rel_type = translate_relationship_type(
+                            rel.type, state.config.language
+                        )
+                        relationship_desc = (
+                            f"{other_char.name} ({translated_rel_type}): {rel.description}"
+                        )
                         if rel.tension_level > 1:
-                            relationship_desc += f" [Tension level: {rel.tension_level}/3]"
+                            relationship_desc += (
+                                f" [{labels['tension_level']}: {rel.tension_level}/3]"
+                            )
                         character_relationships.append(relationship_desc)
                 elif rel.to_character_id == character.id:
                     other_char = next(
                         (c for c in state.characters if c.id == rel.from_character_id), None
                     )
                     if other_char:
-                        relationship_desc = f"{other_char.name} ({rel.type}): {rel.description}"
+                        translated_rel_type = translate_relationship_type(
+                            rel.type, state.config.language
+                        )
+                        relationship_desc = (
+                            f"{other_char.name} ({translated_rel_type}): {rel.description}"
+                        )
                         if rel.tension_level > 1:
-                            relationship_desc += f" [Tension level: {rel.tension_level}/3]"
+                            relationship_desc += (
+                                f" [{labels['tension_level']}: {rel.tension_level}/3]"
+                            )
                         character_relationships.append(relationship_desc)
 
         if character_relationships:
@@ -826,7 +844,6 @@ ZIP file: {zip_path}
         This version only includes the clue title and description,
         without any information about who it incriminates/exonerates.
         """
-        # Generate content in English first
         content = f"""# {clue.title}
 
 {clue.description}
@@ -856,9 +873,10 @@ ZIP file: {zip_path}
             )
 
             clue_num = f"{idx:02d}"  # Format as 2-digit number
+            translated_clue_type = translate_clue_type(clue.type, state.config.language)
             clue_entry = f"""## {clue_labels["clue"]} {clue_num}: {clue.title}
 
-**{clue_labels["type"]}**: {clue.type}
+**{clue_labels["type"]}**: {translated_clue_type}
 
 **{clue_labels["description"]}**:
 {clue.description}

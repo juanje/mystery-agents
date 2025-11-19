@@ -9,7 +9,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
 from mystery_agents.models.state import GameState
+from mystery_agents.utils.constants import LANG_CODE_ENGLISH
 from mystery_agents.utils.debug_middleware import log_model_response
+from mystery_agents.utils.i18n import get_language_name
 
 
 class BaseAgent(ABC):
@@ -78,9 +80,53 @@ class BaseAgent(ABC):
         """
         return state.config.dry_run
 
+    def _get_language_injection(self, state: GameState) -> str:
+        """
+        Get language-specific instructions to inject into system prompt.
+
+        For non-English languages, returns instructions to generate content
+        in the target language while preserving JSON structure.
+
+        Args:
+            state: Current game state
+
+        Returns:
+            Language injection string (empty for English)
+        """
+        if state.config.language == LANG_CODE_ENGLISH:
+            return ""
+
+        target_lang = get_language_name(state.config.language)
+
+        return f"""
+
+---
+CRITICAL LANGUAGE REQUIREMENTS (HIGHEST PRIORITY):
+
+1. Output Language: ALL creative and narrative content (descriptions, dialogues,
+   names, backstories, secrets, motives, etc.) MUST be written in fluent,
+   natural {target_lang}.
+
+2. JSON Structure Integrity: Keep ALL JSON keys in English.
+   NEVER translate field names.
+   ✓ CORRECT: {{"description": "Texto en español"}}
+   ✗ WRONG:   {{"descripción": "Texto en español"}}
+
+3. Context Consistency: Input context may already be in {target_lang}.
+   Maintain narrative consistency and continue in that language.
+
+4. Cultural Adaptation: Use culturally appropriate expressions, idioms,
+   and references for {target_lang} speakers.
+
+These requirements override any language assumptions in the instructions above.
+"""
+
     def invoke(self, state: GameState, user_message: str = "") -> Any:
         """
         Invoke the agent with the current state.
+
+        For non-English languages, automatically injects language instructions
+        to generate content directly in the target language.
 
         Args:
             state: Current game state
@@ -90,8 +136,13 @@ class BaseAgent(ABC):
             LLM response (structured if response_format is set, otherwise raw)
             For structured output, access via result["structured_response"]
         """
+        # Get base system prompt and inject language instructions if needed
+        system_prompt = self.get_system_prompt(state)
+        language_injection = self._get_language_injection(state)
+        full_system_prompt = system_prompt + language_injection
+
         messages = [
-            SystemMessage(content=self.get_system_prompt(state)),
+            SystemMessage(content=full_system_prompt),
             HumanMessage(
                 content=user_message
                 if user_message

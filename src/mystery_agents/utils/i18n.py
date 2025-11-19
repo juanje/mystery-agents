@@ -544,3 +544,78 @@ def translate_room_name(room_id: str | None, language: str) -> str:
 
     # For unknown rooms, format nicely: "captains_quarters" -> "Captains Quarters"
     return room_id.replace("_", " ").title()
+
+
+def translate_clue_type(clue_type: str, language: str) -> str:
+    """
+    Translate a clue type to its localized name.
+
+    Args:
+        clue_type: Clue type (e.g., "document", "testimony", "note")
+        language: Target language code
+
+    Returns:
+        Translated clue type, or original if not found
+    """
+    tm = TranslationManager(language)
+
+    # Normalize the type (lowercase, replace spaces with underscores)
+    normalized_type = clue_type.lower().replace(" ", "_")
+
+    # Try to get translation from clue section
+    translated_type = tm.get(f"clue.type_{normalized_type}")
+
+    # If key not found, return original (capitalized)
+    if translated_type == f"clue.type_{normalized_type}":
+        return clue_type.capitalize()
+
+    return translated_type
+
+
+def translate_relationship_type(rel_type: str, language: str) -> str:
+    """
+    Translate a relationship type to its localized name.
+
+    Args:
+        rel_type: Relationship type (e.g., "family", "romantic", "professional")
+        language: Target language code
+
+    Returns:
+        Translated relationship type, or original if not found
+    """
+    tm = TranslationManager(language)
+
+    # Normalize the type (lowercase)
+    normalized_type = rel_type.lower()
+
+    # Try to get translation from relationship section
+    translated_type = tm.get(f"relationship.type_{normalized_type}")
+
+    # If key not found, return original (capitalized)
+    if translated_type == f"relationship.type_{normalized_type}":
+        return rel_type.capitalize()
+
+    return translated_type
+
+
+def translate_country_name(country: str, language: str) -> str:
+    """
+    Translate a country name to its localized name.
+
+    Args:
+        country: Country name in English (e.g., "Spain", "United States")
+        language: Target language code
+
+    Returns:
+        Translated country name, or original if not found
+    """
+    tm = TranslationManager(language)
+
+    # Try to get translation from country section
+    translated_country = tm.get(f"country.{country}")
+
+    # If key not found, return original
+    if translated_country == f"country.{country}":
+        return country
+
+    return translated_country

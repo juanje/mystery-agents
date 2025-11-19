@@ -82,7 +82,7 @@ CHARACTERS ({len(state.characters)} suspects):
 {chr(10).join(characters_summary)}
 
 CONFIGURATION:
-- Target language: {state.config.language} (but generate in ENGLISH - translation will happen later)
+- Target language: {state.config.language}
 - Host gender: {state.config.host_gender} (victim MUST be this gender)
 - Tone: {GAME_TONE_STYLE}
 - Difficulty: {state.config.difficulty}
