@@ -1,281 +1,447 @@
 """Internationalization (i18n) labels and translations for the mystery game generator.
 
-This module centralizes all user-facing text translations to ensure consistent
-multilingual support across the application.
+This module provides a modern TranslationManager for managing multilingual content
+using external JSON resources with type safety, caching, and pluralization support.
+
+Example:
+    >>> tm = TranslationManager("es")
+    >>> title = tm.get("document.host_guide_title")
+    >>> players = tm.get_plural("document.players", count=5)
 """
 
-from mystery_agents.utils.constants import LANG_CODE_ENGLISH, LANG_CODE_SPANISH
+from __future__ import annotations
 
-# Document template labels for all markdown files
-DOCUMENT_LABELS = {
-    LANG_CODE_ENGLISH: {
-        # Host Guide
-        "host_guide_title": "Mystery Party Host Guide",
-        "game_information": "Game Information",
-        "game_id": "Game ID",
-        "created": "Created",
-        "players": "Players",
-        "duration": "Duration",
-        "minutes": "minutes",
-        "language": "Language",
-        "era": "Era",
-        "location": "Location",
-        "gathering_reason": "Gathering Reason",
-        "introduction": "Introduction (Read to Guests)",
-        "setup_instructions": "Setup Instructions",
-        "your_role_act1": "Your Role in Act 1: The Victim",
-        "see_victim_sheet": "📄 See your dedicated Victim Character Sheet (victim_character_sheet.pdf) for complete details.",
-        "victim_sheet_includes": "The victim character sheet includes:",
-        "full_background": "Full character background and personality traits",
-        "public_persona": "Public persona and secrets",
-        "costume_suggestions": "Costume suggestions",
-        "character_portrait": "Character portrait (if images enabled)",
-        "quick_summary": "Quick summary:",
-        "no_description": "No victim role description provided.",
-        "runtime_tips": "Runtime Tips",
-        "murder_event": "The Murder Event (Transition to Act 2)",
-        "no_murder_guide": "No murder event guide provided.",
-        "act2_detective": "Act 2: You Are Now the Detective",
-        "intro_script": "Introduction Script (Read to Players)",
-        "no_act2_intro": "No Act 2 intro script provided.",
-        "detective_role": "Your Detective Role",
-        "see_detective_sheet": "📄 See your dedicated Detective Character Sheet (detective_character_sheet.pdf) for complete details.",
-        "detective_sheet_includes": "The detective character sheet includes:",
-        "character_description": "Full character description and personality traits",
-        "clues_list": "Complete list of clues to reveal with interpretations",
-        "guiding_questions": "Guiding questions to ask players",
-        "solution_script": "Final solution script for the big reveal",
-        "quick_tip": "Quick Tip",
-        "keep_sheet_handy": "Keep the detective character sheet handy during Act 2 for quick reference!",
-        # Solution
-        "solution_title": "Complete Solution",
-        "the_killer": "The Killer",
-        "unknown": "Unknown",
-        "rationale": "Rationale",
-        "no_rationale": "No rationale provided.",
-        "truth_narrative": "Truth Narrative",
-        "no_truth_narrative": "No truth narrative provided.",
-        "timeline_events": "Timeline of Events",
-        "no_timeline": "No timeline provided.",
-        "murder_event_title": "MURDER EVENT",
-        "time": "Time",
-        "what_happened": "What Happened",
-        "characters_involved": "Characters Involved",
-        # Epochs
-        "epoch_modern": "Modern",
-        "epoch_1920s": "1920s",
-        "epoch_victorian": "Victorian",
-        "epoch_custom": "Custom",
-        # Invitation
-        "invitation_title": "Mystery Party Invitation",
-        "you_are_invited": "You Are Invited!",
-        "role": "Role",
-        "event_details": "Event Details",
-        "date_time": "Date & Time",
-        "tbd_host": "[To be determined by host]",
-        "see_you_there": "See you there!",
-        "what_you_receive": "What You'll Receive",
-        "invitation": "This invitation",
-        "character_sheet_full": "A character sheet with your full background and secrets",
-        "portrait_if_enabled": "Your character portrait (if images enabled)",
-        # Character Sheet
-        "character_sheet_title": "Character Sheet",
-        "your_character": "Your Character",
-        "personality_traits": "Personality Traits",
-        "backstory": "Backstory",
-        "public_description": "Public Description",
-        "personal_secrets": "Personal Secrets (Keep These Secret!)",
-        "personal_goals": "Personal Goals",
-        "motive": "Motive for Crime (If Guilty)",
-        "no_motive": "No specific motive.",
-        "costume": "Costume Suggestion",
-        "no_costume": "No specific costume suggestion.",
-        "act1_objectives": "Your Act 1 Objectives",
-        "no_objectives": "No objectives defined.",
-        "no_traits": "No personality traits defined.",
-        "no_secrets": "No secrets.",
-        "no_goals": "No specific goals.",
-        "no_relationships": "No specific relationships with other characters.",
-        "relation_to_victim": "Your Relationship to the Victim",
-        "relationships": "Relationships with Other Characters",
-        "remember_secrets": "Remember: use your secrets strategically during the investigation!",
-        # Victim Sheet
-        "victim_sheet_title": "Victim Character Sheet",
-        "host_act1_role": "Your Role in Act 1",
-        "important_note": "Important Note",
-        "died_before_act2": "This character died before the investigation. You will NOT play this role during Act 2.",
-        "embody_character": "Embody this character's personality and secrets",
-        "create_tension": "Create tension and intrigue with the suspects",
-        "follow_timing": "Follow the host guide for timing the murder event",
-        # Detective Sheet
-        "detective_sheet_title": "Detective Character Sheet",
-        "host_act2_role": "Your Role in Act 2: The Detective",
-        "clues_to_reveal": "Clues to Reveal During Investigation",
-        "how_to_interpret": "How to Interpret",
-        "final_solution": "Final Solution (The Big Reveal)",
-        "solution_timing": "When players are ready for the solution (or time runs out):",
-        "see_host_guide": "📄 See the host guide for complete clue reference and detailed investigation strategy.",
-        # Clue Reference
-        "clue_reference_title": "Clue Reference (Host Only)",
-        "clue_overview": "Overview",
-        "total_clues": "Total clues",
-        "host_only_warning": "This document contains spoiler information about which clues incriminate/exonerate suspects. Do NOT share with players.",
-        "players_get_clean": "Players will receive clean versions of the clues without the metadata.",
-        # General
-        "no_image": "No character image available.",
-    },
-    LANG_CODE_SPANISH: {
-        # Host Guide
-        "host_guide_title": "Guía del Anfitrión - Fiesta Misterio",
-        "game_information": "Información del Juego",
-        "game_id": "ID del Juego",
-        "created": "Creado",
-        "players": "Jugadores",
-        "duration": "Duración",
-        "minutes": "minutos",
-        "language": "Idioma",
-        "era": "Época",
-        "location": "Ubicación",
-        "gathering_reason": "Motivo de la Reunión",
-        "introduction": "Introducción (Leer a los Invitados)",
-        "setup_instructions": "Instrucciones de Preparación",
-        "your_role_act1": "Tu Rol en el Acto 1: La Víctima",
-        "see_victim_sheet": "📄 Ver tu Hoja de Personaje de la Víctima dedicada (victim_character_sheet.pdf) para detalles completos.",
-        "victim_sheet_includes": "La hoja del personaje de la víctima incluye:",
-        "full_background": "Trasfondo completo del personaje y rasgos de personalidad",
-        "public_persona": "Personalidad pública y secretos",
-        "costume_suggestions": "Sugerencias de vestuario",
-        "character_portrait": "Retrato del personaje (si las imágenes están habilitadas)",
-        "quick_summary": "Resumen rápido:",
-        "no_description": "No se proporcionó descripción del rol de la víctima.",
-        "runtime_tips": "Consejos Durante el Juego",
-        "murder_event": "El Evento del Asesinato (Transición al Acto 2)",
-        "no_murder_guide": "No se proporcionó guía del evento del asesinato.",
-        "act2_detective": "Acto 2: Ahora Eres el Detective",
-        "intro_script": "Guión de Introducción (Leer a los Jugadores)",
-        "no_act2_intro": "No se proporcionó guión de introducción del Acto 2.",
-        "detective_role": "Tu Rol como Detective",
-        "see_detective_sheet": "📄 Ver tu Hoja de Personaje del Detective dedicada (detective_character_sheet.pdf) para detalles completos.",
-        "detective_sheet_includes": "La hoja del personaje del detective incluye:",
-        "character_description": "Descripción completa del personaje y rasgos de personalidad",
-        "clues_list": "Lista completa de pistas para revelar con interpretaciones",
-        "guiding_questions": "Preguntas guía para hacer a los jugadores",
-        "solution_script": "Guión de la solución final para la gran revelación",
-        "quick_tip": "Consejo Rápido",
-        "keep_sheet_handy": "¡Mantén la hoja del personaje del detective a mano durante el Acto 2 para consulta rápida!",
-        # Solution
-        "solution_title": "Solución Completa",
-        "the_killer": "El Asesino",
-        "unknown": "Desconocido",
-        "rationale": "Justificación",
-        "no_rationale": "No se proporcionó justificación.",
-        "truth_narrative": "Versión de los hechos",
-        "no_truth_narrative": "No se proporcionó versión de los hechos.",
-        "timeline_events": "Cronología de Eventos",
-        "no_timeline": "No se proporcionó cronología.",
-        "murder_event_title": "EVENTO DEL ASESINATO",
-        "time": "Hora",
-        "what_happened": "Qué Sucedió",
-        "characters_involved": "Personajes Involucrados",
-        # Epochs
-        "epoch_modern": "Moderna",
-        "epoch_1920s": "Años 20",
-        "epoch_victorian": "Victoriana",
-        "epoch_custom": "Personalizada",
-        # Invitation
-        "invitation_title": "Invitación a Fiesta Misterio",
-        "you_are_invited": "¡Estás Invitado!",
-        "role": "Rol",
-        "event_details": "Detalles del Evento",
-        "date_time": "Fecha y Hora",
-        "tbd_host": "[A determinar por el anfitrión]",
-        "see_you_there": "¡Nos vemos allí!",
-        "what_you_receive": "Lo Que Recibirás",
-        "invitation": "Esta invitación",
-        "character_sheet_full": "Una hoja de personaje con tu trasfondo completo y secretos",
-        "portrait_if_enabled": "Tu retrato de personaje (si las imágenes están habilitadas)",
-        # Character Sheet
-        "character_sheet_title": "Hoja de Personaje",
-        "your_character": "Tu Personaje",
-        "personality_traits": "Rasgos de Personalidad",
-        "backstory": "Historia",
-        "public_description": "Descripción Pública",
-        "personal_secrets": "Secretos Personales (¡Mantén Estos en Secreto!)",
-        "personal_goals": "Objetivos Personales",
-        "motive": "Motivo para el Crimen (Si Es Culpable)",
-        "no_motive": "Sin motivo específico.",
-        "costume": "Sugerencia de Vestuario",
-        "no_costume": "Sin sugerencia específica de vestuario.",
-        "act1_objectives": "Tus Objetivos del Acto 1",
-        "no_objectives": "No se definieron objetivos.",
-        "no_traits": "No se definieron rasgos de personalidad.",
-        "no_secrets": "Sin secretos.",
-        "no_goals": "Sin objetivos específicos.",
-        "no_relationships": "Sin relaciones específicas con otros personajes.",
-        "relation_to_victim": "Tu Relación con la Víctima",
-        "relationships": "Relaciones con Otros Personajes",
-        "remember_secrets": "¡Recuerda: usa tus secretos estratégicamente durante la investigación!",
-        # Victim Sheet
-        "victim_sheet_title": "Hoja de Personaje de la Víctima",
-        "host_act1_role": "Tu Rol en el Acto 1",
-        "important_note": "Nota Importante",
-        "died_before_act2": "Este personaje murió antes de la investigación. NO jugarás este rol durante el Acto 2.",
-        "embody_character": "Encarna la personalidad y secretos de este personaje",
-        "create_tension": "Crea tensión e intriga con los sospechosos",
-        "follow_timing": "Sigue la guía del anfitrión para el momento del asesinato",
-        # Detective Sheet
-        "detective_sheet_title": "Hoja de Personaje del Detective",
-        "host_act2_role": "Tu Rol en el Acto 2: El Detective",
-        "clues_to_reveal": "Pistas para Revelar Durante la Investigación",
-        "how_to_interpret": "Cómo Interpretar",
-        "final_solution": "Solución Final (La Gran Revelación)",
-        "solution_timing": "Cuando los jugadores estén listos para la solución (o se acabe el tiempo):",
-        "see_host_guide": "📄 Ver la guía del anfitrión para la referencia completa de pistas y estrategia de investigación detallada.",
-        # Clue Reference
-        "clue_reference_title": "Referencia de Pistas (Solo Anfitrión)",
-        "clue_overview": "Resumen",
-        "total_clues": "Total de pistas",
-        "host_only_warning": "Este documento contiene información de spoilers sobre qué pistas incriminan/exoneran a los sospechosos. NO compartir con los jugadores.",
-        "players_get_clean": "Los jugadores recibirán versiones limpias de las pistas sin los metadatos.",
-        # General
-        "no_image": "No hay imagen del personaje disponible.",
-    },
-}
+import json
+import logging
+from pathlib import Path
+from typing import Any, TypedDict
 
-# Clue metadata labels
-CLUE_LABELS = {
-    LANG_CODE_ENGLISH: {
-        "clue": "Clue",
-        "type": "Type",
-        "description": "Description",
-        "related_info": "Related Information",
-        "incriminates": "Incriminates",
-        "exonerates": "Exonerates",
-        "red_herring": "Red Herring",
-        "metadata": "Metadata",
-        "none": "None",
-        "yes": "Yes",
-        "no": "No",
-    },
-    LANG_CODE_SPANISH: {
-        "clue": "Pista",
-        "type": "Tipo",
-        "description": "Descripción",
-        "related_info": "Información Relacionada",
-        "incriminates": "Incrimina",
-        "exonerates": "Exonera",
-        "red_herring": "Pista Falsa",
-        "metadata": "Metadatos",
-        "none": "Ninguno",
-        "yes": "Sí",
-        "no": "No",
-    },
-}
+from babel import Locale
+from babel.support import Format
+
+from mystery_agents.utils.constants import LANG_CODE_ENGLISH
+
+logger = logging.getLogger(__name__)
 
 
+# Type definitions for translation keys (enables IDE autocomplete and mypy validation)
+class DocumentLabels(TypedDict, total=False):
+    """Type definition for document-related translation keys."""
+
+    host_guide_title: str
+    game_information: str
+    game_id: str
+    created: str
+    players: str
+    duration: str
+    minutes: str
+    language: str
+    era: str
+    location: str
+    gathering_reason: str
+    introduction: str
+    setup_instructions: str
+    your_role_act1: str
+    see_victim_sheet: str
+    victim_sheet_includes: str
+    full_background: str
+    public_persona: str
+    costume_suggestions: str
+    character_portrait: str
+    quick_summary: str
+    no_description: str
+    runtime_tips: str
+    murder_event: str
+    no_murder_guide: str
+    act2_detective: str
+    intro_script: str
+    no_act2_intro: str
+    detective_role: str
+    see_detective_sheet: str
+    detective_sheet_includes: str
+    character_description: str
+    clues_list: str
+    guiding_questions: str
+    solution_script: str
+    quick_tip: str
+    keep_sheet_handy: str
+    solution_title: str
+    the_killer: str
+    unknown: str
+    rationale: str
+    no_rationale: str
+    truth_narrative: str
+    no_truth_narrative: str
+    timeline_events: str
+    no_timeline: str
+    murder_event_title: str
+    time: str
+    what_happened: str
+    characters_involved: str
+    epoch_modern: str
+    epoch_1920s: str
+    epoch_victorian: str
+    epoch_custom: str
+    invitation_title: str
+    you_are_invited: str
+    role: str
+    event_details: str
+    date_time: str
+    tbd_host: str
+    see_you_there: str
+    what_you_receive: str
+    invitation: str
+    character_sheet_full: str
+    portrait_if_enabled: str
+    character_sheet_title: str
+    your_character: str
+    personality_traits: str
+    backstory: str
+    public_description: str
+    personal_secrets: str
+    personal_goals: str
+    motive: str
+    no_motive: str
+    costume: str
+    no_costume: str
+    act1_objectives: str
+    no_objectives: str
+    no_traits: str
+    no_secrets: str
+    no_goals: str
+    no_relationships: str
+    relation_to_victim: str
+    relationships: str
+    remember_secrets: str
+    victim_sheet_title: str
+    host_act1_role: str
+    important_note: str
+    died_before_act2: str
+    embody_character: str
+    create_tension: str
+    follow_timing: str
+    detective_sheet_title: str
+    host_act2_role: str
+    clues_to_reveal: str
+    how_to_interpret: str
+    final_solution: str
+    solution_timing: str
+    see_host_guide: str
+    clue_reference_title: str
+    clue_overview: str
+    total_clues: str
+    host_only_warning: str
+    players_get_clean: str
+    no_image: str
+
+
+class ClueLabels(TypedDict, total=False):
+    """Type definition for clue-related translation keys."""
+
+    clue: str
+    type: str
+    description: str
+    related_info: str
+    incriminates: str
+    exonerates: str
+    red_herring: str
+    metadata: str
+    none: str
+    yes: str
+    no: str
+
+
+class RoomLabels(TypedDict, total=False):
+    """Type definition for room name translation keys."""
+
+    study: str
+    library: str
+    dining_room: str
+    drawing_room: str
+    lounge: str
+    bedroom: str
+    master_bedroom: str
+    kitchen: str
+    parlor: str
+    ballroom: str
+    conservatory: str
+    billiard_room: str
+    wine_cellar: str
+    gallery: str
+    terrace: str
+    garden: str
+    veranda: str
+    office: str
+    deck: str
+    cabin: str
+    suite: str
+    captains_quarters: str
+    main_deck: str
+    observation_deck: str
+    bar: str
+    restaurant: str
+    spa: str
+    pool: str
+    gym: str
+
+
+class LanguageLabels(TypedDict):
+    """Type definition for language name translation keys."""
+
+    en: str
+    es: str
+
+
+class TranslationKeys(TypedDict):
+    """Root type definition combining all translation sections."""
+
+    document: DocumentLabels
+    clue: ClueLabels
+    room: RoomLabels
+    language: LanguageLabels
+
+
+class TranslationManager:
+    """
+    Manages translations with JSON resources, caching, and fallback support.
+
+    Features:
+    - Singleton pattern (one instance per language)
+    - Lazy loading of JSON files
+    - Fallback mechanism (target language → English → key itself)
+    - Dot notation for nested key access (e.g., "document.host_guide_title")
+    - Variable interpolation (e.g., "Hello {name}")
+    - Manual caching for performance
+    - Babel integration for pluralization
+
+    Example:
+        >>> tm = TranslationManager("es")
+        >>> title = tm.get("document.host_guide_title")
+        >>> 'Guía del Anfitrión - Fiesta Misterio'
+        >>> label = tm.get("clue.type")
+        >>> 'Tipo'
+    """
+
+    _instances: dict[str, TranslationManager] = {}
+    _initialized: bool
+
+    def __new__(cls, lang_code: str = "en", locales_dir: str | None = None) -> TranslationManager:
+        """
+        Singleton pattern: return existing instance for language or create new one.
+
+        Args:
+            lang_code: Language code (e.g., "en", "es")
+            locales_dir: Optional path to locales directory (defaults to package locales/)
+
+        Returns:
+            TranslationManager instance for the specified language
+        """
+        if lang_code not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[lang_code] = instance
+            instance._initialized = False
+        return cls._instances[lang_code]
+
+    def __init__(self, lang_code: str = "en", locales_dir: str | None = None) -> None:
+        """
+        Initialize the translation manager.
+
+        Args:
+            lang_code: Language code (e.g., "en", "es")
+            locales_dir: Optional path to locales directory
+        """
+        # Avoid re-initialization due to singleton pattern
+        if hasattr(self, "_initialized") and self._initialized:
+            return
+
+        self.lang_code = lang_code
+        self.locales_path = (
+            Path(locales_dir) if locales_dir else Path(__file__).parent.parent / "locales"
+        )
+
+        # Load fallback (English) and target language translations
+        self.fallback_translations = self._load_translations(LANG_CODE_ENGLISH)
+        self.translations = (
+            self._load_translations(lang_code)
+            if lang_code != LANG_CODE_ENGLISH
+            else self.fallback_translations
+        )
+
+        # Initialize Babel locale for pluralization
+        try:
+            self.locale = Locale.parse(lang_code)
+            self.format = Format(self.locale)
+        except Exception as e:
+            logger.warning(f"Could not initialize Babel locale for '{lang_code}': {e}")
+            self.locale = Locale.parse("en")
+            self.format = Format(self.locale)
+
+        # Manual cache for get() method to avoid lru_cache memory leak with singleton
+        self._get_cache: dict[tuple[str, tuple[tuple[str, Any], ...]], str] = {}
+
+        self._initialized = True
+
+    def _load_translations(self, code: str) -> dict[str, Any]:
+        """
+        Load translation JSON file for a language.
+
+        Args:
+            code: Language code (e.g., "en", "es")
+
+        Returns:
+            Dictionary with translations, or empty dict if file not found
+        """
+        file_path = self.locales_path / code / "ui.json"
+        if not file_path.exists():
+            logger.warning(f"Translation file not found: {file_path}. Using fallback translations.")
+            return {}
+
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                data: dict[str, Any] = json.load(f)
+                return data
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in translation file {file_path}: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"Error loading translation file {file_path}: {e}")
+            return {}
+
+    def get(self, key: str, **kwargs: Any) -> str:
+        """
+        Get a translated string using dot notation.
+
+        Supports variable interpolation using {variable_name} syntax.
+        Results are cached for performance.
+
+        Args:
+            key: Translation key in dot notation (e.g., "document.host_guide_title")
+            **kwargs: Variables for string interpolation
+
+        Returns:
+            Translated string, or the key itself if translation not found
+
+        Example:
+            >>> tm.get("document.host_guide_title")
+            'Guía del Anfitrión - Fiesta Misterio'
+            >>> tm.get("document.players", count=5)
+            'Jugadores'
+        """
+        # Create cache key from arguments
+        cache_key = (key, tuple(sorted(kwargs.items())))
+
+        # Check cache first
+        if cache_key in self._get_cache:
+            return self._get_cache[cache_key]
+
+        # Try target language first
+        val = self._lookup(self.translations, key)
+
+        # Fallback to English if not found
+        if val is None:
+            val = self._lookup(self.fallback_translations, key)
+
+        # Last resort: return the key itself
+        if val is None:
+            logger.debug(f"Translation key not found: '{key}'")
+            result = key
+        else:
+            # Handle variable interpolation
+            if kwargs and isinstance(val, str):
+                try:
+                    result = val.format(**kwargs)
+                except KeyError as e:
+                    logger.warning(
+                        f"Missing interpolation variable {e} for key '{key}'. "
+                        "Returning unformatted string."
+                    )
+                    result = val
+            else:
+                result = str(val)
+
+        # Cache the result (limit cache size to prevent unbounded growth)
+        if len(self._get_cache) < 1000:
+            self._get_cache[cache_key] = result
+
+        return result
+
+    def _lookup(self, data: dict[str, Any], key: str) -> Any:
+        """
+        Navigate nested dictionary using dot notation.
+
+        Args:
+            data: Dictionary to search
+            key: Dot-separated key path (e.g., "document.title")
+
+        Returns:
+            Value if found, None otherwise
+        """
+        keys = key.split(".")
+        current: Any = data
+        for k in keys:
+            if isinstance(current, dict) and k in current:
+                current = current[k]
+            else:
+                return None
+        return current
+
+    def get_plural(self, key: str, count: int, **kwargs: Any) -> str:
+        """
+        Get a translated string with plural handling using Babel.
+
+        This is a placeholder for full pluralization support. Currently returns
+        the singular form with count interpolation. Full ICU MessageFormat support
+        can be added in the future.
+
+        Args:
+            key: Translation key
+            count: Number for pluralization
+            **kwargs: Additional variables for interpolation
+
+        Returns:
+            Translated string with count
+
+        Example:
+            >>> tm.get_plural("document.players", count=5)
+            'Jugadores'
+        """
+        # Get the base translation
+        text = self.get(key, count=count, **kwargs)
+
+        # For now, simple count-based pluralization
+        # Future: implement full ICU MessageFormat support
+        return text
+
+    def _get_section(self, section: str) -> dict[str, str]:
+        """
+        Get all translations for a specific section as a flat dictionary.
+
+        Used by backward compatibility functions.
+
+        Args:
+            section: Section name (e.g., "document", "clue")
+
+        Returns:
+            Flat dictionary of translations for the section
+        """
+        section_data = self._lookup(self.translations, section)
+        if section_data is None:
+            section_data = self._lookup(self.fallback_translations, section)
+
+        if not isinstance(section_data, dict):
+            return {}
+
+        # We know this is dict[str, str] from our JSON structure
+        return dict(section_data)
+
+
+# Backward compatibility functions - maintain existing API
 def get_document_labels(language: str) -> dict[str, str]:
     """
     Get translated labels for document templates.
+
+    Legacy function maintained for backward compatibility.
+    New code should use TranslationManager directly.
 
     Args:
         language: Language code (e.g., "en", "es")
@@ -283,20 +449,25 @@ def get_document_labels(language: str) -> dict[str, str]:
     Returns:
         Dictionary mapping label keys to translated strings
     """
-    return DOCUMENT_LABELS.get(language, DOCUMENT_LABELS[LANG_CODE_ENGLISH])
+    tm = TranslationManager(language)
+    return tm._get_section("document")
 
 
 def get_clue_labels(language: str) -> dict[str, str]:
     """
     Get translated labels for clue metadata.
 
+    Legacy function maintained for backward compatibility.
+    New code should use TranslationManager directly.
+
     Args:
         language: Language code (e.g., "en", "es")
 
     Returns:
         Dictionary mapping label keys to translated strings
     """
-    return CLUE_LABELS.get(language, CLUE_LABELS[LANG_CODE_ENGLISH])
+    tm = TranslationManager(language)
+    return tm._get_section("clue")
 
 
 def get_language_name(language_code: str) -> str:
@@ -309,11 +480,9 @@ def get_language_name(language_code: str) -> str:
     Returns:
         Full language name (e.g., "English", "Spanish")
     """
-    names = {
-        LANG_CODE_ENGLISH: "English",
-        LANG_CODE_SPANISH: "Spanish",
-    }
-    return names.get(language_code, language_code)
+    tm = TranslationManager(LANG_CODE_ENGLISH)
+    name = tm._lookup(tm.translations, f"language.{language_code}")
+    return name if name else language_code
 
 
 def translate_epoch(epoch: str, language: str) -> str:
@@ -327,57 +496,26 @@ def translate_epoch(epoch: str, language: str) -> str:
     Returns:
         Translated epoch name
     """
-    labels = get_document_labels(language)
+    tm = TranslationManager(language)
     epoch_lower = epoch.lower()
 
     # Map epoch values to label keys
     epoch_mapping = {
-        "modern": "epoch_modern",
-        "1920s": "epoch_1920s",
-        "victorian": "epoch_victorian",
-        "custom": "epoch_custom",
+        "modern": "document.epoch_modern",
+        "1920s": "document.epoch_1920s",
+        "victorian": "document.epoch_victorian",
+        "custom": "document.epoch_custom",
     }
 
-    label_key = epoch_mapping.get(epoch_lower)
-    if label_key and label_key in labels:
-        return labels[label_key]
+    key = epoch_mapping.get(epoch_lower)
+    if key:
+        translated = tm.get(key)
+        # If translation is different from key (meaning it was found), return it
+        if translated != key:
+            return translated
 
     # Return original if no translation found
     return epoch
-
-
-# Common room name translations (Spanish only for now)
-ROOM_TRANSLATIONS_ES = {
-    "study": "Estudio",
-    "library": "Biblioteca",
-    "dining_room": "Comedor",
-    "drawing_room": "Sala de estar",
-    "lounge": "Salón",
-    "bedroom": "Dormitorio",
-    "master_bedroom": "Dormitorio principal",
-    "kitchen": "Cocina",
-    "parlor": "Sala",
-    "ballroom": "Salón de baile",
-    "conservatory": "Invernadero",
-    "billiard_room": "Sala de billar",
-    "wine_cellar": "Bodega",
-    "gallery": "Galería",
-    "terrace": "Terraza",
-    "garden": "Jardín",
-    "veranda": "Veranda",
-    "office": "Oficina",
-    "deck": "Cubierta",
-    "cabin": "Camarote",
-    "suite": "Suite",
-    "captains_quarters": "Camarote del capitán",
-    "main_deck": "Cubierta principal",
-    "observation_deck": "Cubierta de observación",
-    "bar": "Bar",
-    "restaurant": "Restaurante",
-    "spa": "Spa",
-    "pool": "Piscina",
-    "gym": "Gimnasio",
-}
 
 
 def translate_room_name(room_id: str | None, language: str) -> str:
@@ -392,11 +530,17 @@ def translate_room_name(room_id: str | None, language: str) -> str:
         Translated room name or formatted original
     """
     if not room_id:
-        return get_document_labels(language)["unknown"]
+        tm = TranslationManager(language)
+        return tm.get("document.unknown")
 
-    # For Spanish, use translation dictionary
-    if language == LANG_CODE_SPANISH and room_id in ROOM_TRANSLATIONS_ES:
-        return ROOM_TRANSLATIONS_ES[room_id]
+    # Try to get translation from JSON
+    tm = TranslationManager(language)
+    key = f"room.{room_id}"
+    translated = tm.get(key)
 
-    # For English or unknown rooms, format nicely: "captains_quarters" -> "Captains Quarters"
+    # If translation found (not equal to key), return it
+    if translated != key:
+        return translated
+
+    # For unknown rooms, format nicely: "captains_quarters" -> "Captains Quarters"
     return room_id.replace("_", " ").title()
