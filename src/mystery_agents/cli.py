@@ -28,7 +28,7 @@ from mystery_agents.utils.constants import (
     "--dry-run",
     is_flag=True,
     default=False,
-    help="Use mock data instead of calling LLMs (fast testing)",
+    help="Use mock data instead of calling LLMs (generates PDFs and files but skips API calls)",
 )
 @click.option(
     "--debug",

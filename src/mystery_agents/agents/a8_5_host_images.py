@@ -344,6 +344,8 @@ STYLE REQUIREMENTS:
         """
         game_id = state.meta.id[:8] if state.meta else "default"
         output_dir = get_character_image_output_dir(game_id)
+        # Create directory structure even in dry-run mode for consistency
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # Mock victim image
         if state.crime and state.crime.victim:

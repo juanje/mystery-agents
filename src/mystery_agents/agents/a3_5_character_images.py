@@ -297,6 +297,8 @@ STYLE REQUIREMENTS:
             State with mock image paths
         """
         output_dir = self._get_image_output_dir(state)
+        # Create directory structure even in dry-run mode for consistency
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         for character in state.characters:
             mock_filename = f"{character.id}_{character.name.lower().replace(' ', '_')}.png"

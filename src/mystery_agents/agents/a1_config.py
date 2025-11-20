@@ -89,6 +89,7 @@ class ConfigWizardAgent:
             generate_images=state.config.generate_images,
             dry_run=state.config.dry_run,
             debug_model=state.config.debug_model,
+            keep_work_dir=state.config.keep_work_dir,
             config_file=yaml_path,
         )
 
