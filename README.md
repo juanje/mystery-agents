@@ -2,274 +2,288 @@
 
 AI-powered mystery party game generator using LangGraph and LangChain.
 
-## Overview
+**Generate complete, playable murder mystery parties in minutes** — characters, clues, host guide, and everything ready to print!
 
-Mystery Agents is a multi-agent system that generates complete mystery party games in the style of Cluedo and Knives Out. The system uses LangGraph for workflow orchestration and LangChain for LLM integration, creating coherent, playable mystery scenarios with characters, clues, and guided gameplay.
+📖 **[Read about the Game Experience](game_experience.md)** - See what playing a generated mystery is like
 
-**📖 [Read about the Game Experience](game_experience.md)** - Learn what playing a generated mystery party is like
+---
 
-## Features
+## Table of Contents
 
-- **Complete Game Generation**: Generates all materials needed for a live-action mystery party
-- **Host-Detective Mode**: Host plays as victim in Act 1, then becomes detective in Act 2
-- **Act 1 Objectives**: Each player receives 2-3 specific, actionable goals that create social tension and roleplay opportunities during the party
-- **Automatic Validation**: Two-stage validation (world coherence + game logic) with retry loops
-- **Player Packages**: Individual packages with character sheets, invitations, costume suggestions, and Act 1 objectives
-- **Cultural Context**: Adapts character names, customs, and setting details to selected country and region
-- **Dual-Format Output**: Both Markdown and professional PDFs for all materials
-- **Character Image Generation** (Optional): Generate AI-powered character portraits using Gemini Imagen 3 API with parallel processing
-- **Visual Style Consistency**: Automatic visual style guide ensures all character images share cohesive aesthetic (color palette, lighting, no text overlays)
-- **Google Gemini Integration**: Uses Google Gemini models (gemini-2.5-pro for generation, gemini-2.5-flash for validation)
+- [What is Mystery Agents?](#what-is-mystery-agents)
+- [Quick Start](#quick-start)
+- [Key Features](#key-features)
+- [Usage Guide](#usage-guide)
+  - [Basic Usage](#basic-usage)
+  - [Configuration Options](#configuration-options)
+  - [Character Image Generation](#character-image-generation)
+- [What You Get](#what-you-get)
+- [Technical Details](#technical-details)
+  - [Architecture](#architecture)
+  - [Project Structure](#project-structure)
+  - [Development](#development)
+- [AI Tools Disclaimer](#-ai-tools-disclaimer)
+- [License](#license)
 
-## Installation
+---
 
-### Prerequisites
-- Python 3.12 or higher
-- `uv` package manager ([installation guide](https://github.com/astral-sh/uv))
-- **WeasyPrint system dependencies** (for PDF generation):
-  - Ubuntu/Debian:
-  ```console
-  $ sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libgdk-pixbuf2.0-0 libffi-dev libcairo2
+## What is Mystery Agents?
+
+Mystery Agents generates **complete murder mystery party games** in the style of Cluedo and Knives Out. Give it your preferences (theme, era, language, number of players), and it creates:
+
+- 🎭 **Unique characters** with secrets, motives, and backstories
+- 🕵️ **A solvable mystery** with timeline, clues, and red herrings
+- 📦 **Print-ready materials** (character sheets, host guide, clues)
+- 🎨 **AI-generated portraits** for each character (optional)
+- 🌍 **Cultural adaptation** - names and customs match your country/region
+- 🗣️ **Native language generation** - Spanish or English (more coming)
+
+**Perfect for:**
+- Game masters planning a mystery party
+- Writers exploring murder mystery structures
+- Anyone who wants to host an interactive Cluedo-style event
+
+---
+
+## Quick Start
+
+### 1. Prerequisites
+
+- **Python 3.12+**
+- **uv** package manager ([install here](https://github.com/astral-sh/uv))
+- **PDF dependencies** (WeasyPrint):
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libgdk-pixbuf2.0-0 libffi-dev libcairo2
+  
+  # Fedora
+  sudo dnf install pango gdk-pixbuf2 cairo
+  
+  # macOS
+  brew install pango gdk-pixbuf cairo
+  export DYLD_LIBRARY_PATH="/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
   ```
-  - Fedora:
-  ```console
-  $ sudo dnf install pango gdk-pixbuf2 cairo
-  ```
-  - macOS:
-  ```console
-  $ brew install pango gdk-pixbuf cairo
-  $ export DYLD_LIBRARY_PATH="/opt/homebrew/lib:$DYLD_LIBRARY_PATH"
-  ```
-  - Windows: Download GTK+ runtime from [gtk.org](https://www.gtk.org/)
 
-### Setup
+### 2. Install
 
 ```bash
-# Install dependencies using uv
+git clone https://github.com/juanje/mystery-agents.git
+cd mystery-agents
 uv sync
-
-# Install with dev dependencies
-uv sync --all-extras
 ```
 
-### API Key Configuration
+### 3. Configure API Key
 
-You need a Google Gemini API key. Get one from [Google AI Studio](https://aistudio.google.com/apikey).
-
-**Option 1: Using .env file (recommended)**
+Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey), then:
 
 ```bash
-# Copy the example file
+# Option 1: Create .env file (recommended)
 cp env.example .env
+nano .env  # Add: GOOGLE_API_KEY=your-key-here
 
-# Edit .env and add your API key
-nano .env  # or your preferred editor
+# Option 2: Environment variable
+export GOOGLE_API_KEY='your-key-here'
 ```
 
-The `.env` file should contain:
-```bash
-GOOGLE_API_KEY=your-api-key-here
-```
-
-**Option 2: Environment variable**
+### 4. Generate Your First Game
 
 ```bash
-# Set environment variable (temporary - for current session)
-export GOOGLE_API_KEY='your-api-key-here'
-
-# Or add to your shell profile for persistence
-echo "export GOOGLE_API_KEY='your-api-key-here'" >> ~/.bashrc
-source ~/.bashrc
-```
-
-**Notes:**
-- The `.env` file is automatically loaded when running the application
-- `.env` is already in `.gitignore` to keep your API key safe
-- You can override any `.env` setting with environment variables
-
-## Usage
-
-### Interactive Mode (Wizard)
-
-```bash
-# Generate a mystery party game (interactive wizard)
+# Interactive wizard (recommended for first time)
 uv run mystery-agents
 
-# With options
-uv run mystery-agents --dry-run        # Use mock data (fast testing)
-uv run mystery-agents --debug          # Enable debug logging
-uv run mystery-agents --no-images      # Skip character portrait generation (enabled by default)
-uv run mystery-agents --keep-work-dir  # Keep intermediate files (markdown + images) for inspection
-
-# Using configuration file (skips wizard)
-uv run mystery-agents --config config.yaml
-uv run mystery-agents --config config.yaml --dry-run  # Test with config file
+# Or test without API calls
+uv run mystery-agents --dry-run
 ```
 
-### Configuration File Mode
+**Done!** Your game package is in `output/mystery_game_xxxxx.zip` 🎉
 
-For repeated testing or automation, you can use a YAML configuration file to skip the interactive wizard:
+---
 
-**1. Create a configuration file:**
+## Key Features
 
+### Core Capabilities
+
+- ✅ **Complete Game Generation** - All materials for a live-action mystery party
+- ✅ **Host-Detective Mode** - Host plays victim in Act 1, detective in Act 2
+- ✅ **Act 1 Objectives** - Each player gets 2-3 goals creating social tension
+- ✅ **Automatic Validation** - Two-stage validation with retry loops
+- ✅ **Print-Ready PDFs** - Professional PDFs ready to print (markdown source optional with `--keep-work-dir`)
+
+### Customization
+
+- 🎨 **Themes**: Family mansion, corporate retreat, cruise ship, train, or custom
+- 📅 **Eras**: Modern, 1920s, Victorian, or custom period
+- 🌍 **Cultural Adaptation**: Character names, customs, settings match your country/region
+- 👥 **Flexible Players**: 4-10 players, customizable gender distribution
+- 🗣️ **Languages**: Spanish, English (native generation, not translation)
+
+### AI Features
+
+- 🖼️ **Character Portraits** - AI-generated images with consistent visual style
+- 🎯 **Visual Style Guide** - Unified aesthetic (color palette, lighting, no text overlays)
+- 🔄 **Parallel Generation** - Fast image creation with rate limiting
+- 🤖 **Google Gemini Integration** - gemini-2.5-pro for generation, gemini-2.5-flash for validation
+
+---
+
+## Usage Guide
+
+### Basic Usage
+
+**Interactive Wizard** (recommended):
 ```bash
-# Copy the example file
+# Step-by-step configuration
+uv run mystery-agents
+
+# Skip image generation (faster, no API costs)
+uv run mystery-agents --no-images
+
+# Test without API calls (uses mock data)
+uv run mystery-agents --dry-run
+```
+
+**Configuration File** (for repeated use):
+```bash
+# 1. Create config file
 cp config.example.yaml config.yaml
+nano config.yaml
 
-# Edit it with your preferences
-nano config.yaml  # or your preferred editor
-```
-
-**2. Run with config file:**
-
-```bash
+# 2. Generate with config
 uv run mystery-agents --config config.yaml
 ```
 
-**Configuration file format:**
-
+**Example config.yaml:**
 ```yaml
 language: es              # es or en
-country: Spain            # Country for character names
-region: Andalucía         # Optional: specific region
+country: Spain
+region: Andalucía         # Optional
 epoch: modern             # modern, 1920s, victorian, custom
 theme: family_mansion     # family_mansion, corporate_retreat, cruise, train, custom
 players:
-  male: 3                 # Number of male suspects
-  female: 3               # Number of female suspects
-host_gender: male         # male or female
+  male: 3
+  female: 3
+host_gender: male
 duration_minutes: 90      # 60-180
 difficulty: medium        # easy, medium, hard
 ```
 
-**Notes:**
-- CLI flags (`--dry-run`, `--debug`, `--no-images`) still work with config files
-- Config file skips the interactive wizard entirely
-- See `config.example.yaml` for a complete annotated example
+### Configuration Options
+
+**CLI Flags:**
+```bash
+--config FILE         # Load configuration from YAML file
+--dry-run            # Use mock data (no API calls)
+--debug              # Enable debug logging
+--no-images          # Skip character portrait generation
+--keep-work-dir      # Keep intermediate markdown files
+--output-dir DIR     # Custom output directory
+```
+
+**Environment Variables:**
+
+Create a `.env` file (or set environment variables):
+```bash
+# Required
+GOOGLE_API_KEY=your-api-key-here
+
+# Optional: Override LLM models per tier
+LLM_MODEL_TIER1=gemini-2.5-pro       # Logic/creativity
+LLM_MODEL_TIER2=gemini-2.5-pro       # Content generation
+LLM_MODEL_TIER3=gemini-2.5-flash     # Validation
+
+# Optional: Override temperatures
+LLM_TEMPERATURE_TIER1=0.6
+LLM_TEMPERATURE_TIER2=0.7
+LLM_TEMPERATURE_TIER3=0.3
+```
+
+See `env.example` for full configuration options.
 
 ### Character Image Generation
 
-**Character image generation is ENABLED BY DEFAULT.** The system uses Google's **Gemini 2.5 Flash Image** model to generate portraits:
+**Enabled by default.** Uses Google's Gemini 2.5 Flash Image model.
 
 **Features:**
-- ✅ Photorealistic character portraits coherent with the game world
-- ✅ **Visual Style Consistency**: All images share unified aesthetic (color palette, lighting, camera specs)
-- ✅ Period-appropriate styling (1920s, Victorian, Modern, etc.)
-- ✅ Cultural adaptation based on country and region
-- ✅ **No text/labels in images**: Explicit exclusion of text overlays and watermarks
-- ✅ Parallel generation (5 concurrent requests with rate limiting)
-- ✅ Automatic embedding in character sheet PDFs
-- ✅ Exponential backoff retry logic for API errors
+- ✅ Photorealistic portraits coherent with game world
+- ✅ Visual style consistency (unified color palette, lighting)
+- ✅ Period-appropriate styling (1920s, Victorian, Modern)
+- ✅ No text/labels in images
+- ✅ Parallel generation (~1-2 minutes for 6-8 characters)
+- ✅ Embedded in PDFs, saved separately
 
-**Cost & Rate Limits:**
-- Model: `gemini-2.5-flash-image` (cost-effective, fast generation)
-- Rate limit: Subject to Google AI API limits
-- Typical game: 6-8 images (~1-2 minutes with retries)
-- **Note**: Image generation incurs API costs (enabled by default). Use `--no-images` to skip.
+**Cost & Performance:**
+- Model: `gemini-2.5-flash-image` (cost-effective)
+- Typical game: 6-8 images in ~1-2 minutes
+- **Note**: Image generation incurs API costs. Use `--no-images` to skip.
 
-**Example:**
 ```bash
-# Generate a game with character images (DEFAULT)
+# With images (default)
 uv run mystery-agents
 
-# Skip image generation (if you want to avoid API costs)
+# Without images (no cost, faster)
 uv run mystery-agents --no-images
-
-# The system will (by default):
-# 1. Generate all character images in parallel (~1-2 minutes for 6-8 characters)
-# 2. Embed images in character sheet PDFs
-# 3. Save images to output/game_xxxxx/images/characters/
 ```
 
-📚 **For detailed information**, see [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md)
+📚 **Details**: [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md)
 
-### Generated Output
+---
 
-The system generates a complete game package in `/output/game_xxxxx/`:
+## What You Get
+
+### Output Structure
 
 ```
-/output/game_xxxxx/
-├── mystery_game_xxxxx.zip       # Complete ZIP package (PDFs only)
+output/game_xxxxx/
+├── mystery_game_xxxxx.zip       # Complete package (PDFs only)
 │
 ├── /game/                       # Host materials (⚠️ SPOILERS!)
-│   ├── host_guide.pdf           # Complete host guide
-│   ├── solution.pdf             # Complete solution
+│   ├── host_guide.pdf           # Complete instructions
+│   ├── solution.pdf             # The answer
 │   └── clue_reference.pdf       # All clues with metadata
 │
-├── /characters/                 # All character sheets (flat structure)
-│   ├── Name_character_sheet.pdf        # Player character sheets (with AI portraits)
-│   ├── Name_invitation.pdf             # Player invitations
-│   ├── victim_character_sheet.pdf      # Host's victim role (Act 1)
-│   ├── detective_character_sheet.pdf   # Host's detective role (Act 2)
+├── /characters/                 # Player packages
+│   ├── Name_character_sheet.pdf    # Character + objectives
+│   ├── Name_invitation.pdf         # Player invitation
+│   ├── victim_character_sheet.pdf  # Host's Act 1 role
+│   ├── detective_character_sheet.pdf  # Host's Act 2 role
 │   └── ...
 │
-└── /clues/                      # Clean clues for Act 2 (no spoilers)
-    ├── clue_01.pdf              # Numbered clues (ready to print)
+└── /clues/                      # Act 2 clues (no spoilers)
+    ├── clue_01.pdf
     ├── clue_02.pdf
     └── ...
 ```
 
-**Optimized for Printing:**
-The new flat structure makes it easy to print all files at once - no need to navigate through nested directories.
+### Key Features
 
-**Optional Work Directory** (with `--keep-work-dir` flag):
+- 📄 **PDF-Only Package** - Everything print-ready, no clutter
+- 📁 **Flat Structure** - All files easy to access
+- 🏷️ **Clear Naming** - `Name_character_sheet.pdf`, `clue_01.pdf`
+- 🖼️ **Embedded Images** - Portraits in PDFs, images separate
+- 🌐 **Native Language** - Generated in target language (not translated)
+- 🎨 **Professional Styling** - Beautiful PDFs via WeasyPrint
+- 📦 **Complete ZIP** - Ready to share and print
+
+### Optional: Intermediate Files
+
+**By default**, only PDFs are kept in the final package. Markdown files are generated internally but deleted after PDF conversion.
+
+Use `--keep-work-dir` to preserve intermediate files for inspection:
 ```
-/output/
-├── game_xxxxx/                  # Final package (PDFs only)
-└── _work_xxxxx/                 # Intermediate files (markdown + images)
-    ├── game/
-    ├── characters/
-    └── clues/
-```
-
-**Key Features**:
-- ✅ **PDF-Only Package**: Final output contains only PDFs (easy to print, no clutter)
-- ✅ **Flat Structure**: All character sheets in one directory (no nested subdirectories)
-- ✅ **Clear Naming**: `Name_character_sheet.pdf`, `Name_invitation.pdf`, `clue_01.pdf`
-- ✅ **Host Character Sheets**: Dedicated sheets for victim and detective roles
-- ✅ **Embedded Images**: Character portraits embedded in PDFs (images removed from final package)
-- ✅ **Native Language Generation**: All content generated directly in the selected language for better quality and cultural appropriateness
-- ✅ **Professional Styling**: Beautiful PDFs with CSS-based formatting via WeasyPrint
-- ✅ **Unicode Support**: Native Unicode support for all languages
-- ✅ **Print-Ready**: Everything ready to print directly - just select the entire directory
-- ✅ **Context-Aware**: Era and location displayed on all materials for player immersion
-
-## Development
-
-```bash
-# Run linting
-uv run ruff check . --fix
-uv run ruff format .
-
-# Run type checking
-uv run mypy src/
-
-# Run tests
-uv run pytest
+output/
+├── game_xxxxx/          # Final PDFs (default output)
+└── _work_xxxxx/         # Markdown sources + images (with --keep-work-dir)
 ```
 
-## Project Structure
+---
 
-```
-mystery-agents/
-├── src/mystery_agents/
-│   ├── models/         # Pydantic state models
-│   ├── agents/         # Agent implementations (A1-A9, V1-World, V2-Logic)
-│   ├── graph/          # LangGraph workflow
-│   ├── utils/          # Prompt templates and helpers
-│   ├── config.py       # LLM configuration
-│   └── cli.py          # CLI entry point
-├── tests/
-│   ├── unit/           # Unit tests
-│   └── integration/    # Integration tests
-└── output/             # Generated games (gitignored)
-```
+## Technical Details
 
-## Architecture
+### Architecture
 
-The system uses a LangGraph workflow with conditional validation loops:
+Mystery Agents uses **LangGraph** for workflow orchestration with **conditional validation loops**:
 
-### Workflow Graph
+#### Workflow Graph
 
 ```mermaid
 graph TD
@@ -294,27 +308,81 @@ graph TD
     A9 --> END
 ```
 
-### Agent Pipeline
+#### Agent Pipeline
 
-1. **A1: Config Wizard** - Collects user preferences (theme, era, country, region, tone, players, language, etc.)
-2. **A2: World Generation** - Creates setting, location, and atmosphere (culturally adapted)
-3. **V1: World Validator** - Validates world coherence (historical, geographical, cultural)
-4. **A2.5: Visual Style** - Generates unified visual style guide (color palette, lighting, exclusions) for consistent character images
-5. **A3: Characters** - Generates suspect characters with personality traits, secrets, goals, and Act 1 objectives
-6. **A3.5: Character Images** - (Optional) Generates AI character portraits using unified visual style
-7. **A4: Relationships** - Defines relationships between characters (coordinated with Act 1 objectives)
-8. **A5: Crime** - Creates crime specification (victim, method, scene)
-9. **A6: Timeline** - Generates global timeline with multiple suspect opportunities
+1. **A1: Config Wizard** - Collects user preferences
+2. **A2: World Generation** - Creates setting and atmosphere
+3. **V1: World Validator** - Validates coherence (retries up to 2x)
+4. **A2.5: Visual Style** - Generates unified visual style guide
+5. **A3: Characters** - Creates suspects with secrets and objectives
+6. **A3.5: Character Images** - (Optional) Generates AI portraits
+7. **A4: Relationships** - Defines character connections
+8. **A5: Crime** - Specifies victim, method, scene
+9. **A6: Timeline** - Creates event sequence
 10. **A7: Killer Selection** - Chooses culprit and finalizes solution
-11. **V2: Game Logic Validator** - Validates complete game logic consistency (timeline, clues, motives, false alibis)
-12. **A8: Content Generation** - Creates all game materials (clues, host guide, detective role) in target language
-13. **A8.5: Host Images** - (Optional) Generates victim and detective portraits using unified visual style
-14. **A9: Packaging** - Generates PDFs and assembles final ZIP package
+11. **V2: Game Logic Validator** - Validates consistency (retries up to 3x)
+12. **A8: Content Generation** - Creates all game materials
+13. **A8.5: Host Images** - (Optional) Generates victim/detective portraits
+14. **A9: Packaging** - Generates PDFs and ZIP package
 
-### Validation Loops
+**Validation Loops:**
+- **V1 (World)**: Retries up to 2 times → returns to A2
+- **V2 (Game Logic)**: Retries up to 3 times → returns to A6
 
-- **World Validation (V1)**: Retries up to 2 times if world coherence fails (returns to A2: World)
-- **Game Logic Validation (V2)**: Retries up to 3 times if game logic is inconsistent (returns to A6: Timeline)
+### Project Structure
+
+```
+mystery-agents/
+├── src/mystery_agents/
+│   ├── models/         # Pydantic state models
+│   ├── agents/         # Agent implementations (A1-A9, V1-V2)
+│   ├── graph/          # LangGraph workflow
+│   ├── utils/          # Prompt templates and helpers
+│   ├── config.py       # LLM configuration
+│   └── cli.py          # CLI entry point
+├── tests/
+│   ├── unit/           # Unit tests
+│   └── integration/    # Integration tests
+├── docs/               # Documentation
+├── output/             # Generated games (gitignored)
+└── env.example         # Environment variables template
+```
+
+### Development
+
+**Setup:**
+```bash
+# Install with dev dependencies
+uv sync --all-extras
+```
+
+**Quality Checks:**
+```bash
+# Linting
+uv run ruff check . --fix
+uv run ruff format .
+
+# Type checking
+uv run mypy src/
+
+# Tests (195 tests)
+uv run pytest
+
+# All checks
+uv run ruff check . --fix && uv run ruff format . && uv run mypy src/ && uv run pytest
+```
+
+**Tech Stack:**
+- **Python 3.12+** with type annotations
+- **LangGraph** - Multi-agent workflow orchestration
+- **LangChain** - LLM abstraction and tools
+- **Google Gemini** - Text and image generation
+- **Pydantic v2** - Data validation and modeling
+- **WeasyPrint** - PDF generation from HTML/Markdown
+- **Click** - CLI framework
+- **pytest** - Testing framework
+
+---
 
 ## 🤖 AI Tools Disclaimer
 
@@ -343,13 +411,14 @@ graph TD
 **Collaboration philosophy**: AI tools served as a highly capable technical assistant, while all design decisions, educational objectives, and project directions were defined and validated by the human.
 </details>
 
+---
+
 ## License
 
 MIT
 
 ## Author
 
-- **Author:** Juanje Ojeda
-- **Email:** juanje.ojeda@gmail.com
-- **URL:** <https://github.com/juanje/mystery-agents>
-
+- **Juanje Ojeda**
+- Email: juanje.ojeda@gmail.com
+- GitHub: <https://github.com/juanje/mystery-agents>
