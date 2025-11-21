@@ -50,12 +50,42 @@ uv sync
 
 # Install with dev dependencies
 uv sync --all-extras
-
-# Set up Google Gemini API key
-export GOOGLE_API_KEY='your-api-key-here'
 ```
 
-**Note**: You need a Google Gemini API key. Get one from [Google AI Studio](https://makersuite.google.com/app/apikey).
+### API Key Configuration
+
+You need a Google Gemini API key. Get one from [Google AI Studio](https://aistudio.google.com/apikey).
+
+**Option 1: Using .env file (recommended)**
+
+```bash
+# Copy the example file
+cp env.example .env
+
+# Edit .env and add your API key
+nano .env  # or your preferred editor
+```
+
+The `.env` file should contain:
+```bash
+GOOGLE_API_KEY=your-api-key-here
+```
+
+**Option 2: Environment variable**
+
+```bash
+# Set environment variable (temporary - for current session)
+export GOOGLE_API_KEY='your-api-key-here'
+
+# Or add to your shell profile for persistence
+echo "export GOOGLE_API_KEY='your-api-key-here'" >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Notes:**
+- The `.env` file is automatically loaded when running the application
+- `.env` is already in `.gitignore` to keep your API key safe
+- You can override any `.env` setting with environment variables
 
 ## Usage
 

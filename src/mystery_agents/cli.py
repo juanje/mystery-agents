@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import click
+from dotenv import load_dotenv
 
 from mystery_agents.graph.workflow import create_workflow
 from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig
@@ -15,6 +16,9 @@ from mystery_agents.utils.constants import (
     HOST_DIR,
     PLAYERS_DIR,
 )
+
+# Load environment variables from .env file (if it exists)
+load_dotenv()
 
 
 @click.command()
@@ -192,12 +196,16 @@ def generate(
             click.echo("\n\n❌ API Key Error", err=True)
             click.echo("=" * 60, err=True)
             click.echo("\nThe Google Gemini API key is missing or invalid.", err=True)
-            click.echo("\nTo fix this, set your API key as an environment variable:", err=True)
-            click.echo("\n  export GOOGLE_API_KEY='your-api-key-here'", err=True)
+            click.echo("\nTo fix this, choose one of these options:", err=True)
+            click.echo("\n  Option 1: Create a .env file (recommended)", err=True)
+            click.echo("    1. Copy env.example to .env", err=True)
+            click.echo("    2. Edit .env and add your API key", err=True)
+            click.echo("\n  Option 2: Set environment variable", err=True)
+            click.echo("    export GOOGLE_API_KEY='your-api-key-here'", err=True)
             click.echo("\nTo get an API key:", err=True)
             click.echo("  1. Visit: https://aistudio.google.com/apikey", err=True)
             click.echo("  2. Create a new API key", err=True)
-            click.echo("  3. Set it as an environment variable (see above)", err=True)
+            click.echo("  3. Configure it using one of the options above", err=True)
             click.echo("\n💡 Tip: Use --dry-run flag to test without API calls:", err=True)
             click.echo("  mystery-agents --dry-run", err=True)
             click.echo("\n" + "=" * 60, err=True)

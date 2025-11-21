@@ -48,7 +48,10 @@ class LLMConfig:
             Configured chat model instance
 
         Note:
-            Model names and temperatures are configured in constants.py
+            Model names and temperatures can be overridden via environment variables:
+            - LLM_MODEL_TIER1, LLM_MODEL_TIER2, LLM_MODEL_TIER3
+            - LLM_TEMPERATURE_TIER1, LLM_TEMPERATURE_TIER2, LLM_TEMPERATURE_TIER3
+            Default values are configured in constants.py
         """
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
@@ -56,21 +59,31 @@ class LLMConfig:
             # Use a dummy key that will fail gracefully if actually used
             api_key = DRY_RUN_DUMMY_API_KEY
 
+        # Get model names from environment or use defaults
+        model_tier1 = os.getenv("LLM_MODEL_TIER1", LLM_MODEL_TIER1)
+        model_tier2 = os.getenv("LLM_MODEL_TIER2", LLM_MODEL_TIER2)
+        model_tier3 = os.getenv("LLM_MODEL_TIER3", LLM_MODEL_TIER3)
+
+        # Get temperatures from environment or use defaults
+        temp_tier1 = float(os.getenv("LLM_TEMPERATURE_TIER1", str(LLM_TEMPERATURE_TIER1)))
+        temp_tier2 = float(os.getenv("LLM_TEMPERATURE_TIER2", str(LLM_TEMPERATURE_TIER2)))
+        temp_tier3 = float(os.getenv("LLM_TEMPERATURE_TIER3", str(LLM_TEMPERATURE_TIER3)))
+
         models: dict[str, BaseChatModel] = {
             "tier1": ChatGoogleGenerativeAI(
-                model=LLM_MODEL_TIER1,
+                model=model_tier1,
                 google_api_key=api_key,
-                temperature=LLM_TEMPERATURE_TIER1,
+                temperature=temp_tier1,
             ),
             "tier2": ChatGoogleGenerativeAI(
-                model=LLM_MODEL_TIER2,
+                model=model_tier2,
                 google_api_key=api_key,
-                temperature=LLM_TEMPERATURE_TIER2,
+                temperature=temp_tier2,
             ),
             "tier3": ChatGoogleGenerativeAI(
-                model=LLM_MODEL_TIER3,
+                model=model_tier3,
                 google_api_key=api_key,
-                temperature=LLM_TEMPERATURE_TIER3,
+                temperature=temp_tier3,
             ),
         }
         return models[tier]
