@@ -174,8 +174,14 @@ difficulty: medium        # easy, medium, hard
 
 **CLI Flags:**
 ```bash
+# Logging and Output
+-v, --verbose        # Increase verbosity (-v=INFO logs, -vv=DEBUG logs)
+--quiet              # Minimal output (only start/end/errors)
+--log-file FILE      # Write logs to specified file
+
+# Execution Options
 --dry-run            # Use mock data (no API calls)
---debug              # Enable debug logging
+--debug              # Log LLM model responses (works with -v/-vv)
 --no-images          # Skip character portrait generation
 --keep-work-dir      # Keep intermediate markdown files
 --output-dir DIR     # Custom output directory
@@ -187,6 +193,37 @@ mystery-agents [GAME_CONFIG_FILE] [OPTIONS]
 
 # Uses game.yml by default if no config file specified
 # GAME_CONFIG_FILE: Path to YAML game configuration file (optional, defaults to game.yml)
+```
+
+**Logging Modes:**
+
+| Mode | Output | Use Case |
+|------|--------|----------|
+| Default | Visual progress messages | User-friendly, shows what's happening |
+| `-v` | Structured INFO logs with timestamps | Debugging, CI/CD, performance analysis |
+| `-vv` | INFO + DEBUG logs | Deep debugging, includes cache operations |
+| `--quiet` | Minimal (config, result, errors only) | Scripts, automation |
+| `--log-file` | Always writes INFO+ logs to file | Post-analysis, performance review (independent of console verbosity) |
+
+**Examples:**
+```bash
+# Default: Clean visual progress
+mystery-agents game.yml
+
+# Best practice: Visual progress + detailed logs for analysis
+mystery-agents game.yml --log-file generation.log
+
+# Verbose: See what's happening with timestamps
+mystery-agents game.yml -v
+
+# Debug: Full detailed logs including cache operations
+mystery-agents game.yml -vv
+
+# Quiet: Minimal output for scripts
+mystery-agents game.yml --quiet
+
+# Debug with LLM responses logged
+mystery-agents game.yml -vv --debug
 ```
 
 **Environment Variables:**

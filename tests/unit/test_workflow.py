@@ -1,7 +1,5 @@
 """Unit tests for workflow functions and routing logic."""
 
-from unittest.mock import patch
-
 import pytest
 
 from mystery_agents.graph.workflow import (
@@ -155,16 +153,13 @@ def test_validation_node_with_click_output(basic_state: GameState) -> None:
     world_agent = WorldAgent()
     state_with_world = world_agent.run(basic_state)
 
-    # Test world validation node with click output
-    with patch("mystery_agents.graph.workflow.click.echo") as mock_echo:
-        # Reset retry count before test
-        state_with_world.world_retry_count = 0
-        result = v1_world_validator_node(state_with_world)
+    # Test world validation node
+    # Reset retry count before test
+    state_with_world.world_retry_count = 0
+    result = v1_world_validator_node(state_with_world)
 
-        # Should have printed validation message
-        assert mock_echo.call_count >= 1
-        # In dry run mode, validation passes so retry_count gets reset to 0
-        assert result.world_retry_count == 0  # Reset after successful validation
+    # In dry run mode, validation passes so retry_count gets reset to 0
+    assert result.world_retry_count == 0  # Reset after successful validation
 
     # Test full validation node with click output
     from mystery_agents.agents.a3_characters import CharactersAgent
@@ -189,10 +184,8 @@ def test_validation_node_with_click_output(basic_state: GameState) -> None:
     killer_agent = KillerSelectionAgent()
     state_with_killer = killer_agent.run(state_with_timeline)
 
-    with patch("mystery_agents.graph.workflow.click.echo") as mock_echo:
-        result = v2_game_logic_validator_node(state_with_killer)
+    # Test full game logic validation node
+    result = v2_game_logic_validator_node(state_with_killer)
 
-        # Should have printed validation message
-        assert mock_echo.call_count >= 1
-        # In dry run mode, validation passes so retry_count gets reset to 0
-        assert result.retry_count == 0  # Reset after successful validation
+    # In dry run mode, validation passes so retry_count gets reset to 0
+    assert result.retry_count == 0  # Reset after successful validation

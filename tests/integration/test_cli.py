@@ -562,3 +562,54 @@ difficulty: medium
             # Should have passed config file resolution
             assert "Configuration file not found" not in result.output
             assert result.exit_code == 1  # Exits due to our test exception
+
+
+def test_cli_verbose_flag_shows_logs(tmp_path: Path) -> None:
+    """Test that -v flag shows structured logs instead of visual progress."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_content = """
+language: es
+country: Spain
+epoch: modern
+theme: family_mansion
+players:
+  male: 3
+  female: 3
+host_gender: male
+duration_minutes: 90
+difficulty: medium
+"""
+        Path("game.yml").write_text(config_content)
+
+        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+            mock_instance = mock_workflow.return_value
+            mock_instance.stream.side_effect = Exception("Test stopped")
+
+            result = runner.invoke(generate, ["-v", "--dry-run"])
+            assert result.exit_code != 0
+
+
+def test_cli_quiet_and_verbose_mutually_exclusive(tmp_path: Path) -> None:
+    """Test that --quiet and -v are mutually exclusive."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        config_content = """
+language: es
+country: Spain
+epoch: modern
+theme: family_mansion
+players:
+  male: 3
+  female: 3
+host_gender: male
+duration_minutes: 90
+difficulty: medium
+"""
+        Path("game.yml").write_text(config_content)
+
+        result = runner.invoke(generate, ["--quiet", "-v"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output

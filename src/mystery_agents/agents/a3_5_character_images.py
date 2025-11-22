@@ -76,19 +76,19 @@ class CharacterImageAgent(BaseAgent):
         """
         # Skip if image generation is not enabled
         if not state.config.generate_images:
-            logger.info("[A3.5] ⊘ Image generation disabled, skipping")
+            logger.info("⊘ Image generation disabled, skipping")
             return state
 
         if self._should_use_mock(state):
-            logger.info("[A3.5] 🎭 Character Images: Dry run mode - using mocks")
+            logger.info("🎭 Character Images: Dry run mode - using mocks")
             return self._mock_output(state)
 
         if not state.characters:
-            logger.warning("[A3.5] ⚠️  No characters found, skipping image generation")
+            logger.warning("⚠️  No characters found, skipping image generation")
             return state
 
         logger.info(
-            f"[A3.5] 🎨 Generating {len(state.characters)} character images in parallel "
+            f"🎨 Generating {len(state.characters)} character images in parallel "
             f"(max {self.MAX_CONCURRENT_REQUESTS} concurrent)"
         )
 
@@ -103,13 +103,13 @@ class CharacterImageAgent(BaseAgent):
         images_with_paths = 0
         for char in state.characters:
             if char.image_path:
-                logger.info(f"[A3.5] 📸 {char.name}: {char.image_path}")
+                logger.info(f"📸 {char.name}: {char.image_path}")
                 images_with_paths += 1
             else:
-                logger.warning(f"[A3.5] ⚠️  {char.name}: No image path set")
+                logger.warning(f"⚠️  {char.name}: No image path set")
 
         logger.info(
-            f"[A3.5] ✅ All character images generated in {output_dir} "
+            f"✅ All character images generated in {output_dir} "
             f"({images_with_paths}/{len(state.characters)} with paths)"
         )
 
@@ -171,7 +171,7 @@ class CharacterImageAgent(BaseAgent):
         image_filename = f"{character.id}_{character.name.lower().replace(' ', '_')}.png"
         image_path = output_dir / image_filename
 
-        logger.info(f"[A3.5] 🎨 Generating image for {character.name}")
+        logger.info(f"🎨 Generating image for {character.name}")
 
         # Generate image with retry logic
         success = await generate_image_with_gemini(prompt, image_path)
@@ -179,9 +179,9 @@ class CharacterImageAgent(BaseAgent):
         if success:
             # Update character with image path (absolute path for robustness)
             character.image_path = str(image_path.absolute())
-            logger.info(f"[A3.5] ✅ Generated: {character.name} -> {image_path.name}")
+            logger.info(f"✅ Generated: {character.name} -> {image_path.name}")
         else:
-            logger.error(f"[A3.5] ❌ Failed to generate image for {character.name}")
+            logger.error(f"❌ Failed to generate image for {character.name}")
             # Don't fail the entire generation, just skip this image
             character.image_path = None
 
@@ -303,6 +303,6 @@ STYLE REQUIREMENTS:
         for character in state.characters:
             mock_filename = f"{character.id}_{character.name.lower().replace(' ', '_')}.png"
             character.image_path = str((output_dir / mock_filename).absolute())
-            logger.info(f"[A3.5] 🎭 Mock image: {character.name} -> {mock_filename}")
+            logger.info(f"🎭 Mock image: {character.name} -> {mock_filename}")
 
         return state

@@ -8,6 +8,7 @@ import click
 import yaml
 
 from mystery_agents.models.state import GameConfig, GameState, PlayerConfig
+from mystery_agents.utils.logging_config import AgentLogger
 
 
 class ConfigLoaderAgent:
@@ -79,6 +80,9 @@ class ConfigLoaderAgent:
             dry_run=state.config.dry_run,
             debug_model=state.config.debug_model,
             keep_work_dir=state.config.keep_work_dir,
+            verbosity=state.config.verbosity,
+            quiet_mode=state.config.quiet_mode,
+            log_file=state.config.log_file,
             config_file=yaml_path,
         )
 
@@ -86,11 +90,15 @@ class ConfigLoaderAgent:
 
     def _display_config_summary(self, config: GameConfig) -> None:
         """
-        Display configuration summary.
+        Display configuration summary (in default and quiet mode, not in verbose).
 
         Args:
             config: Game configuration to display
         """
+        # Only show visual summary in default and quiet mode (not in verbose)
+        if config.verbosity > 0:
+            return
+
         click.echo("=" * 60)
         click.echo("✓ CONFIGURATION COMPLETE")
         click.echo("=" * 60 + "\n")
@@ -126,18 +134,20 @@ class ConfigLoaderAgent:
         Raises:
             ValueError: If config file is missing or invalid
         """
+        log = AgentLogger(__name__, state)
+
         if not state.config.config_file:
             raise ValueError("Configuration file path is required")
 
-        click.echo("\n=== Loading Configuration ===\n")
-        click.echo(f"  File: {state.config.config_file}")
+        log.info("=== Loading Configuration ===")
+        log.info(f"  File: {state.config.config_file}")
 
         try:
             config = self._load_from_yaml(state.config.config_file, state)
             state.config = config
-            click.echo("\n✓ Configuration loaded successfully!\n")
+            log.info("✓ Configuration loaded successfully!")
             self._display_config_summary(config)
             return state
         except ValueError as e:
-            click.echo(f"\n❌ Error loading configuration: {e}", err=True)
+            log.error(f"Error loading configuration: {e}")
             raise

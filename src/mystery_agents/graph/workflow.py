@@ -2,12 +2,12 @@
 
 from typing import Any, Literal, cast
 
-import click
 from langgraph.graph import END, START, StateGraph
 
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import AgentFactory
 from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
+from mystery_agents.utils.logging_config import AgentLogger
 
 
 # Node functions for the graph (using cached agents for better performance)
@@ -23,10 +23,11 @@ def a2_world_node(state: GameState) -> GameState:
     """A2: World generation node."""
     from mystery_agents.agents.a2_world import WorldAgent
 
-    click.echo("Generating world...")
+    log = AgentLogger("a2_world", state)
+    log.info("Generating world...")
     agent = AgentFactory.get_agent(WorldAgent)
     result = agent.run(state)
-    click.echo("✓ World generated")
+    log.info("✓ World generated")
     return cast(GameState, result)
 
 
@@ -34,8 +35,9 @@ def v1_world_validator_node(state: GameState) -> GameState:
     """V1: World validation node."""
     from mystery_agents.agents.v1_world_validator import WorldValidatorAgent
 
+    log = AgentLogger("v1_world_validator", state)
     current_attempt = state.world_retry_count + 1
-    click.echo(
+    log.info(
         f"Validating world coherence (attempt {current_attempt}/{state.max_world_retries + 1})..."
     )
 
@@ -45,13 +47,13 @@ def v1_world_validator_node(state: GameState) -> GameState:
     result.world_retry_count = state.world_retry_count + 1
 
     if result.world_validation and result.world_validation.is_coherent:
-        click.echo("✓ World validation passed")
+        log.info("✓ World validation passed")
         result.world_retry_count = 0
     else:
-        click.echo("⚠ World validation failed - will retry")
+        log.warning("⚠ World validation failed - will retry")
         if result.world_validation:
             for issue in result.world_validation.issues:
-                click.echo(f"  Issue: {issue}")
+                log.debug(f"  Issue: {issue}")
 
     return cast(GameState, result)
 
@@ -60,14 +62,13 @@ def a2_5_visual_style_node(state: GameState) -> GameState:
     """A2.5: Visual style generation node."""
     from mystery_agents.agents.a2_5_visual_style import VisualStyleAgent
 
-    click.echo("Generating visual style guide...")
+    log = AgentLogger("a2_5_visual_style", state)
+    log.info("Generating visual style guide...")
     agent = AgentFactory.get_agent(VisualStyleAgent)
     result = agent.run(state)
 
     if result.visual_style:
-        click.echo(
-            click.style(f"✓ Visual style: {result.visual_style.style_description}", fg="green")
-        )
+        log.info(f"✓ Visual style: {result.visual_style.style_description}")
 
     return cast(GameState, result)
 
@@ -76,10 +77,11 @@ def a3_characters_node(state: GameState) -> GameState:
     """A3: Characters generation node (no relationships)."""
     from mystery_agents.agents.a3_characters import CharactersAgent
 
-    click.echo("Generating characters...")
+    log = AgentLogger("a3_characters", state)
+    log.info("Generating characters...")
     agent = AgentFactory.get_agent(CharactersAgent)
     result = agent.run(state)
-    click.echo(f"✓ Generated {len(result.characters)} characters")
+    log.info(f"✓ Generated {len(result.characters)} characters")
     return cast(GameState, result)
 
 
@@ -87,11 +89,12 @@ def a3_5_character_images_node(state: GameState) -> GameState:
     """A3.5: Character image generation node (optional)."""
     from mystery_agents.agents.a3_5_character_images import CharacterImageAgent
 
+    log = AgentLogger("a3_5_character_images", state)
     if not state.config.generate_images:
-        click.echo("⊘ Skipping image generation (not enabled)")
+        log.info("⊘ Skipping image generation (not enabled)")
         return state
 
-    click.echo(f"Generating {len(state.characters)} character images in parallel...")
+    log.info(f"Generating {len(state.characters)} character images in parallel...")
 
     try:
         agent = AgentFactory.get_agent(CharacterImageAgent)
@@ -101,16 +104,16 @@ def a3_5_character_images_node(state: GameState) -> GameState:
         images_generated = sum(1 for char in result.characters if char.image_path)
 
         if images_generated > 0:
-            click.echo(f"✓ Generated {images_generated}/{len(result.characters)} character images")
+            log.info(f"✓ Generated {images_generated}/{len(result.characters)} character images")
         else:
-            click.echo(
+            log.warning(
                 f"⚠️  No images generated (0/{len(result.characters)}). Check logs for details."
             )
 
         return cast(GameState, result)
     except Exception as e:
-        click.echo(f"⚠️  Image generation failed: {e}")
-        click.echo("   Continuing game generation without character images...")
+        log.error(f"Image generation failed: {e}")
+        log.warning("Continuing game generation without character images...")
         return state
 
 
@@ -118,10 +121,11 @@ def a4_relationships_node(state: GameState) -> GameState:
     """A4: Relationships generation node."""
     from mystery_agents.agents.a4_relationships import RelationshipsAgent
 
-    click.echo("Generating relationships between characters...")
+    log = AgentLogger("a4_relationships", state)
+    log.info("Generating relationships between characters...")
     agent = AgentFactory.get_agent(RelationshipsAgent)
     result = agent.run(state)
-    click.echo(f"✓ Generated {len(result.relationships)} relationships")
+    log.info(f"✓ Generated {len(result.relationships)} relationships")
     return cast(GameState, result)
 
 
@@ -129,10 +133,11 @@ def a5_crime_node(state: GameState) -> GameState:
     """A5: Crime generation node."""
     from mystery_agents.agents.a5_crime import CrimeAgent
 
-    click.echo("Generating crime...")
+    log = AgentLogger("a5_crime", state)
+    log.info("Generating crime...")
     agent = AgentFactory.get_agent(CrimeAgent)
     result = agent.run(state)
-    click.echo("✓ Crime generated")
+    log.info("✓ Crime generated")
     return cast(GameState, result)
 
 
@@ -140,10 +145,11 @@ def a6_timeline_node(state: GameState) -> GameState:
     """A6: Timeline generation node."""
     from mystery_agents.agents.a6_timeline import TimelineAgent
 
-    click.echo("Generating timeline...")
+    log = AgentLogger("a6_timeline", state)
+    log.info("Generating timeline...")
     agent = AgentFactory.get_agent(TimelineAgent)
     result = agent.run(state)
-    click.echo("✓ Timeline generated")
+    log.info("✓ Timeline generated")
     return cast(GameState, result)
 
 
@@ -151,10 +157,11 @@ def a7_killer_node(state: GameState) -> GameState:
     """A7: Killer selection node."""
     from mystery_agents.agents.a7_killer_selection import KillerSelectionAgent
 
-    click.echo("Selecting killer and finalizing logic...")
+    log = AgentLogger("a7_killer", state)
+    log.info("Selecting killer and finalizing logic...")
     agent = AgentFactory.get_agent(KillerSelectionAgent)
     result = agent.run(state)
-    click.echo("✓ Killer selected")
+    log.info("✓ Killer selected")
     return cast(GameState, result)
 
 
@@ -162,8 +169,9 @@ def v2_game_logic_validator_node(state: GameState) -> GameState:
     """V2: Game logic validation node (validates entire game logic)."""
     from mystery_agents.agents.v2_game_logic_validator import GameLogicValidatorAgent
 
+    log = AgentLogger("v2_game_logic_validator", state)
     current_attempt = state.retry_count + 1
-    click.echo(f"Validating game logic (attempt {current_attempt}/{state.max_retries + 1})...")
+    log.info(f"Validating game logic (attempt {current_attempt}/{state.max_retries + 1})...")
 
     agent = AgentFactory.get_agent(GameLogicValidatorAgent)
     result = agent.run(state)
@@ -171,13 +179,13 @@ def v2_game_logic_validator_node(state: GameState) -> GameState:
     result.retry_count = state.retry_count + 1
 
     if result.validation and result.validation.is_consistent:
-        click.echo("✓ Validation passed")
+        log.info("✓ Validation passed")
         result.retry_count = 0
     else:
-        click.echo("⚠ Validation failed - will retry")
+        log.warning("⚠ Validation failed - will retry")
         if result.validation:
             for issue in result.validation.issues:
-                click.echo(f"  Issue: {issue.description}")
+                log.debug(f"  Issue: {issue.description}")
 
     return cast(GameState, result)
 
@@ -186,10 +194,11 @@ def a8_content_node(state: GameState) -> GameState:
     """A8: Content generation node."""
     from mystery_agents.agents.a8_content import ContentGenerationAgent
 
-    click.echo("Generating all written content...")
+    log = AgentLogger("a8_content", state)
+    log.info("Generating all written content...")
     agent = AgentFactory.get_agent(ContentGenerationAgent)
     result = agent.run(state)
-    click.echo(f"✓ Content generated ({len(result.clues)} clues)")
+    log.info(f"✓ Content generated ({len(result.clues)} clues)")
     return cast(GameState, result)
 
 
@@ -197,20 +206,21 @@ def a8_5_host_images_node(state: GameState) -> GameState:
     """A8.5: Host character image generation node (victim + detective)."""
     from mystery_agents.agents.a8_5_host_images import HostImageAgent
 
+    log = AgentLogger("a8_5_host_images", state)
     if not state.config.generate_images:
-        click.echo("⊘ Image generation disabled, skipping host images")
+        log.info("⊘ Image generation disabled, skipping host images")
         return state
 
-    click.echo("Generating host character images (victim + detective)...")
+    log.info("Generating host character images (victim + detective)...")
     agent = AgentFactory.get_agent(HostImageAgent)
 
     try:
         result = agent.run(state)
-        click.echo("✓ Host images generated")
+        log.info("✓ Host images generated")
         return cast(GameState, result)
     except Exception as e:
-        click.echo(f"⚠️  Host image generation failed: {e}", err=True)
-        click.echo("Continuing without host images...", err=True)
+        log.error(f"Host image generation failed: {e}")
+        log.warning("Continuing without host images...")
         # Continue without failing - images are nice-to-have
         return state
 
@@ -219,10 +229,11 @@ def a9_packaging_node(state: GameState) -> GameState:
     """A9: Packaging node."""
     from mystery_agents.agents.a9_packaging import PackagingAgent
 
-    click.echo("Packaging final deliverables...")
+    log = AgentLogger("a9_packaging", state)
+    log.info("Packaging final deliverables...")
     agent = AgentFactory.get_agent(PackagingAgent)
     result = agent.run(state, output_dir=DEFAULT_OUTPUT_DIR)
-    click.echo("✓ Package created")
+    log.info("✓ Package created")
     return cast(GameState, result)
 
 

@@ -9,12 +9,9 @@ from dotenv import load_dotenv
 from mystery_agents.graph.workflow import create_workflow
 from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig
 from mystery_agents.utils.constants import (
-    CLUES_DIR,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_RECURSION_LIMIT,
     GAME_ID_LENGTH,
-    HOST_DIR,
-    PLAYERS_DIR,
 )
 
 # Load environment variables from .env file (if it exists)
@@ -59,6 +56,24 @@ load_dotenv()
     default=False,
     help="Keep intermediate working directory with markdown files for inspection",
 )
+@click.option(
+    "-v",
+    "--verbose",
+    count=True,
+    help="Increase verbosity (-v for INFO logs, -vv for DEBUG logs)",
+)
+@click.option(
+    "--quiet",
+    is_flag=True,
+    default=False,
+    help="Minimal output (only start/end/errors, mutually exclusive with -v)",
+)
+@click.option(
+    "--log-file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write logs to specified file",
+)
 def generate(
     game_config_file: Path | None,
     output_dir: Path,
@@ -66,6 +81,9 @@ def generate(
     debug: bool,
     no_images: bool,
     keep_work_dir: bool,
+    verbose: int,
+    quiet: bool,
+    log_file: Path | None,
 ) -> None:
     """
     Generate a mystery party game from a YAML configuration file.
@@ -84,6 +102,16 @@ def generate(
         mystery-agents my-game.yml      # Uses specific config file
         mystery-agents --dry-run        # Test without API calls (uses game.yml)
     """
+    # Validate mutually exclusive flags
+    if quiet and verbose > 0:
+        click.echo("❌ Error: --quiet and -v/--verbose are mutually exclusive", err=True)
+        sys.exit(1)
+
+    # Setup logging system
+    from mystery_agents.utils.logging_config import setup_logging
+
+    setup_logging(verbosity=verbose, quiet=quiet, log_file=str(log_file) if log_file else None)
+
     click.echo("\n" + "=" * 60)
     click.echo("       MYSTERY PARTY GAME GENERATOR")
     click.echo("=" * 60 + "\n")
@@ -126,6 +154,9 @@ def generate(
             duration_minutes=90,
             config_file=str(game_config_file),
             keep_work_dir=keep_work_dir,
+            verbosity=verbose,
+            quiet_mode=quiet,
+            log_file=str(log_file) if log_file else None,
         ),
     )
 
@@ -178,15 +209,7 @@ def generate(
                 click.echo(f"  - {fix}")
             sys.exit(1)
 
-        # Success!
-        click.echo("\n" + "=" * 60)
-        click.echo("✓ GAME GENERATED SUCCESSFULLY!")
-        click.echo("=" * 60 + "\n")
-
-        packaging = final_state.get("packaging")
-        if packaging:
-            click.echo(packaging.index_summary)
-
+        # Success! Show concise summary in all modes
         meta = final_state.get("meta")
         if not meta:
             click.echo("\n❌ Error: Missing meta information", err=True)
@@ -196,22 +219,12 @@ def generate(
 
         zip_path = output_dir / f"{ZIP_FILE_PREFIX}{game_id}.zip"
 
-        click.echo("\n📦 Your game package is ready:")
-        click.echo(f"   {zip_path}")
-        click.echo("\n📁 Unpacked files are in:")
-        click.echo(f"   {output_dir / f'{GAME_DIR_PREFIX}{game_id}'}")
-
+        # Show concise summary in all modes (default, quiet, and verbose)
         click.echo("\n" + "=" * 60)
-        click.echo("NEXT STEPS:")
-        click.echo("=" * 60)
-        click.echo("1. Extract the ZIP file")
-        from mystery_agents.utils.constants import HOST_GUIDE_FILENAME
-
-        click.echo(f"2. Read the host guide in /{HOST_DIR}/{HOST_GUIDE_FILENAME}")
-        click.echo(f"3. Send each player their package from /{PLAYERS_DIR}/")
-        click.echo(f"4. Print or prepare the clues from /{CLUES_DIR}/")
-        click.echo("5. Host an amazing mystery party!")
-        click.echo("\nHave fun! 🎭\n")
+        click.echo("✓ GAME GENERATED SUCCESSFULLY!")
+        click.echo("=" * 60 + "\n")
+        click.echo(f"📦 Game package: {zip_path}")
+        click.echo(f"📁 Files directory: {output_dir / f'{GAME_DIR_PREFIX}{game_id}'}\n")
 
     except KeyboardInterrupt:
         click.echo("\n\n⚠️  Generation cancelled by user (Ctrl-C)", err=True)

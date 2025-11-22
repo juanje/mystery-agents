@@ -13,8 +13,11 @@ def test_generate_all_pdfs_empty_list() -> None:
     agent = PackagingAgent.__new__(PackagingAgent)
     agent.llm = MagicMock()
 
+    # Mock AgentLogger
+    mock_log = MagicMock()
+
     # Should not raise any exception and return immediately
-    agent._generate_all_pdfs([], max_workers=2)
+    agent._generate_all_pdfs([], mock_log, max_workers=2)
 
 
 def test_agent_has_parallel_method() -> None:
@@ -40,10 +43,19 @@ def test_parallel_generation_method_signature() -> None:
     # First param is 'self' for instance methods
     assert "self" in params
     assert "pdf_tasks" in params
+    assert "log" in params  # Instance method parameter (AgentLogger)
     assert "max_workers" in params
 
     # Check default value for max_workers
     assert sig.parameters["max_workers"].default == 12
+
+    # Test worker function signature (module-level function)
+    from mystery_agents.agents.a9_packaging import _generate_pdf_worker
+
+    worker_sig = inspect.signature(_generate_pdf_worker)
+    worker_params = list(worker_sig.parameters.keys())
+    assert "args" in worker_params
+    # Worker receives tuple of (Path, Path, verbosity: int)
 
 
 def test_imports_are_present() -> None:
@@ -52,9 +64,6 @@ def test_imports_are_present() -> None:
 
     # Verify ProcessPoolExecutor is imported
     assert hasattr(module, "ProcessPoolExecutor")
-
-    # Verify time is imported
-    assert hasattr(module, "time")
 
     # Verify worker function exists
     assert hasattr(module, "_generate_pdf_worker")

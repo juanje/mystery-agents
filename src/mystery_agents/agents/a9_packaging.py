@@ -1,8 +1,6 @@
 """A9: Packaging Agent - Organizes final deliverables."""
 
 import os
-import sys
-import time
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -37,28 +35,49 @@ from mystery_agents.utils.i18n import (
     translate_relationship_type,
     translate_room_name,
 )
+from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import safe_get_world_location_name
 
 from .base import BaseAgent
 
 
-def _generate_pdf_worker(args: tuple[Path, Path]) -> tuple[bool, str]:
+def _generate_pdf_worker(args: tuple[Path, Path, int]) -> tuple[bool, str]:
     """
     Worker function for parallel PDF generation.
 
     This function must be at module level for ProcessPoolExecutor pickling.
-    Imports markdown_to_pdf lazily to avoid loading weasyprint at module import time.
+    Each worker process must configure its own logging/warnings since
+    ProcessPoolExecutor doesn't inherit parent process configuration.
 
     Args:
-        args: Tuple of (markdown_path, pdf_path)
+        args: Tuple of (markdown_path, pdf_path, verbosity)
 
     Returns:
         Tuple of (success, error_message)
     """
+    import logging
+    import warnings
+
+    md_path, pdf_path, verbosity = args
+
+    # Configure logging and warnings in worker process
+    # Only silence in non-debug modes (verbosity < 2)
+    if verbosity < 2:
+        # Silence warnings from weasyprint and related libraries
+        warnings.filterwarnings("ignore", module="weasyprint")
+        warnings.filterwarnings("ignore", module="fontTools")
+        warnings.filterwarnings("ignore", module="PIL")
+
+        # Disable weasyprint loggers completely (not just set level)
+        # These loggers emit warnings that clutter the output
+        for logger_name in ["weasyprint", "fontTools", "PIL", "weasyprint.css", "weasyprint.html"]:
+            logger = logging.getLogger(logger_name)
+            logger.disabled = True
+            logger.propagate = False
+
     from mystery_agents.utils.pdf_generator import markdown_to_pdf
 
-    md_path, pdf_path = args
     try:
         markdown_to_pdf(md_path, pdf_path)
         return True, ""
@@ -117,6 +136,7 @@ class PackagingAgent(BaseAgent):
     def _generate_all_pdfs(
         self,
         pdf_tasks: list[tuple[Path, Path]],
+        log: AgentLogger,
         max_workers: int = 12,
     ) -> None:
         """
@@ -124,23 +144,25 @@ class PackagingAgent(BaseAgent):
 
         Args:
             pdf_tasks: List of (markdown_path, pdf_path) tuples
+            log: Logger instance
             max_workers: Maximum parallel workers (optimized for 16 CPUs)
         """
         if not pdf_tasks:
             return
 
-        start_time = time.perf_counter()
+        log.info(f"  Generating {len(pdf_tasks)} PDFs in parallel (max {max_workers} workers)...")
 
-        print(f"  Generating {len(pdf_tasks)} PDFs in parallel (max {max_workers} workers)...")
-        sys.stdout.flush()
+        # Prepare tasks with verbosity setting for workers
+        # Each worker process needs to configure its own logging/warnings
+        verbosity = log.state.config.verbosity
+        tasks_with_verbosity = [(md, pdf, verbosity) for md, pdf in pdf_tasks]
 
         # Use ProcessPoolExecutor directly without asyncio
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks and get futures
-            futures = [executor.submit(_generate_pdf_worker, task) for task in pdf_tasks]
+            futures = [executor.submit(_generate_pdf_worker, task) for task in tasks_with_verbosity]
 
-            print(f"      Submitted {len(futures)} tasks, waiting for completion...")
-            sys.stdout.flush()
+            log.debug(f"      Submitted {len(futures)} tasks, waiting for completion...")
 
             # Wait for all to complete and collect results
             errors = []
@@ -153,34 +175,28 @@ class PackagingAgent(BaseAgent):
 
                     # Show progress every 4 PDFs
                     if completed % 4 == 0 or completed == len(futures):
-                        print(f"      Progress: {completed}/{len(futures)} PDFs")
-                        sys.stdout.flush()
+                        log.info(f"      Progress: {completed}/{len(futures)} PDFs")
 
                     if not success:
                         errors.append(error_msg)
 
                 except FutureTimeoutError:
                     error_msg = f"Timeout after 30s: {pdf_tasks[i][0].name}"
-                    print(f"      ✗ {error_msg}")
-                    sys.stdout.flush()
+                    log.error(f"      ✗ {error_msg}")
                     errors.append(error_msg)
 
                 except Exception as e:
                     error_msg = f"{type(e).__name__}: {e}"
-                    print(f"      ✗ {error_msg}")
-                    sys.stdout.flush()
+                    log.error(f"      ✗ {error_msg}")
                     errors.append(error_msg)
 
             if errors:
-                print(f"      ⚠ {len(errors)} PDFs failed to generate:")
+                log.warning(f"      ⚠ {len(errors)} PDFs failed to generate:")
                 for err in errors[:3]:  # Show first 3 errors
-                    print(f"        - {err}")
-                sys.stdout.flush()
+                    log.warning(f"        - {err}")
 
-        elapsed = time.perf_counter() - start_time
         success_count = len(pdf_tasks) - len(errors)
-        print(f"  ✓ Generated {success_count}/{len(pdf_tasks)} PDFs in {elapsed:.2f}s")
-        sys.stdout.flush()
+        log.info(f"  ✓ Generated {success_count}/{len(pdf_tasks)} PDFs")
 
     def run(self, state: GameState, output_dir: str = DEFAULT_OUTPUT_DIR) -> GameState:
         """
@@ -196,13 +212,13 @@ class PackagingAgent(BaseAgent):
         Returns:
             Updated game state with packaging info
         """
+        log = AgentLogger(__name__, state)
 
         game_id = state.meta.id[:GAME_ID_LENGTH]
         game_dir = Path(output_dir) / f"{GAME_DIR_PREFIX}{game_id}"
         game_dir.mkdir(parents=True, exist_ok=True)
 
-        print("  Writing markdown files...")
-        sys.stdout.flush()
+        log.info("  Writing markdown files...")
 
         packaging = PackagingInfo(
             host_package=[],
@@ -316,23 +332,20 @@ class PackagingAgent(BaseAgent):
             FileDescriptor(type="pdf", name=f"clue_reference{PDF_EXT}", path=str(clue_ref_pdf_path))
         )
 
-        print(f"  ✓ Wrote {len(state.characters) + len(state.clues) + 4} markdown files")
-        sys.stdout.flush()
+        log.info(f"  ✓ Wrote {len(state.characters) + len(state.clues) + 4} markdown files")
 
         # 7. Generate ALL PDFs in parallel
         if pdf_tasks:
-            self._generate_all_pdfs(pdf_tasks, max_workers=12)
+            self._generate_all_pdfs(pdf_tasks, log, max_workers=12)
 
         # 8. Organize final package (PDFs only, move markdown + images + txt to work dir if requested)
-        self._organize_final_package(game_dir, state.config.keep_work_dir, game_id, output_dir)
+        self._organize_final_package(game_dir, state.config.keep_work_dir, game_id, output_dir, log)
 
         # 9. Create ZIP archive (requires all PDFs to be ready)
-        print("  Creating ZIP archive...")
-        sys.stdout.flush()
+        log.info("  Creating ZIP archive...")
         zip_path = Path(output_dir) / f"{ZIP_FILE_PREFIX}{game_id}.zip"
         self._create_zip(game_dir, zip_path)
-        print(f"  ✓ ZIP created: {zip_path.name}")
-        sys.stdout.flush()
+        log.info(f"  ✓ ZIP created: {zip_path.name}")
 
         # Create index summary
         packaging.index_summary = f"""Mystery Party Game Package
@@ -894,7 +907,7 @@ ZIP file: {zip_path}
         path.write_text(content, encoding="utf-8")
 
     def _organize_final_package(
-        self, game_dir: Path, keep_work_dir: bool, game_id: str, output_dir: str
+        self, game_dir: Path, keep_work_dir: bool, game_id: str, output_dir: str, log: AgentLogger
     ) -> None:
         """
         Organize final package: keep only PDFs, move markdown and images to work dir or delete them.
@@ -904,11 +917,11 @@ ZIP file: {zip_path}
             keep_work_dir: Whether to keep intermediate files in a work directory
             game_id: Game ID for naming work directory
             output_dir: Base output directory
+            log: Logger instance
         """
         import shutil
 
-        print("  Organizing final package (PDFs only)...")
-        sys.stdout.flush()
+        log.info("  Organizing final package (PDFs only)...")
 
         # Collect all markdown, image, and text files
         md_files = list(game_dir.rglob(f"*{MARKDOWN_EXT}"))
@@ -944,8 +957,7 @@ ZIP file: {zip_path}
                         rel_subdir = subdir.relative_to(game_dir)
                         (work_dir / rel_subdir).mkdir(parents=True, exist_ok=True)
 
-            print(f"  ✓ Moved {len(all_files_to_move)} intermediate files to {work_dir.name}/")
-            sys.stdout.flush()
+            log.info(f"  ✓ Moved {len(all_files_to_move)} intermediate files to {work_dir.name}/")
 
         # Delete markdown and image files from game_dir
         for file_path in all_files_to_move:

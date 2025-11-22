@@ -46,17 +46,17 @@ class LLMCache:
             # Import here to avoid circular dependency
             from mystery_agents.config import LLMConfig
 
-            logger.info(f"[Cache] Creating new LLM instance for {tier}")
+            logger.debug(f"Creating new LLM instance for {tier}")
             cache[tier] = LLMConfig.get_model(tier)
         else:
-            logger.debug(f"[Cache] Reusing cached LLM instance for {tier}")
+            logger.debug(f"Reusing cached LLM instance for {tier}")
 
         return cache[tier]
 
     @classmethod
     def clear(cls) -> None:
         """Clear the LLM cache (useful for testing)."""
-        logger.info("[Cache] Clearing LLM cache")
+        logger.debug("Clearing LLM cache")
         cls()._cache.clear()
 
     @classmethod
@@ -108,10 +108,10 @@ class AgentFactory:
         agent_name = agent_class.__name__
 
         if agent_name not in cache:
-            logger.info(f"[Cache] Creating new agent instance: {agent_name}")
+            logger.debug(f"Creating new agent instance: {agent_name}")
             cache[agent_name] = agent_class()
         else:
-            logger.debug(f"[Cache] Reusing cached agent: {agent_name}")
+            logger.debug(f"Reusing cached agent: {agent_name}")
 
         return cache[agent_name]
 
@@ -143,7 +143,7 @@ def clear_all_caches() -> None:
     - Testing to ensure clean state
     - Forcing fresh LLM instances after configuration changes
     """
-    logger.info("[Cache] Clearing all caches")
+    logger.debug("Clearing all caches")
     LLMCache.clear()
     AgentFactory.clear()
 

@@ -52,6 +52,9 @@ class GameConfig(BaseModel):
     debug_model: bool = False
     config_file: str | None = None  # Path to YAML config file (skips wizard if provided)
     keep_work_dir: bool = False  # Keep intermediate markdown files for inspection
+    verbosity: int = 0  # Logging verbosity: 0=default (visual), 1=-v (INFO), 2=-vv (DEBUG)
+    quiet_mode: bool = False  # Minimal output mode
+    log_file: str | None = None  # Optional file path to write logs to
 
 
 # --- Mundo ---

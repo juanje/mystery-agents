@@ -1,4 +1,7 @@
-"""PDF generation utilities for mystery party materials using markdown-to-PDF conversion."""
+"""PDF generation utilities for mystery party materials using markdown-to-PDF conversion.
+
+Note: Logging configuration for weasyprint is handled in logging_config.py
+"""
 
 from pathlib import Path
 
