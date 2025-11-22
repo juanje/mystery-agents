@@ -271,8 +271,6 @@ uv run mystery-agents
 uv run mystery-agents --no-images
 ```
 
-📚 **Details**: [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md)
-
 ---
 
 ## What You Get
@@ -324,76 +322,52 @@ output/
 
 ---
 
-## Technical Details
+## How It Works
 
-### Architecture
+Mystery Agents generates your game in a multi-phase pipeline:
 
-Mystery Agents uses **LangGraph** for workflow orchestration with **conditional validation loops**:
+### Generation Pipeline
 
-#### Workflow Graph
+**Phase 1: World Setup**
+- Loads your configuration
+- Creates the game world (location, atmosphere, period)
+- Validates coherence and retries if needed
+- Generates a unified visual style guide
 
-```mermaid
-graph TD
-    START --> A1[A1: Config Loader]
-    A1 --> A2[A2: World Generation]
-    A2 --> V1[V1: World Validator]
-    V1 -->|pass| A2_5[A2.5: Visual Style]
-    V1 -->|retry| A2
-    V1 -->|fail| END
-    A2_5 --> A3[A3: Characters]
-    A3 --> A3_5[A3.5: Character Images]
-    A3_5 --> A4[A4: Relationships]
-    A4 --> A5[A5: Crime]
-    A5 --> A6[A6: Timeline]
-    A6 --> A7[A7: Killer Selection]
-    A7 --> V2[V2: Game Logic Validator]
-    V2 -->|pass| A8[A8: Content Generation]
-    V2 -->|retry| A6
-    V2 -->|fail| END
-    A8 --> A8_5[A8.5: Host Images]
-    A8_5 --> A9[A9: Packaging]
-    A9 --> END
-```
+**Phase 2: Characters**
+- Creates suspects with personalities, secrets, and goals
+- Generates AI portraits (optional)
+- Defines relationships between characters
 
-#### Agent Pipeline
+**Phase 3: Crime & Logic**
+- Designs the crime (victim, method, scene)
+- Creates the event timeline
+- Selects the killer and finalizes solution
+- Validates game logic and retries if needed
 
-1. **A1: Config Loader** - Loads and validates YAML configuration
-2. **A2: World Generation** - Creates setting and atmosphere
-3. **V1: World Validator** - Validates coherence (retries up to 2x)
-4. **A2.5: Visual Style** - Generates unified visual style guide
-5. **A3: Characters** - Creates suspects with secrets and objectives
-6. **A3.5: Character Images** - (Optional) Generates AI portraits
-7. **A4: Relationships** - Defines character connections
-8. **A5: Crime** - Specifies victim, method, scene
-9. **A6: Timeline** - Creates event sequence
-10. **A7: Killer Selection** - Chooses culprit and finalizes solution
-11. **V2: Game Logic Validator** - Validates consistency (retries up to 3x)
-12. **A8: Content Generation** - Creates all game materials
-13. **A8.5: Host Images** - (Optional) Generates victim/detective portraits
-14. **A9: Packaging** - Generates PDFs and ZIP package
+**Phase 4: Content & Packaging**
+- Writes all game materials (guides, sheets, clues)
+- Generates host images (victim/detective portraits)
+- Creates PDFs and packages everything into a ZIP
 
-**Validation Loops:**
-- **V1 (World)**: Retries up to 2 times → returns to A2
-- **V2 (Game Logic)**: Retries up to 3 times → returns to A6
+### Quality Assurance
 
-### Project Structure
+The system includes **two automatic validation loops**:
 
-```
-mystery-agents/
-├── src/mystery_agents/
-│   ├── models/         # Pydantic state models
-│   ├── agents/         # Agent implementations (A1-A9, V1-V2)
-│   ├── graph/          # LangGraph workflow
-│   ├── utils/          # Prompt templates and helpers
-│   ├── config.py       # LLM configuration
-│   └── cli.py          # CLI entry point
-├── tests/
-│   ├── unit/           # Unit tests
-│   └── integration/    # Integration tests
-├── docs/               # Documentation
-├── output/             # Generated games (gitignored)
-└── env.example         # Environment variables template
-```
+1. **World Validation** - Ensures setting coherence (location, culture, period)
+2. **Logic Validation** - Verifies killer logic, timeline consistency, clue quality
+
+If validation fails, the system automatically retries (up to 2-3 times) before giving up.
+
+### Tech Stack
+
+- **LangGraph** - Multi-agent workflow orchestration
+- **Google Gemini** - Text and image generation
+- **Pydantic** - Data validation
+- **WeasyPrint** - PDF generation
+- **Python 3.12+** with full type annotations
+
+📚 **For developers**: See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) for architecture details, design decisions, and contribution guidelines.
 
 ### Development
 
@@ -412,7 +386,7 @@ uv run ruff format .
 # Type checking
 uv run mypy src/
 
-# Tests (195 tests)
+# Tests (216 tests)
 uv run pytest
 
 # All checks
