@@ -88,11 +88,15 @@ export GOOGLE_API_KEY='your-key-here'
 ### 4. Generate Your First Game
 
 ```bash
-# Interactive wizard (recommended for first time)
+# Create your configuration file
+cp game.example.yml game.yml
+nano game.yml  # Edit with your preferences
+
+# Generate your game
 uv run mystery-agents
 
-# Or test without API calls
-uv run mystery-agents --dry-run
+# Or test without API calls (uses example config)
+uv run mystery-agents game.example.yml --dry-run
 ```
 
 **Done!** Your game package is in `output/mystery_game_xxxxx.zip` 🎉
@@ -130,29 +134,28 @@ uv run mystery-agents --dry-run
 
 ### Basic Usage
 
-**Interactive Wizard** (recommended):
+**Quick Start:**
 ```bash
-# Step-by-step configuration
+# 1. Create your configuration file
+cp game.example.yml game.yml
+nano game.yml  # Edit with your preferences
+
+# 2. Generate your game
 uv run mystery-agents
 
-# Skip image generation (faster, no API costs)
-uv run mystery-agents --no-images
-
-# Test without API calls (uses mock data)
-uv run mystery-agents --dry-run
+# The tool automatically uses game.yml if it exists
 ```
 
-**Configuration File** (for repeated use):
+**Alternative: Specify Config File:**
 ```bash
-# 1. Create config file
-cp config.example.yaml config.yaml
-nano config.yaml
+# Use a specific config file
+uv run mystery-agents my-game.yml
 
-# 2. Generate with config
-uv run mystery-agents --config config.yaml
+# Test with example config (no API calls)
+uv run mystery-agents game.example.yml --dry-run
 ```
 
-**Example config.yaml:**
+**Configuration File Format (game.yml):**
 ```yaml
 language: es              # es or en
 country: Spain
@@ -171,12 +174,19 @@ difficulty: medium        # easy, medium, hard
 
 **CLI Flags:**
 ```bash
---config FILE         # Load configuration from YAML file
 --dry-run            # Use mock data (no API calls)
 --debug              # Enable debug logging
 --no-images          # Skip character portrait generation
 --keep-work-dir      # Keep intermediate markdown files
 --output-dir DIR     # Custom output directory
+```
+
+**Command Format:**
+```bash
+mystery-agents [GAME_CONFIG_FILE] [OPTIONS]
+
+# Uses game.yml by default if no config file specified
+# GAME_CONFIG_FILE: Path to YAML game configuration file (optional, defaults to game.yml)
 ```
 
 **Environment Variables:**
@@ -287,7 +297,7 @@ Mystery Agents uses **LangGraph** for workflow orchestration with **conditional 
 
 ```mermaid
 graph TD
-    START --> A1[A1: Config Wizard]
+    START --> A1[A1: Config Loader]
     A1 --> A2[A2: World Generation]
     A2 --> V1[V1: World Validator]
     V1 -->|pass| A2_5[A2.5: Visual Style]
@@ -310,7 +320,7 @@ graph TD
 
 #### Agent Pipeline
 
-1. **A1: Config Wizard** - Collects user preferences
+1. **A1: Config Loader** - Loads and validates YAML configuration
 2. **A2: World Generation** - Creates setting and atmosphere
 3. **V1: World Validator** - Validates coherence (retries up to 2x)
 4. **A2.5: Visual Style** - Generates unified visual style guide

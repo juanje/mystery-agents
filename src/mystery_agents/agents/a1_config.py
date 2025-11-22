@@ -1,32 +1,21 @@
-"""A1: Configuration/Wizard Agent - Collects user preferences."""
+"""A1: Configuration Loader Agent - Loads and validates YAML configuration."""
 
-from typing import Any, Literal, cast
+from __future__ import annotations
+
+from typing import Any
 
 import click
 import yaml
 
-from mystery_agents.models.state import (
-    DifficultyLevel,
-    Epoch,
-    GameConfig,
-    GameState,
-    PlayerConfig,
-    Theme,
-)
-from mystery_agents.utils.constants import (
-    DEFAULT_COUNTRY_EN,
-    DEFAULT_COUNTRY_ES,
-    LANG_CODE_ENGLISH,
-    LANG_CODE_SPANISH,
-)
+from mystery_agents.models.state import GameConfig, GameState, PlayerConfig
 
 
-class ConfigWizardAgent:
+class ConfigLoaderAgent:
     """
-    A1: Config/Wizard Agent.
+    A1: Config Loader Agent.
 
-    Collects user preferences via CLI and populates GameConfig.
-    Supports loading configuration from YAML file.
+    Loads game configuration from YAML file and validates it.
+    Designed for both CLI and future web interface use.
     """
 
     def _load_from_yaml(self, yaml_path: str, state: GameState) -> GameConfig:
@@ -126,179 +115,29 @@ class ConfigWizardAgent:
 
     def run(self, state: GameState) -> GameState:
         """
-        Run the configuration wizard or load from YAML file.
+        Load configuration from YAML file.
 
         Args:
-            state: Current game state
+            state: Current game state with config_file path set
 
         Returns:
             Updated game state with populated config
+
+        Raises:
+            ValueError: If config file is missing or invalid
         """
-        # If config file is provided, load from YAML and skip wizard
-        if state.config.config_file:
-            click.echo("\n=== Loading Configuration from File ===\n")
-            click.echo(f"  File: {state.config.config_file}")
-            try:
-                config = self._load_from_yaml(state.config.config_file, state)
-                state.config = config
+        if not state.config.config_file:
+            raise ValueError("Configuration file path is required")
 
-                click.echo("\n✓ Configuration loaded successfully!\n")
-                self._display_config_summary(config)
-                return state
-            except ValueError as e:
-                click.echo(f"\n❌ Error loading configuration: {e}", err=True)
-                click.echo("   Falling back to interactive wizard...\n")
-                # Continue to interactive wizard below
+        click.echo("\n=== Loading Configuration ===\n")
+        click.echo(f"  File: {state.config.config_file}")
 
-        click.echo("\n=== Mystery Party Game Generator ===\n")
-        click.echo("Let's configure your mystery party game!\n")
-
-        # Language
-        language = click.prompt(
-            "Language / Idioma",
-            type=click.Choice([LANG_CODE_SPANISH, LANG_CODE_ENGLISH], case_sensitive=False),
-            default=LANG_CODE_SPANISH,
-        )
-
-        # Country (for name generation)
-        country_default = (
-            DEFAULT_COUNTRY_ES if language == LANG_CODE_SPANISH else DEFAULT_COUNTRY_EN
-        )
-        country = click.prompt(
-            "Country / País (for character names)",
-            default=country_default,
-            type=str,
-        )
-
-        # Region (optional for more specific cultural context)
-        region = click.prompt(
-            "\nRegion within country (optional, press Enter to skip)",
-            type=str,
-            default="",
-            show_default=False,
-        )
-        region = region.strip() or None
-
-        # Epoch
-        epochs: list[tuple[int, str, Epoch]] = [
-            (1, "modern - Contemporary setting", "modern"),
-            (2, "1920s - Roaring Twenties", "1920s"),
-            (3, "victorian - Victorian era", "victorian"),
-            (4, "custom - Your own setting", "custom"),
-        ]
-        click.echo("\nAvailable epochs:")
-        for num, desc, _ in epochs:
-            click.echo(f"  {num}. {desc}")
-        epoch_choice = click.prompt("Choose epoch", type=int, default=1)
-        epoch = cast(Epoch, next((e for n, _, e in epochs if n == epoch_choice), "modern"))
-
-        custom_epoch_description = None
-        if epoch == "custom":
-            custom_epoch_description = click.prompt("Describe your custom epoch")
-
-        # Theme
-        themes: list[tuple[int, str, Theme]] = [
-            (1, "family_mansion - Family gathering in a mansion", "family_mansion"),
-            (2, "corporate_retreat - Corporate event", "corporate_retreat"),
-            (3, "cruise - Luxury cruise ship", "cruise"),
-            (4, "train - Orient Express style train", "train"),
-            (5, "custom - Your own theme", "custom"),
-        ]
-        click.echo("\nAvailable themes:")
-        for num, desc, _ in themes:
-            click.echo(f"  {num}. {desc}")
-        theme_choice = click.prompt("Choose theme", type=int, default=1)
-        theme = cast(Theme, next((t for n, _, t in themes if n == theme_choice), "family_mansion"))
-
-        custom_theme_description = None
-        if theme == "custom":
-            custom_theme_description = click.prompt("Describe your custom theme")
-
-        # Player gender distribution
-        click.echo("\n" + "=" * 60)
-        click.echo("PLAYER CHARACTERS (suspects)")
-        click.echo("=" * 60)
-        click.echo("ℹ️  These are the PLAYERS (suspects) at your party.")
-        click.echo("   The HOST (victim) is SEPARATE and will be added automatically.")
-        click.echo("   Example: 6 players + 1 host = 7 total people at the party")
-        click.echo("\nSpecify gender distribution for PLAYERS (press Enter for balanced 3/3):")
-        male = click.prompt("  Male player characters", type=click.IntRange(0, 10), default=3)
-        female = click.prompt("  Female player characters", type=click.IntRange(0, 10), default=3)
-
-        # Calculate total and validate
-        total_players = male + female
-        if total_players < 4:
-            click.echo(
-                "⚠️  Warning: Minimum 4 players required. Adjusting to 4 players (2 male, 2 female)."
-            )
-            male = 2
-            female = 2
-            total_players = 4
-        elif total_players > 10:
-            click.echo(
-                "⚠️  Warning: Maximum 10 players allowed. Adjusting to 10 players (5 male, 5 female)."
-            )
-            male = 5
-            female = 5
-            total_players = 10
-
-        # Host gender
-        click.echo("\n" + "=" * 60)
-        click.echo("HOST CHARACTER (victim)")
-        click.echo("=" * 60)
-        click.echo("ℹ️  The HOST plays the victim in Act 1, then becomes detective in Act 2.")
-        host_gender_choice = click.prompt(
-            "  Host gender",
-            type=click.Choice(["male", "female"], case_sensitive=False),
-            default="male",
-        )
-        host_gender: Literal["male", "female"] = cast(Literal["male", "female"], host_gender_choice)
-
-        # Duration
-        duration = click.prompt(
-            "\nGame duration (minutes)",
-            type=click.IntRange(60, 180),
-            default=90,
-        )
-
-        # Difficulty
-        difficulties: list[tuple[int, str, DifficultyLevel]] = [
-            (1, "easy - Simple mystery, obvious clues", "easy"),
-            (2, "medium - Balanced challenge", "medium"),
-            (3, "hard - Complex mystery, subtle clues", "hard"),
-        ]
-        click.echo("\nDifficulty levels:")
-        for num, desc, _ in difficulties:
-            click.echo(f"  {num}. {desc}")
-        difficulty_choice = click.prompt("Choose difficulty", type=int, default=2)
-        difficulty = cast(
-            DifficultyLevel,
-            next((d for n, _, d in difficulties if n == difficulty_choice), "medium"),
-        )
-
-        # Create config (dry_run, debug_model, generate_images, and keep_work_dir come from CLI flags)
-        config = GameConfig(
-            language=language,
-            country=country,
-            region=region,
-            epoch=epoch,
-            custom_epoch_description=custom_epoch_description,
-            theme=theme,
-            custom_theme_description=custom_theme_description,
-            players=PlayerConfig(total=total_players, male=male, female=female),
-            host_gender=host_gender,
-            duration_minutes=duration,
-            difficulty=difficulty,
-            generate_images=state.config.generate_images,
-            dry_run=state.config.dry_run,
-            debug_model=state.config.debug_model,
-            keep_work_dir=state.config.keep_work_dir,
-        )
-
-        # Update state
-        state.config = config
-
-        click.echo("\n")
-        self._display_config_summary(config)
-
-        return state
+        try:
+            config = self._load_from_yaml(state.config.config_file, state)
+            state.config = config
+            click.echo("\n✓ Configuration loaded successfully!\n")
+            self._display_config_summary(config)
+            return state
+        except ValueError as e:
+            click.echo(f"\n❌ Error loading configuration: {e}", err=True)
+            raise

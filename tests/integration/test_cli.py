@@ -4,7 +4,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from click.testing import CliRunner
 
+from mystery_agents.cli import generate
 from mystery_agents.models.state import (
     GameConfig,
     GameState,
@@ -414,3 +416,149 @@ def test_cli_accesses_nested_objects_correctly() -> None:
     meta = final_state.get("meta")
     assert meta is not None, "Meta should exist"
     assert meta.id is not None, "Should access nested object attribute"
+
+
+def test_cli_uses_default_game_yml_when_no_arg(tmp_path: Path) -> None:
+    """Test that CLI uses game.yml by default when it exists and no argument is provided."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        # Create a game.yml config file
+        game_config = """
+language: es
+country: Spain
+epoch: modern
+theme: family_mansion
+players:
+  male: 3
+  female: 3
+host_gender: male
+duration_minutes: 90
+difficulty: medium
+"""
+        Path("game.yml").write_text(game_config)
+
+        # Mock workflow to stop after config loading (fast test)
+        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+            mock_instance = mock_workflow.return_value
+            # Simulate workflow stopping after config node
+            mock_instance.stream.side_effect = Exception("Test stopped after config load")
+
+            # Run CLI without specifying config file (it should use game.yml)
+            result = runner.invoke(generate, ["--dry-run"])
+
+            # Should have passed config file resolution (exit before actual workflow)
+            # If it failed at config resolution, we'd see "No configuration file found"
+            assert "No configuration file found" not in result.output
+            # The test exception proves we got past config resolution into workflow
+            assert result.exit_code == 1  # Exits due to our test exception
+
+
+def test_cli_fails_when_no_config_file_found(tmp_path: Path) -> None:
+    """Test that CLI fails with clear error when no config file exists."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        # Don't create any config file
+        result = runner.invoke(generate)
+
+        # Should fail with error message
+        assert result.exit_code == 1
+        assert "No configuration file found" in result.output
+        assert "game.yml" in result.output
+
+
+def test_cli_uses_specified_config_file(tmp_path: Path) -> None:
+    """Test that CLI uses the specified config file when provided as argument."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        # Create a custom config file
+        custom_config = """
+language: en
+country: United States
+epoch: 1920s
+theme: cruise
+players:
+  male: 4
+  female: 2
+host_gender: female
+duration_minutes: 120
+difficulty: hard
+"""
+        custom_path = Path("my-custom-game.yml")
+        custom_path.write_text(custom_config)
+
+        # Mock workflow to stop after config loading (fast test)
+        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+            mock_instance = mock_workflow.return_value
+            mock_instance.stream.side_effect = Exception("Test stopped after config load")
+
+            # Run CLI with specified config file
+            result = runner.invoke(generate, ["my-custom-game.yml", "--dry-run"])
+
+            # Should have passed config file resolution
+            # If it failed at config resolution, we'd see "Configuration file not found"
+            assert "Configuration file not found" not in result.output
+            assert result.exit_code == 1  # Exits due to our test exception
+
+
+def test_cli_fails_when_specified_config_not_exists(tmp_path: Path) -> None:
+    """Test that CLI fails with clear error when specified config file doesn't exist."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        # Try to use a non-existent file
+        result = runner.invoke(generate, ["nonexistent.yml"])
+
+        # Should fail with error message
+        assert result.exit_code == 1
+        assert "Configuration file not found" in result.output
+        assert "nonexistent.yml" in result.output
+
+
+def test_cli_config_file_takes_precedence_over_default(tmp_path: Path) -> None:
+    """Test that explicitly specified config file takes precedence over default game.yml."""
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        # Create both game.yml and a custom config
+        default_config = """
+language: es
+country: Spain
+epoch: modern
+theme: family_mansion
+players:
+  male: 3
+  female: 3
+host_gender: male
+duration_minutes: 90
+difficulty: medium
+"""
+        Path("game.yml").write_text(default_config)
+
+        custom_config = """
+language: en
+country: Japan
+epoch: victorian
+theme: train
+players:
+  male: 2
+  female: 4
+host_gender: female
+duration_minutes: 90
+difficulty: medium
+"""
+        Path("custom.yml").write_text(custom_config)
+
+        # Mock workflow to stop after config loading (fast test)
+        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+            mock_instance = mock_workflow.return_value
+            mock_instance.stream.side_effect = Exception("Test stopped after config load")
+
+            # Run CLI with custom config
+            result = runner.invoke(generate, ["custom.yml", "--dry-run"])
+
+            # Should have passed config file resolution
+            assert "Configuration file not found" not in result.output
+            assert result.exit_code == 1  # Exits due to our test exception

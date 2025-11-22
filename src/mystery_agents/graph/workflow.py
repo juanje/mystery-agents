@@ -12,10 +12,10 @@ from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
 
 # Node functions for the graph (using cached agents for better performance)
 def a1_config_node(state: GameState) -> GameState:
-    """A1: Configuration wizard node."""
-    from mystery_agents.agents.a1_config import ConfigWizardAgent
+    """A1: Configuration loader node."""
+    from mystery_agents.agents.a1_config import ConfigLoaderAgent
 
-    agent = AgentFactory.get_agent(ConfigWizardAgent)
+    agent = AgentFactory.get_agent(ConfigLoaderAgent)
     return cast(GameState, agent.run(state))
 
 

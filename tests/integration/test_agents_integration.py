@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mystery_agents.agents.a1_config import ConfigWizardAgent
+from mystery_agents.agents.a1_config import ConfigLoaderAgent
 from mystery_agents.agents.a2_world import WorldAgent
 from mystery_agents.agents.a5_crime import CrimeAgent
 from mystery_agents.agents.a7_killer_selection import KillerSelectionAgent
@@ -72,32 +72,38 @@ def state_with_characters(state_with_world: GameState) -> GameState:
 
 
 @pytest.mark.slow
-def test_config_wizard_dry_run(basic_state: GameState) -> None:
-    """Test config wizard in dry run mode."""
-    # Mock click prompts (dry_run is now passed from CLI, not asked interactively)
-    with patch("mystery_agents.agents.a1_config.click.prompt") as mock_prompt:
-        mock_prompt.side_effect = [
-            "es",  # language
-            "Spain",  # country
-            "",  # region (optional, empty string)
-            1,  # epoch
-            1,  # theme
-            # tone is now fixed (no prompt)
-            3,  # male characters
-            3,  # female characters (total = 6 = TEST_DEFAULT_PLAYERS)
-            "male",  # host gender
-            TEST_DEFAULT_DURATION,  # duration
-            2,  # difficulty
-        ]
+def test_config_loader_yaml(basic_state: GameState, tmp_path: Path) -> None:
+    """Test config loader with YAML file."""
+    # Create a temporary YAML config file
+    yaml_content = """
+language: es
+country: Spain
+region: Andalucía
+epoch: modern
+theme: family_mansion
+players:
+  male: 3
+  female: 3
+host_gender: male
+duration_minutes: 90
+difficulty: medium
+"""
+    config_file = tmp_path / "test_config.yaml"
+    config_file.write_text(yaml_content)
 
-        agent = ConfigWizardAgent()
-        result = agent.run(basic_state)
+    # Set config file in state
+    basic_state.config.config_file = str(config_file)
 
-        assert result.config.language == "es"
-        assert result.config.players.total == TEST_DEFAULT_PLAYERS
-        assert result.config.players.male == 3
-        assert result.config.players.female == 3
-        assert result.config.dry_run is True  # Preserved from initial state
+    agent = ConfigLoaderAgent()
+    result = agent.run(basic_state)
+
+    assert result.config.language == "es"
+    assert result.config.country == "Spain"
+    assert result.config.region == "Andalucía"
+    assert result.config.players.total == TEST_DEFAULT_PLAYERS
+    assert result.config.players.male == 3
+    assert result.config.players.female == 3
+    assert result.config.dry_run is True  # Preserved from initial state
 
 
 @pytest.mark.slow

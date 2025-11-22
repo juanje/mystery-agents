@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from mystery_agents.agents.a1_config import ConfigWizardAgent
+from mystery_agents.agents.a1_config import ConfigLoaderAgent
 from mystery_agents.models.state import GameConfig, GameState, MetaInfo
 
 
@@ -30,7 +30,7 @@ difficulty: medium
         temp_path = f.name
 
     try:
-        agent = ConfigWizardAgent()
+        agent = ConfigLoaderAgent()
         state = GameState(
             meta=MetaInfo(),
             config=GameConfig(
@@ -75,7 +75,7 @@ host_gender: female
         temp_path = f.name
 
     try:
-        agent = ConfigWizardAgent()
+        agent = ConfigLoaderAgent()
         state = GameState(
             meta=MetaInfo(),
             config=GameConfig(dry_run=True, duration_minutes=90),
@@ -109,7 +109,7 @@ country: Spain
         temp_path = f.name
 
     try:
-        agent = ConfigWizardAgent()
+        agent = ConfigLoaderAgent()
         state = GameState(
             meta=MetaInfo(),
             config=GameConfig(dry_run=True, duration_minutes=90),
@@ -123,7 +123,7 @@ country: Spain
 
 def test_load_from_yaml_file_not_found() -> None:
     """Test loading from non-existent file."""
-    agent = ConfigWizardAgent()
+    agent = ConfigLoaderAgent()
     state = GameState(
         meta=MetaInfo(),
         config=GameConfig(dry_run=True, duration_minutes=90),
@@ -146,7 +146,7 @@ country: Spain
         temp_path = f.name
 
     try:
-        agent = ConfigWizardAgent()
+        agent = ConfigLoaderAgent()
         state = GameState(
             meta=MetaInfo(),
             config=GameConfig(dry_run=True, duration_minutes=90),
@@ -173,7 +173,7 @@ host_gender: male
         temp_path = f.name
 
     try:
-        agent = ConfigWizardAgent()
+        agent = ConfigLoaderAgent()
         state = GameState(
             meta=MetaInfo(),
             config=GameConfig(
