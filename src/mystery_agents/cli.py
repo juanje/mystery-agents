@@ -4,18 +4,9 @@ import sys
 from pathlib import Path
 
 import click
-from dotenv import load_dotenv
 
-from mystery_agents.graph.workflow import create_workflow
-from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig
-from mystery_agents.utils.constants import (
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_RECURSION_LIMIT,
-    GAME_ID_LENGTH,
-)
-
-# Load environment variables from .env file (if it exists)
-load_dotenv()
+# Lightweight imports only - heavy imports moved inside functions
+from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
 
 
 @click.command()
@@ -107,6 +98,12 @@ def generate(
         click.echo("❌ Error: --quiet and -v/--verbose are mutually exclusive", err=True)
         sys.exit(1)
 
+    # Load environment variables from .env file (if it exists)
+    # Only load when actually running, not when showing help
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     # Setup logging system
     from mystery_agents.utils.logging_config import setup_logging
 
@@ -143,6 +140,11 @@ def generate(
 
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Import heavy dependencies only when actually running (not for --help)
+    from mystery_agents.graph.workflow import create_workflow
+    from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig
+    from mystery_agents.utils.constants import DEFAULT_RECURSION_LIMIT, GAME_ID_LENGTH
 
     initial_state = GameState(
         meta=MetaInfo(),
