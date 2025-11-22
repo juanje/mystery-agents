@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -176,29 +175,24 @@ def test_setup_logging_debug_level() -> None:
     assert root_logger.level == logging.DEBUG
 
 
-def test_setup_logging_file_handler() -> None:
+def test_setup_logging_file_handler(tmp_path: Path) -> None:
     """Test that setup_logging creates file handler when log_file is specified."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".log", delete=False) as f:
-        log_file = f.name
+    log_file = tmp_path / "test.log"
 
-    try:
-        setup_logging(verbosity=1, quiet=False, log_file=log_file)
+    setup_logging(verbosity=1, quiet=False, log_file=str(log_file))
 
-        root_logger = logging.getLogger()
-        file_handlers = [h for h in root_logger.handlers if isinstance(h, logging.FileHandler)]
-        assert len(file_handlers) > 0
+    root_logger = logging.getLogger()
+    file_handlers = [h for h in root_logger.handlers if isinstance(h, logging.FileHandler)]
+    assert len(file_handlers) > 0
 
-        # Test that logging works
-        test_logger = logging.getLogger("test")
-        test_logger.info("Test log message")
+    # Test that logging works
+    test_logger = logging.getLogger("test")
+    test_logger.info("Test log message")
 
-        # Verify file was written
-        log_path = Path(log_file)
-        assert log_path.exists()
-        content = log_path.read_text()
-        assert "Test log message" in content
-    finally:
-        Path(log_file).unlink(missing_ok=True)
+    # Verify file was written
+    assert log_file.exists()
+    content = log_file.read_text()
+    assert "Test log message" in content
 
 
 def test_custom_formatter_extracts_agent_name() -> None:

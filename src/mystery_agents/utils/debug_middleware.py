@@ -8,8 +8,13 @@ from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
 
-@after_model
-def log_model_response(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+def _log_model_response_impl(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+    """
+    Internal implementation of log_model_response.
+
+    This is the actual function that does the logging.
+    The @after_model decorator wraps this to create the middleware.
+    """
     """
     Log model responses for debugging.
 
@@ -88,3 +93,13 @@ def log_model_response(state: AgentState, runtime: Runtime) -> dict[str, Any] | 
     print("=" * 80 + "\n")
 
     return None
+
+
+@after_model
+def log_model_response(state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+    """
+    Log model responses for debugging (middleware wrapper).
+
+    This is the middleware entry point created by @after_model decorator.
+    """
+    return _log_model_response_impl(state, runtime)

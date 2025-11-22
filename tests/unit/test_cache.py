@@ -19,12 +19,6 @@ def clear_caches_before_test() -> None:
     clear_all_caches()
 
 
-@pytest.fixture
-def mock_google_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Set a mock API key for testing."""
-    monkeypatch.setenv("GOOGLE_API_KEY", "test-api-key-for-cache-testing")
-
-
 def test_llm_cache_singleton() -> None:
     """Test that LLMCache is a singleton."""
     cache1 = LLMCache()

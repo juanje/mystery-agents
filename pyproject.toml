@@ -106,6 +106,10 @@ markers = [
     "requires_ollama: marks tests that require Ollama to be running",
     "requires_gemini: marks tests that require Google Gemini API key",
 ]
+filterwarnings = [
+    "ignore::UserWarning:weasyprint.*",
+    "ignore:instantiateVariableFont.*:UserWarning",
+]
 
 [dependency-groups]
 dev = [

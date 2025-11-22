@@ -21,12 +21,6 @@ from mystery_agents.models.state import (
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 
 
-@pytest.fixture(autouse=True)
-def mock_google_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock GOOGLE_API_KEY for all tests."""
-    monkeypatch.setenv("GOOGLE_API_KEY", "test-api-key-for-testing")
-
-
 @pytest.fixture
 def state_with_world() -> GameState:
     """Create a state with world."""

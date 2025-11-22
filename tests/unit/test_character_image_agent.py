@@ -10,12 +10,6 @@ from mystery_agents.models.state import CharacterSpec, GameConfig, GameState, Me
 
 
 @pytest.fixture
-def mock_google_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Set a mock API key for testing."""
-    monkeypatch.setenv("GOOGLE_API_KEY", "test-api-key-for-image-testing")
-
-
-@pytest.fixture
 def game_state_with_characters() -> GameState:
     """Create a game state with some characters for testing."""
     state = GameState(
