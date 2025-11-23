@@ -13,6 +13,7 @@ def markdown_to_pdf(
     markdown_path: Path,
     pdf_path: Path,
     css: str | None = None,
+    language: str = "en",
 ) -> None:
     """
     Convert a markdown file to a professional PDF.
@@ -21,6 +22,7 @@ def markdown_to_pdf(
         markdown_path: Path to the markdown file
         pdf_path: Path where to save the PDF
         css: Optional CSS string for styling
+        language: Language code for RTL support (e.g., "he" for Hebrew)
     """
     # Read markdown
     md_content = markdown_path.read_text(encoding="utf-8")
@@ -110,8 +112,37 @@ def markdown_to_pdf(
         }
     """
 
+    # RTL CSS for right-to-left languages (Hebrew, Arabic, etc.)
+    rtl_css = """
+        body {
+            direction: rtl;
+            text-align: right;
+        }
+        h1, h2, h3 {
+            direction: rtl;
+            text-align: right;
+        }
+        ul, ol {
+            margin-right: 1.5em;
+            margin-left: 0;
+        }
+        blockquote {
+            border-left: none;
+            border-right: 4px solid #3498db;
+            padding-left: 0;
+            padding-right: 1em;
+            margin-right: 0;
+        }
+    """
+
+    # Determine if RTL language
+    is_rtl = language in ["he", "ar"]
+
     # Combine CSS
-    final_css = css if css else default_css
+    if css:
+        final_css = css
+    else:
+        final_css = default_css + (rtl_css if is_rtl else "")
 
     # Wrap HTML with styling
     full_html = f"""

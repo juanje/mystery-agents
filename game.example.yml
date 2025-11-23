@@ -3,7 +3,7 @@
 # Copy this file to game.yml and customize it to your preferences.
 
 # Language for generated content
-# Options: es (Spanish), en (English), it (Italian), de (German)
+# Options: es (Spanish), en (English), it (Italian), de (German), he (Hebrew)
 language: es
 
 # Country for character names and cultural context

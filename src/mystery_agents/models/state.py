@@ -15,7 +15,7 @@ DifficultyLevel = Literal["easy", "medium", "hard"]
 Epoch = Literal["modern", "1920s", "victorian", "custom"]
 Theme = Literal["family_mansion", "corporate_retreat", "cruise", "train", "custom"]
 Gender = Literal["male", "female"]
-Language = Literal["es", "en", "it", "de"]
+Language = Literal["es", "en", "it", "de", "he"]
 
 
 # --- Metadata and Configuration ---

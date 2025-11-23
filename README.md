@@ -36,7 +36,7 @@ Mystery Agents generates **complete murder mystery party games** in the style of
 - 📦 **Print-ready materials** (character sheets, host guide, clues)
 - 🎨 **AI-generated portraits** for each character (optional)
 - 🌍 **Cultural adaptation** - names and customs match your country/region
-- 🗣️ **Native language generation** - Spanish, English, Italian, or German (more coming)
+- 🗣️ **Native language generation** - Spanish, English, Italian, German, or Hebrew (with RTL support)
 - 🎭 **Flexible killer reveal** - optionally let the killer know their identity from the start
 
 **Perfect for:**
@@ -120,7 +120,7 @@ uv run mystery-agents game.example.yml --dry-run
 - 📅 **Eras**: Modern, 1920s, Victorian, or custom period
 - 🌍 **Cultural Adaptation**: Character names, customs, settings match your country/region
 - 👥 **Flexible Players**: 4-10 players, customizable gender distribution
-- 🗣️ **Languages**: Spanish, English, Italian, German (native generation, not translation)
+- 🗣️ **Languages**: Spanish, English, Italian, German, Hebrew (native generation, not translation, with RTL support for Hebrew)
 
 ### AI Features
 
@@ -158,7 +158,7 @@ uv run mystery-agents game.example.yml --dry-run
 
 **Configuration File Format (game.yml):**
 ```yaml
-language: es              # es, en, it, or de
+language: es              # es, en, it, de, or he
 country: Spain
 region: Andalucía         # Optional
 epoch: modern             # modern, 1920s, victorian, custom

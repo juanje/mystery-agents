@@ -77,6 +77,12 @@ def test_german_locale_exists() -> None:
     assert de_file.exists(), "German locale file (de/ui.json) not found"
 
 
+def test_hebrew_locale_exists() -> None:
+    """Test that Hebrew locale file exists."""
+    he_file = LOCALES_DIR / "he" / "ui.json"
+    assert he_file.exists(), "Hebrew locale file (he/ui.json) not found"
+
+
 def test_english_json_is_valid() -> None:
     """Test that English JSON file is valid and can be parsed."""
     try:
@@ -117,6 +123,16 @@ def test_german_json_is_valid() -> None:
         pytest.fail(f"German locale file contains invalid JSON: {e}")
 
 
+def test_hebrew_json_is_valid() -> None:
+    """Test that Hebrew JSON file is valid and can be parsed."""
+    try:
+        data = load_translations("he")
+        assert isinstance(data, dict), "Hebrew translations must be a dictionary"
+        assert len(data) > 0, "Hebrew translations should not be empty"
+    except json.JSONDecodeError as e:
+        pytest.fail(f"Hebrew locale file contains invalid JSON: {e}")
+
+
 def test_all_languages_have_same_keys() -> None:
     """
     Test that all language files have identical key structures.
@@ -127,11 +143,13 @@ def test_all_languages_have_same_keys() -> None:
     es_data = load_translations("es")
     it_data = load_translations("it")
     de_data = load_translations("de")
+    he_data = load_translations("he")
 
     en_keys = extract_keys(en_data)
     es_keys = extract_keys(es_data)
     it_keys = extract_keys(it_data)
     de_keys = extract_keys(de_data)
+    he_keys = extract_keys(he_data)
 
     # Check for missing keys in Spanish
     missing_in_es = en_keys - es_keys
@@ -172,8 +190,21 @@ def test_all_languages_have_same_keys() -> None:
         f"German locale has {len(extra_in_de)} extra key(s) not in English:\n{sorted(extra_in_de)}"
     )
 
+    # Check for missing keys in Hebrew
+    missing_in_he = en_keys - he_keys
+    assert not missing_in_he, (
+        f"Hebrew locale is missing {len(missing_in_he)} key(s) present in English:\n"
+        f"{sorted(missing_in_he)}"
+    )
+
+    # Check for extra keys in Hebrew
+    extra_in_he = he_keys - en_keys
+    assert not extra_in_he, (
+        f"Hebrew locale has {len(extra_in_he)} extra key(s) not in English:\n{sorted(extra_in_he)}"
+    )
+
     # All checks passed - keys are identical
-    assert en_keys == es_keys == it_keys == de_keys, (
+    assert en_keys == es_keys == it_keys == de_keys == he_keys, (
         "All language files should have identical key structures"
     )
 
@@ -201,7 +232,7 @@ def test_required_sections_exist() -> None:
     """Test that all required top-level sections exist in all languages."""
     required_sections = ["document", "clue", "room", "language"]
 
-    for lang_code in ["en", "es", "it", "de"]:
+    for lang_code in ["en", "es", "it", "de", "he"]:
         data = load_translations(lang_code)
         missing_sections = [s for s in required_sections if s not in data]
         assert not missing_sections, (
@@ -218,7 +249,7 @@ def test_document_section_has_required_keys() -> None:
         "character_sheet_title",
     ]
 
-    for lang_code in ["en", "es", "it", "de"]:
+    for lang_code in ["en", "es", "it", "de", "he"]:
         data = load_translations(lang_code)
         document_section = data.get("document", {})
 
@@ -238,7 +269,7 @@ def test_clue_section_has_required_keys() -> None:
         "exonerates",
     ]
 
-    for lang_code in ["en", "es", "it", "de"]:
+    for lang_code in ["en", "es", "it", "de", "he"]:
         data = load_translations(lang_code)
         clue_section = data.get("clue", {})
 
@@ -250,7 +281,7 @@ def test_clue_section_has_required_keys() -> None:
 
 def test_language_names_are_defined() -> None:
     """Test that language names are properly defined."""
-    supported_langs = ["en", "es", "it", "de"]
+    supported_langs = ["en", "es", "it", "de", "he"]
 
     for lang_code in supported_langs:
         data = load_translations(lang_code)
@@ -281,7 +312,7 @@ def test_translations_are_strings_not_numbers() -> None:
                 non_string_keys.append(f"{full_key} (type: {type(value).__name__})")
         return non_string_keys
 
-    for lang_code in ["en", "es", "it", "de"]:
+    for lang_code in ["en", "es", "it", "de", "he"]:
         data = load_translations(lang_code)
         non_string_keys = check_all_strings(data)
         assert not non_string_keys, (

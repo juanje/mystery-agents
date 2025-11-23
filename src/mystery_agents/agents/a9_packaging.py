@@ -42,7 +42,7 @@ from mystery_agents.utils.state_helpers import safe_get_world_location_name
 from .base import BaseAgent
 
 
-def _generate_pdf_worker(args: tuple[Path, Path, int]) -> tuple[bool, str]:
+def _generate_pdf_worker(args: tuple[Path, Path, int, str]) -> tuple[bool, str]:
     """
     Worker function for parallel PDF generation.
 
@@ -51,7 +51,7 @@ def _generate_pdf_worker(args: tuple[Path, Path, int]) -> tuple[bool, str]:
     ProcessPoolExecutor doesn't inherit parent process configuration.
 
     Args:
-        args: Tuple of (markdown_path, pdf_path, verbosity)
+        args: Tuple of (markdown_path, pdf_path, verbosity, language)
 
     Returns:
         Tuple of (success, error_message)
@@ -59,7 +59,7 @@ def _generate_pdf_worker(args: tuple[Path, Path, int]) -> tuple[bool, str]:
     import logging
     import warnings
 
-    md_path, pdf_path, verbosity = args
+    md_path, pdf_path, verbosity, language = args
 
     # Configure logging and warnings in worker process
     # Only silence in non-debug modes (verbosity < 2)
@@ -79,7 +79,7 @@ def _generate_pdf_worker(args: tuple[Path, Path, int]) -> tuple[bool, str]:
     from mystery_agents.utils.pdf_generator import markdown_to_pdf
 
     try:
-        markdown_to_pdf(md_path, pdf_path)
+        markdown_to_pdf(md_path, pdf_path, language=language)
         return True, ""
     except Exception as e:
         return False, str(e)
@@ -137,6 +137,7 @@ class PackagingAgent(BaseAgent):
         self,
         pdf_tasks: list[tuple[Path, Path]],
         log: AgentLogger,
+        language: str = "en",
         max_workers: int = 12,
     ) -> None:
         """
@@ -145,6 +146,7 @@ class PackagingAgent(BaseAgent):
         Args:
             pdf_tasks: List of (markdown_path, pdf_path) tuples
             log: Logger instance
+            language: Language code for RTL support
             max_workers: Maximum parallel workers (optimized for 16 CPUs)
         """
         if not pdf_tasks:
@@ -152,15 +154,15 @@ class PackagingAgent(BaseAgent):
 
         log.info(f"  Generating {len(pdf_tasks)} PDFs in parallel (max {max_workers} workers)...")
 
-        # Prepare tasks with verbosity setting for workers
+        # Prepare tasks with verbosity and language setting for workers
         # Each worker process needs to configure its own logging/warnings
         verbosity = log.state.config.verbosity
-        tasks_with_verbosity = [(md, pdf, verbosity) for md, pdf in pdf_tasks]
+        tasks_with_settings = [(md, pdf, verbosity, language) for md, pdf in pdf_tasks]
 
         # Use ProcessPoolExecutor directly without asyncio
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks and get futures
-            futures = [executor.submit(_generate_pdf_worker, task) for task in tasks_with_verbosity]
+            futures = [executor.submit(_generate_pdf_worker, task) for task in tasks_with_settings]
 
             log.debug(f"      Submitted {len(futures)} tasks, waiting for completion...")
 
@@ -336,7 +338,7 @@ class PackagingAgent(BaseAgent):
 
         # 7. Generate ALL PDFs in parallel
         if pdf_tasks:
-            self._generate_all_pdfs(pdf_tasks, log, max_workers=12)
+            self._generate_all_pdfs(pdf_tasks, log, language=state.config.language, max_workers=12)
 
         # 8. Organize final package (PDFs only, move markdown + images + txt to work dir if requested)
         self._organize_final_package(game_dir, state.config.keep_work_dir, game_id, output_dir, log)

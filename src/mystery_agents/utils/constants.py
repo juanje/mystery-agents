@@ -44,14 +44,17 @@ LANG_CODE_ENGLISH = "en"
 LANG_CODE_SPANISH = "es"
 LANG_CODE_ITALIAN = "it"
 LANG_CODE_GERMAN = "de"
+LANG_CODE_HEBREW = "he"
 LANG_NAME_ENGLISH = "English"
 LANG_NAME_SPANISH = "Spanish"
 LANG_NAME_ITALIAN = "Italian"
 LANG_NAME_GERMAN = "German"
+LANG_NAME_HEBREW = "Hebrew"
 DEFAULT_COUNTRY_EN = "United States"
 DEFAULT_COUNTRY_ES = "Spain"
 DEFAULT_COUNTRY_IT = "Italy"
 DEFAULT_COUNTRY_DE = "Germany"
+DEFAULT_COUNTRY_HE = "Israel"
 
 # Game tone (fixed - not user configurable)
 GAME_TONE_DESCRIPTION = (
