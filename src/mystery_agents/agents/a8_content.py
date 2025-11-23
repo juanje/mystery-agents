@@ -150,6 +150,19 @@ REQUIREMENTS:
    - If killer_knows_identity is FALSE, set this field to null
    - The brief narrative should be written in second person and help the killer play their role
 
+**CRITICAL FOR ACT 2 INTRO SCRIPT**:
+- The act_2_intro_script MUST include the CAUSE OF DEATH clearly
+- Murder method type: {safe_get_crime_method_description(state)}
+- Weapon: {safe_get_crime_weapon(state)}
+- Players need to know if it was: stabbing, poisoning, blunt force trauma, shooting, etc.
+- Example: "The victim has been found in the study with a stab wound to the back" or "Signs point to poisoning - the victim collapsed after drinking"
+
+**CRITICAL FOR FINAL SOLUTION**:
+- The final_solution_script must explain EVERY aspect of how the murder was committed
+- Include: who, why (complete motive), when (exact timing), where, how (method), how (weapon acquisition), how (opportunity exploitation), how (alibi creation), how (evidence placement)
+- Resolve ANY locked room mysteries, timeline puzzles, or apparent contradictions
+- Leave no unanswered questions
+
 Return the response in the exact JSON format specified in the system prompt.
 """
 
