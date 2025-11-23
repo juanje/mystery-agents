@@ -12,6 +12,11 @@ from mystery_agents.utils.image_generation import (
     generate_image_with_gemini,
     get_character_image_output_dir,
 )
+from mystery_agents.utils.prompts import (
+    PORTRAIT_COMPOSITION_REQUIREMENTS,
+    REALISTIC_APPEARANCE_REQUIREMENTS,
+    build_fallback_style_requirements,
+)
 from mystery_agents.utils.state_helpers import (
     safe_get_world_epoch,
     safe_get_world_location_name,
@@ -182,6 +187,10 @@ class HostImageAgent(BaseAgent):
 
         prompt = f"""Generate a photorealistic portrait of a {victim.gender} character for a mystery party game.
 
+{PORTRAIT_COMPOSITION_REQUIREMENTS}
+
+{REALISTIC_APPEARANCE_REQUIREMENTS}
+
 CHARACTER DETAILS:
 - Name: {victim.name}
 - Age: {victim.age}
@@ -227,21 +236,7 @@ STRICT EXCLUSIONS (DO NOT INCLUDE):
 """
         else:
             # Fallback if no visual style
-            prompt += f"""
-STYLE REQUIREMENTS:
-- Photorealistic, professional portrait
-- {epoch}-era fashion and styling appropriate for {country}
-- Formal, authoritative presence (this is a central character)
-- High-quality, 8K resolution
-- Lighting: Dramatic, film noir style
-- Framing: Head and shoulders portrait
-- Background: Elegant, period-appropriate setting
-- Expression: {personality} demeanor, commanding presence
-- FULL COLOR (never black and white)
-- NO TEXT, labels, names, or captions
-"""
-
-        prompt += "\n\nThe image should feel like a character from a high-quality period mystery film - someone important enough to be the center of the story."
+            prompt += build_fallback_style_requirements(epoch, country, personality, "victim")
 
         return prompt
 
@@ -269,6 +264,10 @@ STYLE REQUIREMENTS:
         )
 
         prompt = f"""Generate a photorealistic portrait of a detective character for a mystery party game.
+
+{PORTRAIT_COMPOSITION_REQUIREMENTS}
+
+{REALISTIC_APPEARANCE_REQUIREMENTS}
 
 CHARACTER DETAILS:
 - Name: {detective.character_name}
@@ -314,21 +313,7 @@ STRICT EXCLUSIONS (DO NOT INCLUDE):
 """
         else:
             # Fallback if no visual style
-            prompt += f"""
-STYLE REQUIREMENTS:
-- Photorealistic, professional portrait
-- {epoch}-era detective fashion and styling appropriate for {country}
-- Sharp, intelligent, investigative presence
-- High-quality, 8K resolution
-- Lighting: Dramatic, film noir style with slight edge lighting
-- Framing: Head and shoulders portrait
-- Background: Subtle, atmospheric setting suggesting investigation
-- Expression: {personality} demeanor, sharp gaze, intelligent look
-- FULL COLOR (never black and white)
-- NO TEXT, labels, names, or captions
-"""
-
-        prompt += "\n\nThe image should feel like a classic detective from a high-quality period mystery film - someone perceptive and methodical."
+            prompt += build_fallback_style_requirements(epoch, country, personality, "detective")
 
         return prompt
 

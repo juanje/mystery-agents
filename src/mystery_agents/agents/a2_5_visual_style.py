@@ -74,13 +74,15 @@ GAME CONTEXT:
 
 REQUIREMENTS:
 1. All character images should look like they're from the same "photoshoot" or "film production"
-2. The style must be appropriate for {epoch} in {country}
-3. Consider historical photography/portrait art styles from {epoch}
-4. The color palette should reflect {country}'s cultural aesthetic in {epoch}
-5. Lighting should create mystery and drama while being period-appropriate
-6. The style should be sophisticated and elegant
-7. Explicitly exclude: any text/labels, pure black & white (unless historically required), modern elements
-8. All images must be in FULL COLOR unless the period absolutely demands otherwise
+2. COMPOSITION: All portraits must be BUST SHOTS (chest and head visible, like Clue/Cluedo game character cards)
+3. REALISM: Characters should look like REAL, EVERYDAY PEOPLE, not models or actors. Natural faces with realistic features.
+4. The style must be appropriate for {epoch} in {country}
+5. Consider historical photography/portrait art styles from {epoch}
+6. The color palette should reflect {country}'s cultural aesthetic in {epoch}
+7. Lighting should create mystery and drama while being period-appropriate
+8. The style should be sophisticated and elegant
+9. Explicitly exclude: any text/labels, pure black & white (unless historically required), modern elements
+10. All images must be in FULL COLOR unless the period absolutely demands otherwise
 
 Return the visual style guide in the exact JSON format specified in the system prompt."""
 

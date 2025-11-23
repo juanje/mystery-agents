@@ -1,6 +1,129 @@
 """Prompt templates for all agents."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from mystery_agents.utils.constants import GAME_TONE_SHORT
+
+if TYPE_CHECKING:
+    from mystery_agents.models.state import VisualStyle
+
+# ============================================================================
+# IMAGE GENERATION - SHARED COMPONENTS
+# ============================================================================
+# These constants are used across character, victim, and detective image
+# generation to ensure consistency in composition and appearance.
+
+PORTRAIT_COMPOSITION_REQUIREMENTS = """CRITICAL COMPOSITION REQUIREMENTS:
+- BUST SHOT: Frame from chest up, like a Clue/Cluedo character card
+- EXACT FRAMING: From mid-chest to top of head, centered in frame
+- Show character's face clearly and upper torso (chest level visible)
+- NO full body shots, NO extreme close-ups, NO cropped heads
+- CONSISTENT FRAMING: All portraits must use identical framing distance
+- ASPECT RATIO: Square 1:1 or portrait 3:4 format only
+- CENTER SUBJECT: Character centered horizontally and vertically in frame"""
+
+REALISTIC_APPEARANCE_REQUIREMENTS = """CHARACTER APPEARANCE:
+- REALISTIC, EVERYDAY PERSON: Natural features, NOT model-like or overly attractive
+- Real skin texture, natural imperfections, relatable appearance
+- Characters should look like people players can identify with
+- Avoid Hollywood/telenovela aesthetics"""
+
+
+def build_visual_style_block(visual_style: VisualStyle) -> str:
+    """
+    Build the visual style consistency block for image generation prompts.
+
+    Args:
+        visual_style: VisualStyle object with style specifications
+
+    Returns:
+        Formatted string with visual style instructions
+    """
+    return f"""
+VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
+Style: {visual_style.style_description}
+Art Direction: {visual_style.art_direction}
+
+Color Palette: {", ".join(visual_style.color_palette) if visual_style.color_palette else "natural colors"}
+Color Grading: {visual_style.color_grading}
+
+Lighting: {visual_style.lighting_setup}
+Mood: {visual_style.lighting_mood}
+
+Background: {visual_style.background_aesthetic}
+Focus: {visual_style.background_blur}
+
+Technical: {visual_style.technical_specs}
+Camera: {visual_style.camera_specs}
+
+STRICT EXCLUSIONS (DO NOT INCLUDE):
+{chr(10).join(f"- {item}" for item in visual_style.negative_prompts)}
+"""
+
+
+def build_fallback_style_requirements(
+    epoch: str, country: str, personality: str, character_type: str = "character"
+) -> str:
+    """
+    Build fallback style requirements when no visual style is available.
+
+    Args:
+        epoch: Historical period
+        country: Country/culture
+        personality: Character personality description
+        character_type: Type of character (for specialized descriptions)
+
+    Returns:
+        Formatted string with fallback style requirements
+    """
+    character_descriptions = {
+        "victim": "Formal, authoritative presence (this is a central character)",
+        "detective": "Sharp, intelligent, investigative presence",
+        "character": "Formal mystery party atmosphere",
+    }
+
+    background_descriptions = {
+        "victim": "Elegant, period-appropriate setting, blurred",
+        "detective": "Subtle, atmospheric setting suggesting investigation, blurred",
+        "character": "Subtle, period-appropriate, blurred",
+    }
+
+    expression_notes = {
+        "victim": f"{personality} demeanor, commanding presence",
+        "detective": f"{personality} demeanor, sharp gaze, intelligent look",
+        "character": f"{personality} demeanor",
+    }
+
+    final_notes = {
+        "victim": "The image should feel like a real person from a high-quality period mystery film - someone important enough to be the center of the story, but with natural, realistic features.",
+        "detective": "The image should feel like a real detective from a high-quality period mystery film - someone perceptive and methodical, but with natural, realistic features.",
+        "character": "The image should feel like a character from a high-quality period mystery film.",
+    }
+
+    return f"""
+STYLE REQUIREMENTS:
+- Photorealistic, professional portrait
+- EXACT FRAMING: Mid-chest to top of head, centered, square or portrait aspect ratio
+- REALISTIC EVERYDAY PERSON (not model-like, natural features)
+- {epoch}-era fashion and styling appropriate for {country}
+- {character_descriptions.get(character_type, character_descriptions["character"])}
+- High-quality, 8K resolution
+- Lighting: Dramatic, film noir style{" with slight edge lighting" if character_type == "detective" else ""}
+- Background: {background_descriptions.get(character_type, background_descriptions["character"])}
+- Expression: {expression_notes.get(character_type, expression_notes["character"])}
+- FULL COLOR (never black and white)
+- NO TEXT, labels, names, captions, overly perfect faces, full body shots, extreme close-ups
+- NO wide shots, NO cropped heads, NO off-center framing
+- CONSISTENT aspect ratio across all images
+
+{final_notes.get(character_type, final_notes["character"])}"""
+
+
+# ============================================================================
+# AGENT SYSTEM PROMPTS
+# ============================================================================
 
 # A1: Config/Wizard Agent
 A1_SYSTEM_PROMPT = f"""You are a configuration assistant for a mystery party game generator.
@@ -531,46 +654,64 @@ You MUST return a JSON object with exactly one field:
 
 CRITICAL RULES:
 1. The visual style MUST be appropriate for the specified epoch, country, and cultural context
-3. Consider the historical period's photography/portrait art styles:
+2. COMPOSITION CONSISTENCY: All portraits MUST be bust shots (chest and head, similar to Clue/Cluedo character cards)
+   - In camera_specs or technical_specs, specify: "Bust shot composition, from mid-chest up, centered in frame"
+   - In camera_specs, MUST specify: "Square 1:1 or portrait 3:4 aspect ratio" for consistency
+   - In art_direction, emphasize: "Consistent bust-level framing for all characters, exact same distance"
+   - This is CRITICAL for game card consistency - all images must have identical framing
+3. REALISTIC APPEARANCE: Characters must look like REAL, EVERYDAY PEOPLE
+   - In art_direction or negative_prompts, specify to avoid: "overly perfect faces", "model-like beauty", "flawless features"
+   - Encourage: "natural faces", "realistic features", "diverse appearances", "relatable characters"
+   - Players should be able to identify with these characters, not be intimidated by Hollywood-level beauty
+4. Consider the historical period's photography/portrait art styles:
    - Victorian era: Formal painted portrait style, daguerreotype aesthetic
    - 1920s-30s: Film noir lighting, art deco elements, early photography
    - 1950s-60s: Classic Hollywood portrait photography
    - Modern: Contemporary portrait photography, digital quality
-4. The style should feel COHESIVE across all characters - they should look like they're from the same "photoshoot" or "film"
-5. Color palette should reflect the period and country (e.g., warm Mediterranean tones for Spain, cooler tones for England)
-6. Lighting should enhance mystery and drama while being period-appropriate
-7. All string fields must be non-empty and specific
-8. negative_prompts should ALWAYS explicitly exclude: text/labels, black & white (unless period requires it), modern elements
-9. The style should be sophisticated and suitable for a mystery party game
-10. Images MUST be in FULL COLOR unless the historical period absolutely requires otherwise (pre-1900s)
+5. The style should feel COHESIVE across all characters - they should look like they're from the same "photoshoot" or "film"
+6. Color palette should reflect the period and country (e.g., warm Mediterranean tones for Spain, cooler tones for England)
+7. Lighting should enhance mystery and drama while being period-appropriate
+8. All string fields must be non-empty and specific
+9. negative_prompts should ALWAYS explicitly exclude: text/labels, black & white (unless period requires it), modern elements, overly perfect features
+10. The style should be sophisticated and suitable for a mystery party game
+11. Images MUST be in FULL COLOR unless the historical period absolutely requires otherwise (pre-1900s)
 
 EXAMPLES OF GOOD VISUAL STYLES:
 
 Victorian England (1890s):
-- style_description: "Victorian formal portrait photography with daguerreotype aesthetic"
+- style_description: "Victorian formal portrait photography with daguerreotype aesthetic, bust-level composition"
+- art_direction: "Consistent bust shot framing at identical distance for all characters, realistic everyday Victorian people, not aristocratic perfection"
 - color_palette: ["deep burgundy", "forest green", "gold accents", "sepia undertones", "rich browns"]
 - color_grading: "Warm vintage tones with slight sepia, rich saturated colors"
 - lighting_setup: "Classical studio lighting with soft key light, mimicking gas lamp era"
 - lighting_mood: "Elegant and formal with dramatic shadows"
 - background_aesthetic: "Victorian wallpaper patterns, ornate frames, period furniture"
-- negative_prompts: ["text", "labels", "names", "watermarks", "pure black and white", "modern elements"]
+- camera_specs: "Bust shot from mid-chest up, 85mm portrait lens, square 1:1 or portrait 3:4 aspect ratio, centered subject"
+- technical_specs: "Professional portrait with consistent framing distance across all characters"
+- negative_prompts: ["text", "labels", "names", "watermarks", "pure black and white", "modern elements", "overly perfect faces", "model-like beauty", "full body shots", "extreme close-ups", "cropped heads", "off-center framing", "wide shots"]
 
 1920s Spain:
-- style_description: "1920s Mediterranean portrait photography with film noir influence"
+- style_description: "1920s Mediterranean portrait photography with film noir influence, bust-level framing"
+- art_direction: "Consistent bust shot composition at exact same distance for all characters, natural Spanish features, everyday people not Hollywood actors"
 - color_palette: ["warm terracotta", "deep shadows", "golden highlights", "rich olive tones", "burnt sienna"]
 - color_grading: "Warm Mediterranean color palette with noir contrast and rich saturation"
 - lighting_setup: "Dramatic side lighting with strong shadows, Rembrandt lighting technique"
 - lighting_mood: "Mysterious and atmospheric with Spanish warmth"
 - background_aesthetic: "Spanish colonial architecture, art deco elements, warm textured walls"
-- negative_prompts: ["text", "labels", "black and white", "grayscale", "modern smartphones"]
+- camera_specs: "Bust shot from mid-chest up, period-appropriate portrait lens, square 1:1 or portrait 3:4 aspect ratio, centered"
+- technical_specs: "Professional portrait with identical framing distance for all characters"
+- negative_prompts: ["text", "labels", "black and white", "grayscale", "modern smartphones", "overly perfect faces", "model features", "full body", "distant shots", "cropped heads", "off-center", "wide shots"]
 
 Modern Corporate (2020s):
-- style_description: "Contemporary professional portrait photography"
+- style_description: "Contemporary professional portrait photography, bust shot composition"
+- art_direction: "Consistent bust-level framing at exact same distance for all characters, real people with natural features, approachable not intimidating"
 - color_palette: ["neutral grays", "cool blues", "warm skin tones", "subtle ivory backgrounds"]
 - color_grading: "Clean modern color grading, natural and polished with slight warmth"
 - lighting_setup: "Professional three-point lighting, soft and flattering"
 - lighting_mood: "Professional and approachable with subtle drama"
 - background_aesthetic: "Clean modern corporate interior, minimalist"
-- negative_prompts: ["text", "labels", "names", "black and white", "vintage filters"]
+- camera_specs: "Bust shot from mid-chest up, 85mm f/2.8 portrait lens, square 1:1 or portrait 3:4 aspect ratio, centered"
+- technical_specs: "Professional portrait with consistent framing across all images"
+- negative_prompts: ["text", "labels", "names", "black and white", "vintage filters", "overly attractive faces", "model-like perfection", "full body shots", "extreme close-ups", "cropped heads", "off-center framing"]
 
 Use the world context (epoch, country, location, gathering_reason, visual_keywords) to create an authentic, cohesive visual style that will make all character images feel like they belong to the same world."""

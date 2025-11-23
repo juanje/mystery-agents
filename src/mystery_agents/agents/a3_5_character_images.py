@@ -15,6 +15,12 @@ from mystery_agents.utils.image_generation import (
     generate_image_with_gemini,
     get_character_image_output_dir,
 )
+from mystery_agents.utils.prompts import (
+    PORTRAIT_COMPOSITION_REQUIREMENTS,
+    REALISTIC_APPEARANCE_REQUIREMENTS,
+    build_fallback_style_requirements,
+    build_visual_style_block,
+)
 from mystery_agents.utils.state_helpers import (
     safe_get_world_epoch,
     safe_get_world_location_name,
@@ -210,6 +216,10 @@ class CharacterImageAgent(BaseAgent):
 
         prompt = f"""Generate a photorealistic portrait of a {character.gender} character for a mystery party game.
 
+{PORTRAIT_COMPOSITION_REQUIREMENTS}
+
+{REALISTIC_APPEARANCE_REQUIREMENTS}
+
 CHARACTER DETAILS:
 - Name: {character.name}
 - Age: {character.age_range}
@@ -228,47 +238,10 @@ COSTUME:
 
         # Add visual style consistency if available
         if state.visual_style:
-            vs = state.visual_style
-
-            prompt += f"""
-VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
-Style: {vs.style_description}
-Art Direction: {vs.art_direction}
-
-Color Palette: {", ".join(vs.color_palette) if vs.color_palette else "natural colors"}
-Color Grading: {vs.color_grading}
-
-Lighting: {vs.lighting_setup}
-Mood: {vs.lighting_mood}
-
-Background: {vs.background_aesthetic}
-Focus: {vs.background_blur}
-
-Technical: {vs.technical_specs}
-Camera: {vs.camera_specs}
-
-STRICT EXCLUSIONS (DO NOT INCLUDE):
-{chr(10).join(f"- {item}" for item in vs.negative_prompts)}
-"""
+            prompt += build_visual_style_block(state.visual_style)
         else:
             # Fallback if no visual style (shouldn't happen, but safe)
-            prompt += f"""
-STYLE REQUIREMENTS:
-- Photorealistic, professional portrait
-- {epoch}-era fashion and styling appropriate for {country}
-- Formal mystery party atmosphere
-- High-quality, 8K resolution
-- Lighting: Dramatic, film noir style
-- Framing: Head and shoulders portrait
-- Background: Subtle, period-appropriate
-- Expression: {personality} demeanor
-- FULL COLOR (never black and white)
-- NO TEXT, labels, names, or captions
-"""
-
-        prompt += (
-            "\n\nThe image should feel like a character from a high-quality period mystery film."
-        )
+            prompt += build_fallback_style_requirements(epoch, country, personality, "character")
 
         return prompt
 
