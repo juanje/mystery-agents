@@ -1,6 +1,6 @@
 [project]
 name = "mystery-agents"
-version = "0.7.0"
+version = "0.8.0"
 description = "AI-powered mystery party game generator using LangGraph and LangChain"
 readme = "README.md"
 license = "MIT"
