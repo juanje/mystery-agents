@@ -42,10 +42,16 @@ MIN_CLUES_PER_GAME = 5
 # Language configuration
 LANG_CODE_ENGLISH = "en"
 LANG_CODE_SPANISH = "es"
+LANG_CODE_ITALIAN = "it"
+LANG_CODE_GERMAN = "de"
 LANG_NAME_ENGLISH = "English"
 LANG_NAME_SPANISH = "Spanish"
-DEFAULT_COUNTRY_ES = "Spain"
+LANG_NAME_ITALIAN = "Italian"
+LANG_NAME_GERMAN = "German"
 DEFAULT_COUNTRY_EN = "United States"
+DEFAULT_COUNTRY_ES = "Spain"
+DEFAULT_COUNTRY_IT = "Italy"
+DEFAULT_COUNTRY_DE = "Germany"
 
 # Game tone (fixed - not user configurable)
 GAME_TONE_DESCRIPTION = (

@@ -42,6 +42,22 @@ class TestTranslationManager:
         assert "document" in tm.translations
         assert "clue" in tm.translations
 
+    def test_load_italian_translations(self) -> None:
+        """Test loading Italian translations."""
+        tm = TranslationManager("it")
+        assert tm.lang_code == "it"
+        assert len(tm.translations) > 0, "Italian translations should not be empty"
+        assert "document" in tm.translations
+        assert "clue" in tm.translations
+
+    def test_load_german_translations(self) -> None:
+        """Test loading German translations."""
+        tm = TranslationManager("de")
+        assert tm.lang_code == "de"
+        assert len(tm.translations) > 0, "German translations should not be empty"
+        assert "document" in tm.translations
+        assert "clue" in tm.translations
+
     def test_get_simple_key(self) -> None:
         """Test getting a simple translation key."""
         tm = TranslationManager("en")
@@ -259,6 +275,8 @@ class TestBackwardCompatibilityFunctions:
         """Test get_language_name function."""
         assert get_language_name("en") == "English"
         assert get_language_name("es") == "Spanish"
+        assert get_language_name("it") == "Italian"
+        assert get_language_name("de") == "German"
         assert get_language_name("unknown") == "unknown"  # Falls back to code itself
 
 

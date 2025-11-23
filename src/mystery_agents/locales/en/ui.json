@@ -177,7 +177,9 @@
   },
   "language": {
     "en": "English",
-    "es": "Spanish"
+    "es": "Spanish",
+    "it": "Italian",
+    "de": "German"
   },
   "country": {
     "Spain": "Spain",
