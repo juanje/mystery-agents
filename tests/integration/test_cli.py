@@ -439,7 +439,7 @@ difficulty: medium
         Path("game.yml").write_text(game_config)
 
         # Mock workflow to stop after config loading (fast test)
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             # Simulate workflow stopping after config node
             mock_instance.stream.side_effect = Exception("Test stopped after config load")
@@ -490,7 +490,7 @@ difficulty: hard
         custom_path.write_text(custom_config)
 
         # Mock workflow to stop after config loading (fast test)
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped after config load")
 
@@ -552,7 +552,7 @@ difficulty: medium
         Path("custom.yml").write_text(custom_config)
 
         # Mock workflow to stop after config loading (fast test)
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped after config load")
 
@@ -583,7 +583,7 @@ difficulty: medium
 """
         Path("game.yml").write_text(config_content)
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
 

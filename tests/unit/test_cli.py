@@ -82,7 +82,7 @@ def test_cli_workflow_no_output_error(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             # Simulate workflow that produces no output
             mock_instance.stream.return_value = iter([])
@@ -98,7 +98,7 @@ def test_cli_workflow_unexpected_state_format(sample_game_yml: Path) -> None:
     runner = CliRunner()
 
     with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             # Simulate workflow that returns non-dict state
             mock_instance.stream.return_value = iter([{"node": "not a dict"}])
@@ -119,7 +119,7 @@ def test_cli_world_validation_failure(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
 
             # Create a state with failed world validation
@@ -150,7 +150,7 @@ def test_cli_validation_failure(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             from mystery_agents.models.state import ValidationIssue
 
             mock_instance = mock_workflow.return_value
@@ -183,7 +183,7 @@ def test_cli_missing_meta_error(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
 
             # Create a state without meta
@@ -209,7 +209,7 @@ def test_cli_keyboard_interrupt(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = KeyboardInterrupt()
 
@@ -229,7 +229,7 @@ def test_cli_api_key_error(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = ValueError("API key invalid")
 
@@ -249,7 +249,7 @@ def test_cli_generic_error_handling(sample_game_yml: Path) -> None:
 
         shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
 
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = RuntimeError("Something went wrong")
 
@@ -267,7 +267,7 @@ def test_cli_success_output(sample_game_yml: Path, tmp_path: Path) -> None:
     output_dir.mkdir()
 
     with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
 
             # Create a successful final state
@@ -300,7 +300,7 @@ def test_cli_no_images_flag(sample_game_yml: Path) -> None:
     runner = CliRunner()
 
     with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
 
@@ -328,7 +328,7 @@ def test_cli_keep_work_dir_flag(sample_game_yml: Path) -> None:
     runner = CliRunner()
 
     with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
 
@@ -345,7 +345,7 @@ def test_cli_log_file_option(sample_game_yml: Path, tmp_path: Path) -> None:
     log_file = tmp_path / "test.log"
 
     with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
-        with patch("mystery_agents.cli.create_workflow") as mock_workflow:
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
 
