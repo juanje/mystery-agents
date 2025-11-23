@@ -10,13 +10,15 @@ from pydantic import BaseModel, Field
 
 from mystery_agents.utils.constants import DEFAULT_COUNTRY_ES
 
-# --- Tipos básicos ---
+# --- Basic Types ---
 DifficultyLevel = Literal["easy", "medium", "hard"]
 Epoch = Literal["modern", "1920s", "victorian", "custom"]
 Theme = Literal["family_mansion", "corporate_retreat", "cruise", "train", "custom"]
+Gender = Literal["male", "female"]
+Language = Literal["es", "en"]
 
 
-# --- Meta y configuración ---
+# --- Metadata and Configuration ---
 class MetaInfo(BaseModel):
     """Metadata about the game."""
 
@@ -36,7 +38,7 @@ class PlayerConfig(BaseModel):
 class GameConfig(BaseModel):
     """Game configuration and preferences."""
 
-    language: Literal["es", "en"] = "es"
+    language: Language = "es"
     country: str = DEFAULT_COUNTRY_ES
     region: str | None = None
     epoch: Epoch = "modern"
@@ -44,7 +46,7 @@ class GameConfig(BaseModel):
     theme: Theme = "family_mansion"
     custom_theme_description: str | None = None
     players: PlayerConfig = Field(default_factory=lambda: PlayerConfig(total=6))
-    host_gender: Literal["male", "female"] = "male"
+    host_gender: Gender = "male"
     duration_minutes: int = Field(90, ge=60, le=180)
     difficulty: DifficultyLevel = "medium"
     killer_knows_identity: bool = False  # If True, killer's character sheet reveals their identity
@@ -58,7 +60,7 @@ class GameConfig(BaseModel):
     log_file: str | None = None  # Optional file path to write logs to
 
 
-# --- Mundo ---
+# --- World ---
 class WorldBible(BaseModel):
     """World and setting definition."""
 
@@ -87,7 +89,7 @@ class WorldBible(BaseModel):
     )
 
 
-# --- Crimen ---
+# --- Crime ---
 class TimeWindow(BaseModel):
     """Time window for events."""
 
@@ -106,7 +108,7 @@ class VictimSpec(BaseModel):
         description="Full name of the victim character (e.g., 'Lord Blackwood', 'CEO Sarah Chen'). This is the character the HOST will roleplay in Act 1."
     )
     age: int = Field(description="Age of the victim (integer, e.g., 45, 65).")
-    gender: Literal["male", "female"] = Field(
+    gender: Gender = Field(
         description="Gender of the victim: 'male' or 'female'. This should match the host's gender."
     )
     role_in_setting: str = Field(
@@ -209,7 +211,7 @@ class CrimeSpec(BaseModel):
     )
 
 
-# --- Personajes (Sospechosos) ---
+# --- Characters (Suspects) ---
 class CharacterSpec(BaseModel):
     """Character/suspect specification."""
 
@@ -220,9 +222,7 @@ class CharacterSpec(BaseModel):
     name: str = Field(
         description="Full name of the character (e.g., 'John Smith', 'Maria Garcia')."
     )
-    gender: Literal["male", "female"] = Field(
-        description="Gender of the character: 'male' or 'female'."
-    )
+    gender: Gender = Field(description="Gender of the character: 'male' or 'female'.")
     age_range: str = Field(
         description="Age range of the character (e.g., '25-30', '40-50', '60+')."
     )
@@ -292,7 +292,7 @@ class RelationshipSpec(BaseModel):
     tension_level: int = Field(1, ge=1, le=3, description="Tension level from 1 (low) to 3 (high).")
 
 
-# --- Timeline global ---
+# --- Global Timeline ---
 class GlobalEvent(BaseModel):
     """A global event in the timeline."""
 
@@ -362,7 +362,7 @@ class KillerSelection(BaseModel):
     )
 
 
-# --- Timelines personales ---
+# --- Personal Timelines ---
 class PersonalEvent(BaseModel):
     """Personal event from a character's perspective."""
 
@@ -385,7 +385,7 @@ class PersonalTimeline(BaseModel):
 PersonalTimelineByCharacter = dict[str, PersonalTimeline]
 
 
-# --- Pistas y Mapas ---
+# --- Clues and Maps ---
 ClueType = Literal["note", "object", "forensic_report", "map_snippet", "photo", "other"]
 
 
@@ -399,7 +399,7 @@ class ClueSpec(BaseModel):
     incriminates: list[str] = []
     exonerates: list[str] = []
     relates_to_events: list[str] = []
-    reveal_phase: Literal["Acto 2"] = "Acto 2"
+    reveal_phase: Literal["Act 2"] = "Act 2"
     assigned_to_character_id: str | None = None
     is_red_herring: bool = False
 
@@ -422,7 +422,7 @@ class MapSpec(BaseModel):
     description: str
 
 
-# --- Guía del anfitrión y audio ---
+# --- Host Guide and Audio ---
 class ClueSolutionEntry(BaseModel):
     """Clue solution entry for host guide."""
 
@@ -465,7 +465,7 @@ class HostGuide(BaseModel):
     solution_timeline: GlobalTimeline | None = None
 
 
-# --- Visuales y empaquetado ---
+# --- Visuals and Packaging ---
 class ImagePromptSpec(BaseModel):
     """Image generation prompt specification."""
 
@@ -571,7 +571,7 @@ class PackagingInfo(BaseModel):
     index_summary: str = ""
 
 
-# --- Validación y documento raíz ---
+# --- Validation and Root Document ---
 class ValidationIssue(BaseModel):
     """Validation issue found in the game state."""
 
@@ -629,7 +629,7 @@ class WorldValidation(BaseModel):
     )
 
 
-# --- Clase Raíz del Estado de LangGraph ---
+# --- LangGraph State Root Class ---
 
 
 class GameState(BaseModel):
