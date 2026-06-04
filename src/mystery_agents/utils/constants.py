@@ -65,16 +65,16 @@ GAME_TONE_SHORT = "Cluedo meets Knives Out"
 GAME_TONE_STYLE = "mystery_party"  # Internal identifier (legacy)
 
 # LLM model configuration
-LLM_MODEL_TIER1 = "gemini-2.5-pro"
-LLM_MODEL_TIER2 = "gemini-2.5-pro"
-LLM_MODEL_TIER3 = "gemini-2.5-flash"
+LLM_MODEL_TIER1 = "gemini-3.5-flash"
+LLM_MODEL_TIER2 = "gemini-3.5-flash"
+LLM_MODEL_TIER3 = "gemini-3.5-flash"
 LLM_TEMPERATURE_TIER1 = 0.6
 LLM_TEMPERATURE_TIER2 = 0.7
 LLM_TEMPERATURE_TIER3 = 0.3
 DRY_RUN_DUMMY_API_KEY = "dry-run-dummy-key"
 
 # Image generation configuration
-IMAGE_GENERATION_MODEL = "models/gemini-2.5-flash-image"
+IMAGE_GENERATION_MODEL = "models/gemini-3.1-flash-image"
 IMAGE_GENERATION_TEMPERATURE = 0.6
 IMAGE_GENERATION_MAX_RETRIES = 3
 IMAGE_GENERATION_RETRY_DELAY_BASE = 2.0  # seconds
