@@ -135,7 +135,7 @@ class PackagingAgent(BaseAgent):
         log: AgentLogger,
         language: str = "en",
         max_workers: int = 12,
-    ) -> None:
+    ) -> int:
         """
         Generate all PDFs in parallel using process pool.
 
@@ -144,9 +144,12 @@ class PackagingAgent(BaseAgent):
             log: Logger instance
             language: Language code for RTL support
             max_workers: Maximum parallel workers (optimized for 16 CPUs)
+
+        Returns:
+            Number of successfully generated PDFs
         """
         if not pdf_tasks:
-            return
+            return 0
 
         log.info(f"  Generating {len(pdf_tasks)} PDFs in parallel (max {max_workers} workers)...")
 
@@ -195,6 +198,7 @@ class PackagingAgent(BaseAgent):
 
         success_count = len(pdf_tasks) - len(errors)
         log.info(f"  ✓ Generated {success_count}/{len(pdf_tasks)} PDFs")
+        return success_count
 
     def run(self, state: GameState, output_dir: str = DEFAULT_OUTPUT_DIR) -> GameState:
         """
@@ -363,11 +367,17 @@ class PackagingAgent(BaseAgent):
         log.info(f"  ✓ Wrote {len(state.characters) + len(state.clues) + 4} markdown files")
 
         # 7. Generate ALL PDFs in parallel
+        pdf_success_count = 0
         if pdf_tasks:
-            self._generate_all_pdfs(pdf_tasks, log, language=state.config.language, max_workers=12)
+            pdf_success_count = self._generate_all_pdfs(
+                pdf_tasks, log, language=state.config.language, max_workers=12
+            )
 
         # 8. Organize final package (PDFs only, move markdown + images + txt to work dir if requested)
-        self._organize_final_package(game_dir, state.config.keep_work_dir, game_id, output_dir, log)
+        # If no PDFs were generated, keep markdown and images as fallback
+        self._organize_final_package(
+            game_dir, state.config.keep_work_dir, game_id, output_dir, log, pdf_success_count
+        )
 
         # 9. Create ZIP archive (requires all PDFs to be ready)
         log.info("  Creating ZIP archive...")
@@ -987,7 +997,13 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
         path.write_text(content, encoding="utf-8")
 
     def _organize_final_package(
-        self, game_dir: Path, keep_work_dir: bool, game_id: str, output_dir: str, log: AgentLogger
+        self,
+        game_dir: Path,
+        keep_work_dir: bool,
+        game_id: str,
+        output_dir: str,
+        log: AgentLogger,
+        pdf_success_count: int = 0,
     ) -> None:
         """
         Organize final package: keep only PDFs, move markdown and images to work dir or delete them.
@@ -998,8 +1014,17 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
             game_id: Game ID for naming work directory
             output_dir: Base output directory
             log: Logger instance
+            pdf_success_count: Number of successfully generated PDFs (if 0, skip cleanup)
         """
         import shutil
+
+        # If no PDFs were generated, don't clean up intermediate files
+        # This leaves markdown and images as fallback content
+        if pdf_success_count == 0:
+            log.warning(
+                "  ⚠ No PDFs generated - keeping markdown and images as fallback (install WeasyPrint dependencies)"
+            )
+            return
 
         log.info("  Organizing final package (PDFs only)...")
 
@@ -1043,10 +1068,17 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
         for file_path in all_files_to_move:
             file_path.unlink()
 
-        # Clean up empty directories
-        for dirpath in sorted(game_dir.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-            if dirpath.is_dir() and not any(dirpath.iterdir()):
-                dirpath.rmdir()
+        # Clean up empty directories (iterate multiple times to ensure nested empty dirs are removed)
+        # We need multiple passes because removing a directory might make its parent empty
+        for _ in range(3):  # Max 3 passes should be enough for typical directory depth
+            for dirpath in sorted(game_dir.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+                if dirpath.is_dir():
+                    try:
+                        if not any(dirpath.iterdir()):
+                            dirpath.rmdir()
+                    except OSError:
+                        # Directory not empty or can't be removed - continue
+                        pass
 
     def _create_zip(self, source_dir: Path, output_path: Path) -> None:
         """Create a ZIP archive of the game directory."""
