@@ -1,7 +1,10 @@
 """CLI entry point for mystery party game generator."""
 
 import sys
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", category=PendingDeprecationWarning, module=r"langgraph\..*")
 
 import click
 
