@@ -74,22 +74,19 @@ async def _call_gemini_image_api(prompt: str, output_path: Path) -> None:
     if not api_key:
         raise ValueError("GOOGLE_API_KEY environment variable not set")
 
-    # Initialize Gemini 2.5 Flash Image model
     llm = ChatGoogleGenerativeAI(
         model=IMAGE_GENERATION_MODEL,
         temperature=IMAGE_GENERATION_TEMPERATURE,
         google_api_key=api_key,
+        response_modalities=["IMAGE"],
     )
 
-    # Create message with image generation prompt
     message = HumanMessage(content=[{"type": "text", "text": prompt}])
 
-    # Generate image with IMAGE response modality
-    # Run in executor to make it async-compatible
     loop = asyncio.get_event_loop()
     resp = await loop.run_in_executor(
         None,
-        lambda: llm.invoke([message], generation_config={"response_modalities": ["IMAGE"]}),
+        lambda: llm.invoke([message]),
     )
 
     # Extract base64 image data from response
