@@ -103,6 +103,9 @@ GLOBAL TIMELINE (DO NOT CONTRADICT):
 TRUTH NARRATIVE (what really happened):
 {state.killer_selection.truth_narrative}
 
+REQUIRED OUTPUT:
+Return exactly {len(state.characters)} timelines, one for each of these character_ids: {", ".join(char.id for char in state.characters)}
+
 Return the response in the exact JSON format specified in the system prompt.
 """
 
@@ -113,7 +116,10 @@ Return the response in the exact JSON format specified in the system prompt.
         missing = suspect_ids - timelines.keys()
         if missing:
             # Raising lets the graph retry the node for a complete answer
-            raise StructuredOutputError(f"No personal timeline for suspects: {sorted(missing)}")
+            returned = [t.character_id for t in result.timelines]
+            raise StructuredOutputError(
+                f"No personal timeline for suspects: {sorted(missing)} (returned: {returned})"
+            )
 
         state.personal_timelines = timelines
         return state
