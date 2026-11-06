@@ -203,3 +203,15 @@ def test_balanced_game_has_no_rule_violations() -> None:
     state.host_guide.host_act2_detective_role.guiding_questions = ["Who was in the corridor?"]
 
     assert find_rule_violations(state) == []
+
+
+def test_killer_question_check_ignores_shared_surname() -> None:
+    """A question about the killer's relative (same surname) is not flagged."""
+    state = _game_with_killer()
+    state.characters[1].name = "Mateo Manrique"
+    assert state.host_guide is not None and state.host_guide.host_act2_detective_role is not None
+    state.host_guide.host_act2_detective_role.guiding_questions = [
+        "What was Mateo Manrique doing in the cellar at 22:05?"
+    ]
+
+    assert find_killer_in_guiding_questions(state) == []

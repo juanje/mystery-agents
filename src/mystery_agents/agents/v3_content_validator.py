@@ -29,11 +29,17 @@ def _name_parts(name: str) -> list[str]:
     return [part for part in re.split(r"[\s.]+", name) if len(part) >= MIN_NAME_PART_LENGTH]
 
 
-def _mentions(text: str, name: str) -> bool:
-    """Whether the text mentions any distinctive part of the name."""
-    return any(
-        re.search(rf"\b{re.escape(part)}\b", text, re.IGNORECASE) for part in _name_parts(name)
-    )
+def _mentions(text: str, name: str, ignore: set[str] | None = None) -> bool:
+    """
+    Whether the text mentions any distinctive part of the name.
+
+    Args:
+        text: Text to search
+        name: Character name
+        ignore: Lowercase name parts to skip, e.g. a surname shared with relatives
+    """
+    parts = [part for part in _name_parts(name) if part.casefold() not in (ignore or set())]
+    return any(re.search(rf"\b{re.escape(part)}\b", text, re.IGNORECASE) for part in parts)
 
 
 def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
@@ -82,6 +88,13 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     killer = _killer(state)
     if not detective or not killer:
         return []
+    # A surname shared with a relative would flag questions about that relative
+    shared = {
+        part.casefold()
+        for char in state.characters
+        if char.id != killer.id
+        for part in _name_parts(char.name)
+    }
     return [
         ValidationIssue(
             type="spoiler",
@@ -89,7 +102,7 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
             related_ids=[killer.id],
         )
         for question in detective.guiding_questions
-        if _mentions(question, killer.name)
+        if _mentions(question, killer.name, ignore=shared)
     ]
 
 
