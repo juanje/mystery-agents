@@ -938,6 +938,8 @@ ZIP file: {zip_path}
 
 ## {labels["role"]}: {victim.role_in_setting}
 
+**{labels["age"]}**: {victim.age}
+
 ## {labels["public_description"]}
 {victim.public_persona}
 

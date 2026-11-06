@@ -540,6 +540,7 @@ def test_write_victim_sheet(basic_game_state: GameState, tmp_path: Path) -> None
     assert "You are the victim" in act1_section
     assert "Murder guide" in content
     assert content.count("Nota importante") == 1
+    assert "**Edad**: 55" in content
 
 
 def _add_evening(state: GameState, killer: bool) -> None:
