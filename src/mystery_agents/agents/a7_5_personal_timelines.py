@@ -1,5 +1,7 @@
 """A7.5: Personal Timelines Agent - Alibis, cover stories and observations per suspect."""
 
+import math
+
 from pydantic import BaseModel, Field
 
 from mystery_agents.models.state import GameState, PersonalEvent, PersonalTimeline
@@ -17,8 +19,10 @@ from mystery_agents.utils.state_helpers import (
 
 from .base import BaseAgent, StructuredOutputError
 
-# Calls to complete every suspect's timeline before giving up on this attempt
-MAX_COMPLETION_CALLS = 3
+# Suspects written per LLM call, to keep each response small and fast
+SUSPECTS_PER_CALL = 3
+# Calls allowed beyond one per batch, for batches the model returns incomplete
+EXTRA_CALLS = 2
 
 
 class A7_5Output(BaseModel):
@@ -83,7 +87,7 @@ class PersonalTimelinesAgent(BaseAgent):
                 f"  Secrets: {secrets}"
             )
 
-        user_message = f"""Create the personal timelines (alibis, cover stories and observations) for every suspect:
+        user_message = f"""Create the personal timelines (alibis, cover stories and observations) for the suspects requested below:
 
 GAME:
 - Target language: {state.config.language}
@@ -107,25 +111,25 @@ GLOBAL TIMELINE (DO NOT CONTRADICT):
 TRUTH NARRATIVE (what really happened):
 {state.killer_selection.truth_narrative}
 
-REQUIRED OUTPUT:
-Return exactly {len(state.characters)} timelines, one for each of these character_ids: {", ".join(char.id for char in state.characters)}
-
 Return the response in the exact JSON format specified in the system prompt.
 """
 
-        suspect_ids = [char.id for char in state.characters]
+        # The killer goes first: their real movements are what the others observe
+        suspect_ids = sorted(
+            (char.id for char in state.characters), key=lambda char_id: char_id != killer_id
+        )
         timelines: dict[str, PersonalTimeline] = {}
         returned: list[str] = []
-        for _ in range(MAX_COMPLETION_CALLS):
+        max_calls = math.ceil(len(suspect_ids) / SUSPECTS_PER_CALL) + EXTRA_CALLS
+        for _ in range(max_calls):
             missing = [char_id for char_id in suspect_ids if char_id not in timelines]
             if not missing:
                 break
-            result = self.invoke(
-                state, user_message + self._completion_request(state, timelines, missing)
-            )
+            batch = missing[:SUSPECTS_PER_CALL]
+            result = self.invoke(state, user_message + self._batch_request(state, timelines, batch))
             returned = [t.character_id for t in result.timelines]
             timelines.update(
-                (t.character_id, t) for t in result.timelines if t.character_id in missing
+                (t.character_id, t) for t in result.timelines if t.character_id in batch
             )
 
         missing = [char_id for char_id in suspect_ids if char_id not in timelines]
@@ -138,24 +142,25 @@ Return the response in the exact JSON format specified in the system prompt.
         state.personal_timelines = timelines
         return state
 
-    def _completion_request(
-        self, state: GameState, written: dict[str, PersonalTimeline], missing: list[str]
+    def _batch_request(
+        self, state: GameState, written: dict[str, PersonalTimeline], batch: list[str]
     ) -> str:
         """
-        Ask for the timelines still missing, showing the ones already written.
+        Ask for a few suspects' timelines, showing the ones already written.
 
-        The model sometimes returns only the first suspect. Asking for the rest with the
-        written ones as context keeps observations consistent across suspects without
-        throwing away the work already done.
+        Writing every suspect in one response is slow enough to hit server deadlines,
+        and the model sometimes stops after the first one. Small batches with the
+        written timelines as context keep observations consistent across suspects.
         """
-        if not written:
-            return ""
-        done = state.model_copy(update={"personal_timelines": written})
-        return f"""
+        written_section = ""
+        if written:
+            done = state.model_copy(update={"personal_timelines": written})
+            written_section = f"""
 ALREADY WRITTEN (keep them as they are and stay consistent with them):
 {format_personal_timelines(done)}
-
-Now return ONLY the timelines for these character_ids: {", ".join(missing)}
+"""
+        return f"""{written_section}
+Now return ONLY the timelines for these character_ids: {", ".join(batch)}
 """
 
     def _mock_output(self, state: GameState) -> GameState:

@@ -101,3 +101,26 @@ def test_run_asks_for_missing_suspects_only(state: GameState) -> None:
     assert "ALREADY WRITTEN" in second_message
     assert "### Ana (ID: char-1)" in second_message
     assert "Now return ONLY the timelines for these character_ids: char-2" in second_message
+
+
+def test_run_writes_suspects_in_batches_killer_first(state: GameState) -> None:
+    """Suspects are requested in small batches, starting with the killer."""
+    state.characters = [_character(f"char-{n}", f"Name {n}") for n in range(1, 5)]
+    state.killer_selection = KillerSelection(
+        killer_id="char-3", rationale="Opportunity", truth_narrative="Name 3 did it."
+    )
+    agent = PersonalTimelinesAgent()
+
+    def answer(_: GameState, message: str) -> A7_5Output:
+        requested = message.rsplit("character_ids: ", 1)[1].split()[0:3]
+        return A7_5Output(timelines=[_timeline(char_id.strip(",")) for char_id in requested])
+
+    with patch.object(agent, "invoke", side_effect=answer) as mock_invoke:
+        result = agent.run(state)
+
+    assert len(result.personal_timelines) == 4
+    messages = [call[0][1] for call in mock_invoke.call_args_list]
+    assert len(messages) == 2
+    assert messages[0].endswith("character_ids: char-3, char-1, char-2\n")
+    assert messages[1].endswith("character_ids: char-4\n")
+    assert "ALREADY WRITTEN" in messages[1]

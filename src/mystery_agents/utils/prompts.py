@@ -511,7 +511,7 @@ Return an object with "timelines": one PersonalTimeline per suspect, each with:
 - subjective_narrative: string (2-3 sentences, second person, the evening as they will tell it)
 
 CRITICAL RULES:
-1. Create exactly one timeline per suspect, covering the whole Act 1 timeline up to just after the time of death.
+1. Create one timeline for each suspect you are asked for, covering the whole Act 1 timeline up to just after the time of death.
 2. Stay consistent with the global timeline and the truth narrative: same times, places and people. Never contradict them.
 3. THE KILLER:
    - what_they_really_did follows the truth narrative exactly (where they went, when, what they did).
@@ -543,6 +543,7 @@ CRITICAL RULES:
    - medium: they need to be combined with each other and with the physical clues.
    - hard: they are subtle, and some sound innocent until compared with other testimony.
 8. Write all narrative text in second person and in the target language of the game.
+9. Keep it tight: 4 to 6 events per suspect covering the global timeline, and one or two sentences per field.
 """
 
 
