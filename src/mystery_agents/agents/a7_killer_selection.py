@@ -3,6 +3,7 @@
 from mystery_agents.models.state import GameState, KillerSelection
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A7_SYSTEM_PROMPT
+from mystery_agents.utils.state_helpers import format_global_timeline
 
 from .base import BaseAgent
 
@@ -52,28 +53,8 @@ class KillerSelectionAgent(BaseAgent):
                 f"- {char.name} (ID: {char.id}): {char.role}, motive: {char.motive_for_crime}"
             )
 
-        # Format timeline with detailed events so A7 can see what actually happened
-        timeline_summary = "No timeline yet"
-        if state.timeline_global and state.timeline_global.time_blocks:
-            timeline_events = []
-            for block in state.timeline_global.time_blocks:
-                timeline_events.append(f"\n--- {block.start} to {block.end} ---")
-                for event in block.events:
-                    char_names = []
-                    if event.character_ids_involved:
-                        for char_id in event.character_ids_involved:
-                            matching_char = next(
-                                (c for c in state.characters if c.id == char_id), None
-                            )
-                            if matching_char:
-                                char_names.append(matching_char.name)
-
-                    char_str = f" [{', '.join(char_names)}]" if char_names else ""
-                    location_str = f" (Location: {event.room_id})" if event.room_id else ""
-                    timeline_events.append(
-                        f"  • {event.time_approx}{char_str}{location_str}: {event.description}"
-                    )
-            timeline_summary = "\n".join(timeline_events)
+        # Detailed events so A7 can see what actually happened
+        timeline_summary = format_global_timeline(state)
 
         # Validate that crime is set (should always be at this point in workflow)
         if not state.crime:

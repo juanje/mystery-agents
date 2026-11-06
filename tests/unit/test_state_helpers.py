@@ -3,18 +3,23 @@
 import pytest
 
 from mystery_agents.models.state import (
+    CharacterSpec,
     CrimeScene,
     CrimeSpec,
     GameConfig,
     GameState,
+    GlobalEvent,
+    GlobalTimeline,
     MetaInfo,
     MurderMethod,
     PlayerConfig,
+    TimeBlock,
     VictimSpec,
     WorldBible,
 )
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.state_helpers import (
+    format_global_timeline,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_scene_room_id,
@@ -247,3 +252,46 @@ def test_safe_get_crime_scene_room_id_without_crime(empty_state: GameState) -> N
     """Test getting scene room ID when crime doesn't exist."""
     result = safe_get_crime_scene_room_id(empty_state)
     assert result == "N/A"
+
+
+def test_format_global_timeline_uses_character_names() -> None:
+    """Timeline text names the characters involved instead of showing their IDs."""
+    state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_DEFAULT_PLAYERS), duration_minutes=TEST_DEFAULT_DURATION
+        ),
+        characters=[
+            CharacterSpec(
+                id="char-1",
+                name="Ana",
+                gender="female",
+                age_range="30-40",
+                role="Cook",
+                public_description="Busy",
+                relation_to_victim="Employee",
+            )
+        ],
+        timeline_global=GlobalTimeline(
+            time_blocks=[
+                TimeBlock(
+                    start="21:00",
+                    end="22:00",
+                    events=[
+                        GlobalEvent(
+                            time_approx="21:15",
+                            description="Leaves the kitchen",
+                            character_ids_involved=["char-1"],
+                            room_id="kitchen",
+                        )
+                    ],
+                )
+            ]
+        ),
+    )
+
+    text = format_global_timeline(state)
+
+    assert "--- 21:00 to 22:00 ---" in text
+    assert "21:15 [Ana] (Location: kitchen): Leaves the kitchen" in text
+    assert "char-1" not in text

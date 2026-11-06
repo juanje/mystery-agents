@@ -4,6 +4,7 @@ from mystery_agents.models.state import GameState, ValidationReport
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_global_timeline,
     safe_get_crime_method_description,
     safe_get_crime_scene_room_id,
     safe_get_crime_time_of_death,
@@ -63,14 +64,6 @@ class GameLogicValidatorAgent(BaseAgent):
             killer = next((c for c in state.characters if c.id == killer_id), None)
             killer_name = killer.name if killer else "Unknown"
 
-        timeline_events = []
-        if state.timeline_global and state.timeline_global.time_blocks:
-            for block in state.timeline_global.time_blocks:
-                for event in block.events:
-                    timeline_events.append(
-                        f"[{block.start}-{block.end}] {event.time_approx}: {event.description} (characters: {event.character_ids_involved}, room: {event.room_id or 'N/A'})"
-                    )
-
         characters_summary = []
         for char in state.characters:
             characters_summary.append(
@@ -113,8 +106,8 @@ CRIME:
 - Location: {safe_get_crime_scene_room_id(state)}
 - Time: {safe_get_crime_time_of_death(state)}
 
-COMPLETE TIMELINE ({len(timeline_events)} events):
-{chr(10).join(timeline_events) if timeline_events else "No timeline events"}
+COMPLETE TIMELINE:
+{format_global_timeline(state)}
 {truth_narrative}
 
 REQUIREMENTS:

@@ -70,3 +70,30 @@ def safe_get_crime_scene_description(state: GameState) -> str:
 def safe_get_crime_scene_room_id(state: GameState) -> str:
     """Safely get crime scene room ID, returning 'N/A' if not available."""
     return state.crime.crime_scene.room_id if state.crime else "N/A"
+
+
+def format_global_timeline(state: GameState) -> str:
+    """
+    Render the global timeline as prompt text, naming characters instead of using IDs.
+
+    Args:
+        state: Current game state
+
+    Returns:
+        One line per event grouped by time block, or a placeholder if there's no timeline
+    """
+    if not state.timeline_global or not state.timeline_global.time_blocks:
+        return "No timeline yet"
+
+    names = {char.id: char.name for char in state.characters}
+    lines = []
+    for block in state.timeline_global.time_blocks:
+        lines.append(f"\n--- {block.start} to {block.end} ---")
+        for event in block.events:
+            involved = [
+                names[char_id] for char_id in event.character_ids_involved if char_id in names
+            ]
+            char_str = f" [{', '.join(involved)}]" if involved else ""
+            location_str = f" (Location: {event.room_id})" if event.room_id else ""
+            lines.append(f"  • {event.time_approx}{char_str}{location_str}: {event.description}")
+    return "\n".join(lines)
