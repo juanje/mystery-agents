@@ -9,7 +9,6 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "langchain>=1.4.9",
     "langgraph>=1.2.20",
     "langchain-core>=1.7.6",
     "langchain-google-genai>=4.4.3",
@@ -71,10 +70,6 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "markdown.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "langchain.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

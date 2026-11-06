@@ -1128,20 +1128,6 @@ wheels = [
 ]
 
 [[package]]
-name = "langchain"
-version = "1.4.9"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "langchain-core" },
-    { name = "langgraph" },
-    { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/f4/97e0425ce79e67aeaa090be3ac1b5f51244837f48d99ea01e84820775607/langchain-1.4.9.tar.gz", hash = "sha256:449905dd841442562f897267ceaa05f80f42daa2cf019549b2650a9b02e85d8b", size = 771011, upload-time = "2026-11-04T17:07:22.158Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/35/d7af5ed4e82f8bb43b36460e72b6d43f4ac16626d79e31d25c49e6bee697/langchain-1.4.9-py3-none-any.whl", hash = "sha256:87cf3c15dfddaebd0e421d253e3b4abf70b70d6e18e56c45b9eb1873cc46f154", size = 171661, upload-time = "2026-11-04T17:07:20.201Z" },
-]
-
-[[package]]
 name = "langchain-core"
 version = "1.7.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1593,7 +1579,6 @@ dependencies = [
     { name = "aiohttp" },
     { name = "babel" },
     { name = "click" },
-    { name = "langchain" },
     { name = "langchain-core" },
     { name = "langchain-google-genai" },
     { name = "langgraph" },
@@ -1620,7 +1605,6 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.5" },
     { name = "babel", specifier = ">=2.18.0" },
     { name = "click", specifier = ">=8.5.1" },
-    { name = "langchain", specifier = ">=1.4.9" },
     { name = "langchain-core", specifier = ">=1.7.6" },
     { name = "langchain-google-genai", specifier = ">=4.4.3" },
     { name = "langgraph", specifier = ">=1.2.20" },
