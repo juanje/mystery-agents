@@ -595,7 +595,8 @@ def test_evening_section_hides_crime_from_unaware_killer(
 
     content = _sheet(basic_game_state, tmp_path)
 
-    assert "**22:00** · Study: You went to fetch your shawl." in content
+    assert "**22:00**: You went to fetch your shawl." in content
+    assert "Study" not in content
     assert "poison" not in content
     assert "Lo que contarás" not in content
 
@@ -645,6 +646,7 @@ def test_detective_sheet_lists_suspects_accounts(
     assert "Act 2 intro" in content
     assert "## Versiones de los sospechosos" in content
     assert "### Elena Martinez" in content
-    assert "**22:00** · Study: You went to fetch your shawl." in content
+    assert "**22:00**: You went to fetch your shawl." in content
+    assert "Study" not in content
     assert "*Vio*: You saw the butler in the hall." in content
     assert "poison" not in content

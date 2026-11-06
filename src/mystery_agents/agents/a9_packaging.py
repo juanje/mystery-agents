@@ -656,7 +656,9 @@ ZIP file: {zip_path}
         saw_lines: list[str] = []
         for event in timeline.events:
             did = event.what_they_will_tell_others if hide_truth else event.what_they_really_did
-            did_lines.append(f"- **{event.time}** · {event.location}: {did}")
+            # The location is where they really were, so it would give away a cover story
+            where = f" · {event.location}" if did == event.what_they_really_did else ""
+            did_lines.append(f"- **{event.time}**{where}: {did}")
             if not hide_truth and event.what_they_will_tell_others != event.what_they_really_did:
                 will_say_lines.append(f"- **{event.time}**: {event.what_they_will_tell_others}")
             saw_lines.extend(f"- **{event.time}**: {seen}" for seen in event.info_they_observed)
@@ -941,9 +943,10 @@ ZIP file: {zip_path}
                 continue
             lines = []
             for event in timeline.events:
-                lines.append(
-                    f"- **{event.time}** · {event.location}: {event.what_they_will_tell_others}"
-                )
+                # The location is where they really were, so only show it for true accounts
+                told = event.what_they_will_tell_others
+                where = f" · {event.location}" if told == event.what_they_really_did else ""
+                lines.append(f"- **{event.time}**{where}: {told}")
                 lines.extend(
                     f"  - *{labels['observed']}*: {seen}" for seen in event.info_they_observed
                 )
