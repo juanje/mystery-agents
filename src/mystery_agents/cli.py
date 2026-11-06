@@ -4,12 +4,13 @@ import sys
 import warnings
 from pathlib import Path
 
-warnings.filterwarnings("ignore", category=PendingDeprecationWarning, module=r"langgraph\..*")
-
 import click
 
 # Lightweight imports only - heavy imports moved inside functions
 from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
+
+# langgraph is imported lazily inside generate(), so the filter is in place before it loads
+warnings.filterwarnings("ignore", category=PendingDeprecationWarning, module=r"langgraph\..*")
 
 
 @click.command()
