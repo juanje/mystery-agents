@@ -80,7 +80,7 @@ class AgentFactory:
     Benefits:
     - Agents are stateless, so we can safely reuse them
     - Reduces LLM instance creation (through LLMCache)
-    - Reduces create_agent() calls from LangChain
+    - Reduces structured-output runnable construction
     - Improves performance in retry loops (V1, V2)
     """
 

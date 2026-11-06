@@ -57,7 +57,8 @@ def test_base_agent_initialization(mock_llm: BaseChatModel) -> None:
 
     assert agent.llm == mock_llm
     assert agent.response_format is None
-    assert agent.agent is not None
+    # Without a response format the raw model is invoked directly
+    assert agent.runnable is mock_llm
 
 
 def test_base_agent_initialization_with_response_format(mock_llm: BaseChatModel) -> None:
@@ -66,6 +67,9 @@ def test_base_agent_initialization_with_response_format(mock_llm: BaseChatModel)
 
     assert agent.llm == mock_llm
     assert agent.response_format == _TestOutputFormat
+    mock_llm.with_structured_output.assert_called_once_with(  # type: ignore[attr-defined]
+        _TestOutputFormat, method="json_schema", include_raw=True
+    )
 
 
 def test_should_use_mock_returns_true_for_dry_run(
@@ -105,26 +109,28 @@ def test_mock_output_returns_state_unchanged(
     assert result == basic_state
 
 
+def _structured_result(
+    parsed: BaseModel | None, error: Exception | None = None
+) -> dict[str, object]:
+    """Build the dict returned by with_structured_output(include_raw=True)."""
+    return {"raw": AIMessage(content="raw"), "parsed": parsed, "parsing_error": error}
+
+
 def test_invoke_with_structured_response(mock_llm: BaseChatModel, basic_state: GameState) -> None:
     """Test invoke with structured response format."""
     agent = _TestAgent(llm=mock_llm, response_format=_TestOutputFormat)
-
     expected_output = _TestOutputFormat(result="success")
+    agent.runnable = MagicMock()
+    agent.runnable.invoke.return_value = _structured_result(expected_output)
 
-    with patch("mystery_agents.agents.base.create_agent") as mock_create_agent:
-        mock_agent = MagicMock()
-        mock_agent.invoke.return_value = {"structured_response": expected_output}
-        mock_create_agent.return_value = mock_agent
+    result = agent.invoke(basic_state)
 
-        agent.agent = mock_agent
-        result = agent.invoke(basic_state)
-
-        assert result == expected_output
-        assert mock_agent.invoke.call_count == 1
+    assert result == expected_output
+    assert agent.runnable.invoke.call_count == 1
 
 
-def test_invoke_with_debug_mode(mock_llm: BaseChatModel) -> None:
-    """Test invoke with debug mode enabled."""
+def test_invoke_with_debug_mode_logs_response(mock_llm: BaseChatModel) -> None:
+    """Test invoke logs the raw response when debug mode is enabled."""
     state = GameState(
         meta=MetaInfo(),
         config=GameConfig(
@@ -135,38 +141,28 @@ def test_invoke_with_debug_mode(mock_llm: BaseChatModel) -> None:
             debug_model=True,
         ),
     )
-
     agent = _TestAgent(llm=mock_llm, response_format=_TestOutputFormat)
     expected_output = _TestOutputFormat(result="debug_success")
+    agent.runnable = MagicMock()
+    agent.runnable.invoke.return_value = _structured_result(expected_output)
 
-    with patch("mystery_agents.agents.base.create_agent") as mock_create_agent:
-        mock_agent = MagicMock()
-        mock_agent.invoke.return_value = {"structured_response": expected_output}
-        mock_create_agent.return_value = mock_agent
-
+    with patch("mystery_agents.agents.base.log_model_response") as mock_log:
         result = agent.invoke(state)
 
-        assert result == expected_output
-        # Should create agent with debug middleware
-        assert mock_create_agent.call_count == 1
+    assert result == expected_output
+    mock_log.assert_called_once()
 
 
-def test_invoke_without_structured_response_raises_error(
+def test_invoke_without_parsed_output_raises_error(
     mock_llm: BaseChatModel, basic_state: GameState
 ) -> None:
-    """Test invoke raises error when structured response is missing."""
+    """Test invoke raises error when the structured output cannot be parsed."""
     agent = _TestAgent(llm=mock_llm, response_format=_TestOutputFormat)
+    agent.runnable = MagicMock()
+    agent.runnable.invoke.return_value = _structured_result(None, ValueError("bad json"))
 
-    with patch("mystery_agents.agents.base.create_agent") as mock_create_agent:
-        mock_agent = MagicMock()
-        # Return result without structured_response
-        mock_agent.invoke.return_value = {"messages": [AIMessage(content="text response")]}
-        mock_create_agent.return_value = mock_agent
-
-        agent.agent = mock_agent
-
-        with pytest.raises(ValueError, match="No structured_response in agent result"):
-            agent.invoke(basic_state)
+    with pytest.raises(ValueError, match="did not return a valid _TestOutputFormat: bad json"):
+        agent.invoke(basic_state)
 
 
 def test_invoke_without_response_format_returns_content(
@@ -174,37 +170,24 @@ def test_invoke_without_response_format_returns_content(
 ) -> None:
     """Test invoke without response format returns message content."""
     agent = _TestAgent(llm=mock_llm)  # No response_format
-
     expected_content = "Test response content"
+    agent.runnable = MagicMock()
+    agent.runnable.invoke.return_value = AIMessage(content=expected_content)
 
-    with patch("mystery_agents.agents.base.create_agent") as mock_create_agent:
-        mock_agent = MagicMock()
-        mock_agent.invoke.return_value = {
-            "messages": [AIMessage(content=expected_content)],
-        }
-        mock_create_agent.return_value = mock_agent
+    result = agent.invoke(basic_state)
 
-        agent.agent = mock_agent
-        result = agent.invoke(basic_state)
-
-        assert result == expected_content
+    assert result == expected_content
 
 
 def test_invoke_with_custom_user_message(mock_llm: BaseChatModel, basic_state: GameState) -> None:
     """Test invoke with custom user message."""
     agent = _TestAgent(llm=mock_llm)
     custom_message = "Custom test message"
+    agent.runnable = MagicMock()
+    agent.runnable.invoke.return_value = AIMessage(content="response")
 
-    with patch("mystery_agents.agents.base.create_agent") as mock_create_agent:
-        mock_agent = MagicMock()
-        mock_agent.invoke.return_value = {"messages": [AIMessage(content="response")]}
-        mock_create_agent.return_value = mock_agent
+    agent.invoke(basic_state, user_message=custom_message)
 
-        agent.agent = mock_agent
-        agent.invoke(basic_state, user_message=custom_message)
-
-        # Verify the message was passed (check call args)
-        call_args = mock_agent.invoke.call_args
-        messages = call_args[0][0]["messages"]
-        assert len(messages) == 2  # SystemMessage and HumanMessage
-        assert messages[1].content == custom_message
+    messages = agent.runnable.invoke.call_args[0][0]
+    assert len(messages) == 2  # SystemMessage and HumanMessage
+    assert messages[1].content == custom_message

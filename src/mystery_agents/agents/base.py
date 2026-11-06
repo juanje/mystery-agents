@@ -3,14 +3,14 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.constants import LANG_CODE_ENGLISH
-from mystery_agents.utils.debug_middleware import log_model_response
+from mystery_agents.utils.debug_output import log_model_response
 from mystery_agents.utils.i18n import get_language_name
 
 
@@ -32,12 +32,13 @@ class BaseAgent(ABC):
         self.llm = llm
         self.response_format = response_format
 
-        # Create agent without middleware (will be added dynamically in invoke if debug is enabled)
-        self.agent = create_agent(
-            model=llm,
-            tools=[],
-            middleware=[],
-            response_format=response_format,
+        # Agents call no tools, so a plain structured-output call is enough. Native JSON
+        # schema output avoids function calling; include_raw keeps the raw message for
+        # debugging and for reporting parsing failures.
+        self.runnable: Runnable[Any, Any] = (
+            llm.with_structured_output(response_format, method="json_schema", include_raw=True)
+            if response_format
+            else llm
         )
 
     @abstractmethod
@@ -133,8 +134,10 @@ These requirements override any language assumptions in the instructions above.
             user_message: Optional user message (defaults to empty for auto-generation)
 
         Returns:
-            LLM response (structured if response_format is set, otherwise raw)
-            For structured output, access via result["structured_response"]
+            Parsed response_format instance if set, otherwise the raw message content
+
+        Raises:
+            ValueError: If the structured output cannot be parsed
         """
         # Get base system prompt and inject language instructions if needed
         system_prompt = self.get_system_prompt(state)
@@ -150,42 +153,18 @@ These requirements override any language assumptions in the instructions above.
             ),
         ]
 
-        # Use agent with debug middleware if debug_model is enabled
-        agent_to_use = self.agent
-        if state.config.debug_model and self.response_format:
-            # Create agent with debug middleware for this invocation
-            agent_to_use = create_agent(
-                model=self.llm,
-                tools=[],
-                middleware=[log_model_response],
-                response_format=self.response_format,
+        result = self.runnable.invoke(messages)
+
+        if not self.response_format:
+            return result.content
+
+        parsed = result["parsed"]
+        parsing_error = result["parsing_error"]
+        if state.config.debug_model:
+            log_model_response(result["raw"], parsed, parsing_error)
+
+        if parsed is None:
+            raise ValueError(
+                f"The LLM did not return a valid {self.response_format.__name__}: {parsing_error}"
             )
-
-        result: dict[str, Any] = agent_to_use.invoke({"messages": messages})  # type: ignore[call-overload]
-
-        if self.response_format:
-            if "structured_response" in result:
-                return result["structured_response"]
-            else:
-                error_msg = (
-                    "No structured_response in agent result. "
-                    "The LLM returned text instead of the required structured format."
-                )
-                if state.config.debug_model:
-                    # Provide detailed error info when debug is enabled
-                    print(f"[DEBUG] ✗ {error_msg}")
-                    print(f"[DEBUG] Available state keys: {list(result.keys())}")
-                    if "messages" in result and result["messages"]:
-                        last_msg = result["messages"][-1]
-                        print(f"[DEBUG] Last message type: {type(last_msg).__name__}")
-                        if hasattr(last_msg, "content"):
-                            content = last_msg.content
-                            if isinstance(content, str):
-                                print(f"[DEBUG] Response Content:\n{'-' * 80}\n{content[:1000]}")
-                                if len(content) > 1000:
-                                    print(f"\n... (truncated, total length: {len(content)} chars)")
-                            else:
-                                print(f"[DEBUG] Response Content: {content}")
-                raise ValueError(error_msg)
-
-        return result["messages"][-1].content if result.get("messages") else result
+        return parsed

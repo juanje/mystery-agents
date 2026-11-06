@@ -129,12 +129,12 @@ class TestInvokeWithLanguageInjection:
         # Mock the agent invoke to capture the messages
         captured_messages: list[Any] = []
 
-        def mock_invoke(inputs: Any) -> dict[str, Any]:
-            captured_messages.extend(inputs["messages"])
-            return {"messages": [MagicMock(content="test response")]}
+        def mock_invoke(messages: Any) -> Any:
+            captured_messages.extend(messages)
+            return MagicMock(content="test response")
 
         agent = MockAgent(mock_llm)
-        agent.agent.invoke = mock_invoke  # type: ignore[assignment]
+        agent.runnable = MagicMock(invoke=mock_invoke)
 
         agent.invoke(spanish_state)
 
@@ -153,12 +153,12 @@ class TestInvokeWithLanguageInjection:
         # Mock the agent invoke to capture the messages
         captured_messages: list[Any] = []
 
-        def mock_invoke(inputs: Any) -> dict[str, Any]:
-            captured_messages.extend(inputs["messages"])
-            return {"messages": [MagicMock(content="test response")]}
+        def mock_invoke(messages: Any) -> Any:
+            captured_messages.extend(messages)
+            return MagicMock(content="test response")
 
         agent = MockAgent(mock_llm)
-        agent.agent.invoke = mock_invoke  # type: ignore[assignment]
+        agent.runnable = MagicMock(invoke=mock_invoke)
 
         agent.invoke(english_state)
 
@@ -177,12 +177,12 @@ class TestInvokeWithLanguageInjection:
         """Test that language injection is appended (not prepended) to system prompt."""
         captured_messages: list[Any] = []
 
-        def mock_invoke(inputs: Any) -> dict[str, Any]:
-            captured_messages.extend(inputs["messages"])
-            return {"messages": [MagicMock(content="test response")]}
+        def mock_invoke(messages: Any) -> Any:
+            captured_messages.extend(messages)
+            return MagicMock(content="test response")
 
         agent = MockAgent(mock_llm)
-        agent.agent.invoke = mock_invoke  # type: ignore[assignment]
+        agent.runnable = MagicMock(invoke=mock_invoke)
 
         agent.invoke(spanish_state)
 
