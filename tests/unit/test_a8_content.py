@@ -403,6 +403,7 @@ def test_user_message_includes_review_issues_on_retry(complete_game_state: GameS
     assert "PREVIOUS ATTEMPT WAS REJECTED" in user_message
     assert "- spoiler: Clue 2 names the killer" in user_message
     assert "- Rename clue 2" in user_message
+    assert "timelines (global and personal) are final" in user_message
 
 
 def test_a8_output_schema_has_no_const_fields() -> None:

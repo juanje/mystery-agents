@@ -124,6 +124,13 @@ class ContentGenerationAgent(BaseAgent):
             if report and not report.is_consistent
             else ""
         )
+        if retry_feedback:
+            # V3 can't tell A8 which side of a contradiction to change; only A8's texts can
+            retry_feedback += (
+                "The character sheets, relationships and timelines (global and personal) are final "
+                "and can't change. Fix every contradiction by changing your clues, host guide or "
+                "solution to match them.\n"
+            )
 
         user_message = f"""Generate ALL written content for this mystery party game:
 
