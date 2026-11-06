@@ -187,7 +187,20 @@ killer_knows_identity: false  # If true, killer knows they're the murderer
 --no-images          # Skip character portrait generation
 --keep-work-dir      # Keep intermediate markdown files
 --output-dir DIR     # Custom output directory
+--resume GAME_ID     # Resume an interrupted generation
 ```
+
+**Resuming an interrupted generation:**
+
+Progress is saved after every step in `<output-dir>/.checkpoints.sqlite`. If a run
+fails (API outage, quota, Ctrl-C...), the error message shows the command to continue
+from the last completed step, reusing the options the game was started with:
+
+```bash
+mystery-agents --resume 1a2b3c4d
+```
+
+Saved progress for a game is removed once it finishes.
 
 **Command Format:**
 ```bash

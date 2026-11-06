@@ -2,6 +2,7 @@
 
 from typing import Any, Literal, cast
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 
@@ -288,9 +289,13 @@ def should_retry_validation(state: GameState) -> Literal["pass", "retry", "fail"
     return "fail"
 
 
-def create_workflow() -> Any:
+def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any:
     """
     Create the LangGraph workflow for mystery party generation.
+
+    Args:
+        checkpointer: Optional checkpointer to persist state after each node,
+            which allows resuming an interrupted generation
 
     Returns:
         Compiled StateGraph ready for execution
@@ -362,4 +367,4 @@ def create_workflow() -> Any:
     graph.add_edge("a8_5_host_images", "a9_packaging")
     graph.add_edge("a9_packaging", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)

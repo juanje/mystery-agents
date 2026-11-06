@@ -65,6 +65,13 @@ from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
     default=None,
     help="Write logs to specified file",
 )
+@click.option(
+    "--resume",
+    "resume_game_id",
+    default=None,
+    metavar="GAME_ID",
+    help="Resume an interrupted generation (keeps the options it was started with)",
+)
 def generate(
     game_config_file: Path | None,
     output_dir: Path,
@@ -75,6 +82,7 @@ def generate(
     verbose: int,
     quiet: bool,
     log_file: Path | None,
+    resume_game_id: str | None,
 ) -> None:
     """
     Generate a mystery party game from a YAML configuration file.
@@ -93,6 +101,7 @@ def generate(
     $ mystery-agents                      # Uses game.yml if it exists
     $ mystery-agents my-game.yml          # Uses specific config file
     $ mystery-agents --dry-run            # Test without API calls (uses game.yml)
+    $ mystery-agents --resume 1a2b3c4d    # Continue an interrupted generation
     """
     # Validate mutually exclusive flags
     if quiet and verbose > 0:
@@ -114,27 +123,29 @@ def generate(
     click.echo("       MYSTERY PARTY GAME GENERATOR")
     click.echo("=" * 60 + "\n")
 
-    # Resolve config file path
-    if game_config_file is None:
-        # Try default file name
-        default_config = Path("game.yml")
-        if default_config.exists():
-            game_config_file = default_config
-        else:
-            click.echo("❌ Error: No configuration file found", err=True)
-            click.echo("\nPlease provide a configuration file:", err=True)
-            click.echo("  mystery-agents my-config.yml", err=True)
-            click.echo("\nOr create a default game.yml file:", err=True)
-            click.echo("  cp game.example.yml game.yml", err=True)
-            click.echo("  # Edit game.yml with your preferences", err=True)
-            click.echo("\nFor a quick test with example config:", err=True)
-            click.echo("  mystery-agents game.example.yml --dry-run", err=True)
-            sys.exit(1)
+    # A resumed game already has its configuration in the checkpoint
+    if resume_game_id is None:
+        # Resolve config file path
+        if game_config_file is None:
+            # Try default file name
+            default_config = Path("game.yml")
+            if default_config.exists():
+                game_config_file = default_config
+            else:
+                click.echo("❌ Error: No configuration file found", err=True)
+                click.echo("\nPlease provide a configuration file:", err=True)
+                click.echo("  mystery-agents my-config.yml", err=True)
+                click.echo("\nOr create a default game.yml file:", err=True)
+                click.echo("  cp game.example.yml game.yml", err=True)
+                click.echo("  # Edit game.yml with your preferences", err=True)
+                click.echo("\nFor a quick test with example config:", err=True)
+                click.echo("  mystery-agents game.example.yml --dry-run", err=True)
+                sys.exit(1)
 
-    # Verify config file exists
-    if not game_config_file.exists():
-        click.echo(f"❌ Error: Configuration file not found: {game_config_file}", err=True)
-        sys.exit(1)
+        # Verify config file exists
+        if not game_config_file.exists():
+            click.echo(f"❌ Error: Configuration file not found: {game_config_file}", err=True)
+            sys.exit(1)
 
     # Image generation is enabled by default (unless --no-images flag is used)
     generate_images = not no_images
@@ -143,128 +154,163 @@ def generate(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Import heavy dependencies only when actually running (not for --help)
+    from mystery_agents.graph.checkpoints import open_checkpointer
     from mystery_agents.graph.workflow import create_workflow
     from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig
     from mystery_agents.utils.constants import DEFAULT_RECURSION_LIMIT, GAME_ID_LENGTH
 
-    initial_state = GameState(
-        meta=MetaInfo(),
-        config=GameConfig(
-            players=PlayerConfig(total=6),
-            generate_images=generate_images,
-            dry_run=dry_run,
-            debug_model=debug,
-            duration_minutes=90,
-            config_file=str(game_config_file),
-            keep_work_dir=keep_work_dir,
-            verbosity=verbose,
-            quiet_mode=quiet,
-            log_file=str(log_file) if log_file else None,
-            output_dir=str(output_dir),
-        ),
-    )
+    initial_state: GameState | None = None
+    if resume_game_id is None:
+        initial_state = GameState(
+            meta=MetaInfo(),
+            config=GameConfig(
+                players=PlayerConfig(total=6),
+                generate_images=generate_images,
+                dry_run=dry_run,
+                debug_model=debug,
+                duration_minutes=90,
+                config_file=str(game_config_file),
+                keep_work_dir=keep_work_dir,
+                verbosity=verbose,
+                quiet_mode=quiet,
+                log_file=str(log_file) if log_file else None,
+                output_dir=str(output_dir),
+            ),
+        )
+        game_id = initial_state.meta.id[:GAME_ID_LENGTH]
+    else:
+        game_id = resume_game_id
 
-    # Create and run workflow
-    try:
-        click.echo("Initializing workflow...\n")
-        workflow = create_workflow()
+    # Checkpoints are keyed by game ID so an interrupted run can be resumed
+    workflow_config = {
+        "recursion_limit": DEFAULT_RECURSION_LIMIT,
+        "configurable": {"thread_id": game_id},
+    }
 
-        workflow_config = {"recursion_limit": DEFAULT_RECURSION_LIMIT}
-        all_states = []
-        for output in workflow.stream(initial_state, config=workflow_config):
-            for node_name, state in output.items():
-                all_states.append((node_name, state))
+    with open_checkpointer(output_dir) as checkpointer:
+        # Create and run workflow
+        try:
+            click.echo("Initializing workflow...\n")
+            workflow = create_workflow(checkpointer=checkpointer)
 
-        # Check if we got any states
-        if not all_states:
-            click.echo("\n❌ Error: Workflow did not produce output", err=True)
+            if initial_state is None:
+                if not workflow.get_state(workflow_config).next:
+                    click.echo(
+                        f"❌ Error: No interrupted generation found for game {game_id} "
+                        f"in {output_dir}",
+                        err=True,
+                    )
+                    sys.exit(1)
+                click.echo(f"Resuming game {game_id}...\n")
+
+            all_states = []
+            for output in workflow.stream(initial_state, config=workflow_config):
+                for node_name, state in output.items():
+                    all_states.append((node_name, state))
+
+            # The run reached the end, so its checkpoints are no longer needed
+            checkpointer.delete_thread(game_id)
+
+            # Check if we got any states
+            if not all_states:
+                click.echo("\n❌ Error: Workflow did not produce output", err=True)
+                sys.exit(1)
+
+            final_node_name, final_state = all_states[-1]
+
+            if not isinstance(final_state, dict):
+                click.echo("\n❌ Error: Unexpected state format", err=True)
+                sys.exit(1)
+
+            # Check world validation first (V2)
+            world_validation = final_state.get("world_validation")
+            if world_validation and not world_validation.is_coherent:
+                click.echo(
+                    "\n❌ Game generation failed: World validation failed after max retries",
+                    err=True,
+                )
+                click.echo("\nWorld coherence issues:")
+                for issue in world_validation.issues:
+                    click.echo(f"  - {issue}")
+                if world_validation.suggestions:
+                    click.echo("\nSuggestions for improvement:")
+                    for suggestion in world_validation.suggestions:
+                        click.echo(f"  - {suggestion}")
+                sys.exit(1)
+
+            # Check full game validation (V1)
+            validation = final_state.get("validation")
+            if validation and not validation.is_consistent:
+                click.echo("\n❌ Game generation failed validation", err=True)
+                click.echo("\nValidation issues:")
+                for issue in validation.issues:
+                    click.echo(f"  - {issue.type}: {issue.description}")
+                click.echo("\nSuggested fixes:")
+                for fix in validation.suggested_fixes:
+                    click.echo(f"  - {fix}")
+                sys.exit(1)
+
+            # Success! Show concise summary in all modes
+            if not final_state.get("meta"):
+                click.echo("\n❌ Error: Missing meta information", err=True)
+                sys.exit(1)
+            from mystery_agents.utils.constants import GAME_DIR_PREFIX, ZIP_FILE_PREFIX
+
+            zip_path = output_dir / f"{ZIP_FILE_PREFIX}{game_id}.zip"
+
+            # Show concise summary in all modes (default, quiet, and verbose)
+            click.echo("\n" + "=" * 60)
+            click.echo("✓ GAME GENERATED SUCCESSFULLY!")
+            click.echo("=" * 60 + "\n")
+            click.echo(f"📦 Game package: {zip_path}")
+            click.echo(f"📁 Files directory: {output_dir / f'{GAME_DIR_PREFIX}{game_id}'}\n")
+
+        except KeyboardInterrupt:
+            click.echo("\n\n⚠️  Generation cancelled by user (Ctrl-C)", err=True)
+            _echo_resume_hint(game_id, output_dir)
+            sys.exit(130)
+        except click.exceptions.Abort:
+            click.echo("\n\n⚠️  Configuration cancelled by user", err=True)
+            click.echo("   No game was generated.", err=True)
+            sys.exit(130)
+        except Exception as e:
+            # Check if it's an API key error (common with Google Gemini)
+            error_message = str(e).lower()
+            if "api key" in error_message or "api_key_invalid" in error_message:
+                click.echo("\n\n❌ API Key Error", err=True)
+                click.echo("=" * 60, err=True)
+                click.echo("\nThe Google Gemini API key is missing or invalid.", err=True)
+                click.echo("\nTo fix this, choose one of these options:", err=True)
+                click.echo("\n  Option 1: Create a .env file (recommended)", err=True)
+                click.echo("    1. Copy env.example to .env", err=True)
+                click.echo("    2. Edit .env and add your API key", err=True)
+                click.echo("\n  Option 2: Set environment variable", err=True)
+                click.echo("    export GOOGLE_API_KEY='your-api-key-here'", err=True)
+                click.echo("\nTo get an API key:", err=True)
+                click.echo("  1. Visit: https://aistudio.google.com/apikey", err=True)
+                click.echo("  2. Create a new API key", err=True)
+                click.echo("  3. Configure it using one of the options above", err=True)
+                click.echo("\n💡 Tip: Use --dry-run flag to test without API calls:", err=True)
+                click.echo("  mystery-agents game.yml --dry-run", err=True)
+                click.echo("\n" + "=" * 60, err=True)
+                _echo_resume_hint(game_id, output_dir)
+                sys.exit(1)
+
+            # Generic error handling for other exceptions
+            click.echo(f"\n\n❌ Error during generation: {e}", err=True)
+            import traceback
+
+            traceback.print_exc()
+            _echo_resume_hint(game_id, output_dir)
             sys.exit(1)
 
-        final_node_name, final_state = all_states[-1]
 
-        if not isinstance(final_state, dict):
-            click.echo("\n❌ Error: Unexpected state format", err=True)
-            sys.exit(1)
-
-        # Check world validation first (V2)
-        world_validation = final_state.get("world_validation")
-        if world_validation and not world_validation.is_coherent:
-            click.echo(
-                "\n❌ Game generation failed: World validation failed after max retries", err=True
-            )
-            click.echo("\nWorld coherence issues:")
-            for issue in world_validation.issues:
-                click.echo(f"  - {issue}")
-            if world_validation.suggestions:
-                click.echo("\nSuggestions for improvement:")
-                for suggestion in world_validation.suggestions:
-                    click.echo(f"  - {suggestion}")
-            sys.exit(1)
-
-        # Check full game validation (V1)
-        validation = final_state.get("validation")
-        if validation and not validation.is_consistent:
-            click.echo("\n❌ Game generation failed validation", err=True)
-            click.echo("\nValidation issues:")
-            for issue in validation.issues:
-                click.echo(f"  - {issue.type}: {issue.description}")
-            click.echo("\nSuggested fixes:")
-            for fix in validation.suggested_fixes:
-                click.echo(f"  - {fix}")
-            sys.exit(1)
-
-        # Success! Show concise summary in all modes
-        meta = final_state.get("meta")
-        if not meta:
-            click.echo("\n❌ Error: Missing meta information", err=True)
-            sys.exit(1)
-        game_id = meta.id[:GAME_ID_LENGTH]
-        from mystery_agents.utils.constants import GAME_DIR_PREFIX, ZIP_FILE_PREFIX
-
-        zip_path = output_dir / f"{ZIP_FILE_PREFIX}{game_id}.zip"
-
-        # Show concise summary in all modes (default, quiet, and verbose)
-        click.echo("\n" + "=" * 60)
-        click.echo("✓ GAME GENERATED SUCCESSFULLY!")
-        click.echo("=" * 60 + "\n")
-        click.echo(f"📦 Game package: {zip_path}")
-        click.echo(f"📁 Files directory: {output_dir / f'{GAME_DIR_PREFIX}{game_id}'}\n")
-
-    except KeyboardInterrupt:
-        click.echo("\n\n⚠️  Generation cancelled by user (Ctrl-C)", err=True)
-        sys.exit(130)
-    except click.exceptions.Abort:
-        click.echo("\n\n⚠️  Configuration cancelled by user", err=True)
-        click.echo("   No game was generated.", err=True)
-        sys.exit(130)
-    except Exception as e:
-        # Check if it's an API key error (common with Google Gemini)
-        error_message = str(e).lower()
-        if "api key" in error_message or "api_key_invalid" in error_message:
-            click.echo("\n\n❌ API Key Error", err=True)
-            click.echo("=" * 60, err=True)
-            click.echo("\nThe Google Gemini API key is missing or invalid.", err=True)
-            click.echo("\nTo fix this, choose one of these options:", err=True)
-            click.echo("\n  Option 1: Create a .env file (recommended)", err=True)
-            click.echo("    1. Copy env.example to .env", err=True)
-            click.echo("    2. Edit .env and add your API key", err=True)
-            click.echo("\n  Option 2: Set environment variable", err=True)
-            click.echo("    export GOOGLE_API_KEY='your-api-key-here'", err=True)
-            click.echo("\nTo get an API key:", err=True)
-            click.echo("  1. Visit: https://aistudio.google.com/apikey", err=True)
-            click.echo("  2. Create a new API key", err=True)
-            click.echo("  3. Configure it using one of the options above", err=True)
-            click.echo("\n💡 Tip: Use --dry-run flag to test without API calls:", err=True)
-            click.echo("  mystery-agents game.yml --dry-run", err=True)
-            click.echo("\n" + "=" * 60, err=True)
-            sys.exit(1)
-
-        # Generic error handling for other exceptions
-        click.echo(f"\n\n❌ Error during generation: {e}", err=True)
-        import traceback
-
-        traceback.print_exc()
-        sys.exit(1)
+def _echo_resume_hint(game_id: str, output_dir: Path) -> None:
+    """Tell the user how to continue an interrupted generation."""
+    command = f"mystery-agents --resume {game_id}"
+    if output_dir != Path(DEFAULT_OUTPUT_DIR):
+        command += f" --output-dir {output_dir}"
+    click.echo(f"\n💡 Progress was saved. Resume with:\n  {command}", err=True)
 
 
 @click.group()

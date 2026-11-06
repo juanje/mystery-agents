@@ -357,3 +357,14 @@ def test_cli_log_file_option(sample_game_yml: Path, tmp_path: Path) -> None:
 
             # Should not error on the flag
             assert result.exit_code != 0  # Due to our test exception, but flag should be accepted
+
+
+def test_cli_resume_unknown_game(tmp_path: Path) -> None:
+    """Resuming a game with no saved progress fails with a clear message."""
+    runner = CliRunner()
+
+    with isolated_cwd(temp_dir=tmp_path):
+        result = runner.invoke(generate, ["--resume", "deadbeef"])
+
+    assert result.exit_code == 1
+    assert "No interrupted generation found for game deadbeef" in result.output
