@@ -23,6 +23,8 @@ from .base import BaseAgent, StructuredOutputError
 SUSPECTS_PER_CALL = 3
 # Calls allowed beyond one per batch, for batches the model returns incomplete
 EXTRA_CALLS = 2
+# Fewer events than this can't cover the evening (the prompt asks for 4 to 6)
+MIN_EVENTS_PER_SUSPECT = 3
 
 
 class A7_5Output(BaseModel):
@@ -128,8 +130,11 @@ Return the response in the exact JSON format specified in the system prompt.
             batch = missing[:SUSPECTS_PER_CALL]
             result = self.invoke(state, user_message + self._batch_request(state, timelines, batch))
             returned = [t.character_id for t in result.timelines]
+            # An empty timeline leaves that player with nothing to say, so ask for it again
             timelines.update(
-                (t.character_id, t) for t in result.timelines if t.character_id in batch
+                (t.character_id, t)
+                for t in result.timelines
+                if t.character_id in batch and len(t.events) >= MIN_EVENTS_PER_SUSPECT
             )
 
         missing = [char_id for char_id in suspect_ids if char_id not in timelines]

@@ -12,6 +12,7 @@ from mystery_agents.models.state import (
     GameState,
     KillerSelection,
     MetaInfo,
+    PersonalEvent,
     PersonalTimeline,
     PlayerConfig,
 )
@@ -46,8 +47,16 @@ def state() -> GameState:
     )
 
 
-def _timeline(char_id: str) -> PersonalTimeline:
-    return PersonalTimeline(character_id=char_id, subjective_narrative="A quiet evening.")
+def _timeline(char_id: str, events: int = 3) -> PersonalTimeline:
+    event = PersonalEvent(
+        time="21:00",
+        location="Hall",
+        what_they_really_did="You waited.",
+        what_they_will_tell_others="You waited.",
+    )
+    return PersonalTimeline(
+        character_id=char_id, subjective_narrative="A quiet evening.", events=[event] * events
+    )
 
 
 def test_mock_output_gives_every_suspect_a_timeline(state: GameState) -> None:
@@ -124,3 +133,18 @@ def test_run_writes_suspects_in_batches_killer_first(state: GameState) -> None:
     assert messages[0].endswith("character_ids: char-3, char-1, char-2\n")
     assert messages[1].endswith("character_ids: char-4\n")
     assert "ALREADY WRITTEN" in messages[1]
+
+
+def test_run_asks_again_for_empty_timelines(state: GameState) -> None:
+    """A timeline without events is treated as missing and requested again."""
+    agent = PersonalTimelinesAgent()
+    answers = [
+        A7_5Output(timelines=[_timeline("char-1"), _timeline("char-2", events=0)]),
+        A7_5Output(timelines=[_timeline("char-2")]),
+    ]
+
+    with patch.object(agent, "invoke", side_effect=answers) as mock_invoke:
+        result = agent.run(state)
+
+    assert mock_invoke.call_count == 2
+    assert len(result.personal_timelines["char-2"].events) == 3
