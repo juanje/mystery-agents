@@ -616,13 +616,16 @@ CHECKS (flag only real problems, quoting the conflicting texts in the descriptio
    substance, who did what, a relationship, the victim's gender. Example: a clue says the bottle was found
    in the bag while the solution says it was missing.
 2. unsupported_evidence: the final solution or the detective's interpretation relies on a fact that is
-   neither in a clue nor in any suspect's observations, so players could never have known it.
+   neither in a clue nor in any suspect's observations, so players could never have known it. This includes
+   interpretations that add details the clue's text doesn't contain, suspects cleared without any clue or
+   observation, and murder-event details (sounds, lights) nobody witnessed or the solution doesn't explain.
 3. over_obvious: the killer can be identified from a single clue, more than half the clues point at the
    killer, or the killer is named in a clue in a way that settles the case.
 4. too_ambiguous: the killer can't be told apart from another suspect even combining all clues and
    observations, or a red herring can never be cleared.
 5. spoiler: a clue title, a guiding question, the Act 2 intro or any text players see before the reveal
-   names or clearly hints at the killer as the culprit.
+   names the killer, singles them out by description (e.g. "the suspect who said they went to the cellar at
+   21:45"), or gives a time window that matches exactly the killer's absence.
 
 6. weak red herrings (report as over_obvious): if the clues against innocent suspects only show a motive while
    the clues against the killer show means or opportunity, only the killer looks capable and the game is obvious.
@@ -729,16 +732,24 @@ interrogations. A good game has several plausible suspects and only one who had 
 
 **DETECTIVE MATERIAL**:
 - clues_to_reveal: one entry per clue, in the same order as the clues array, with clue_id equal to that clue's id.
-  how_to_interpret tells the host what the clue suggests and what it can be combined with.
+  how_to_interpret tells the host what the clue suggests and what it can be combined with, using only what the
+  clue's text says and what players observed. Never attribute to a clue details it doesn't contain.
 - guiding_questions: for when players are stuck. Point them to compare testimonies and to the observations players
-  hold (e.g. "Who was in the corridor between 22:10 and 22:20?"). Never name or hint at the killer as the culprit,
-  and spread the questions across several suspects.
+  hold (e.g. "Who was in the corridor between 22:10 and 22:20?"). Never name the killer, and never single them
+  out by description either ("the suspect who said they went to the cellar at 21:45" points at one person). Each
+  question should concern a place, time or object several suspects are linked to. Facts in a question must match
+  the timelines exactly.
 
 **CONSISTENCY WITH THE STORY**:
 - host_act1_role_description and live_action_murder_event_guide use the same times as the global timeline and the
   truth narrative (when the victim retires, drinks, leaves the room...). Give the host those cues explicitly.
 - The final_solution_script only uses evidence that exists as a clue or as an observation in a personal timeline,
-  referring to it so players recognize it. Never introduce new evidence at the reveal.
+  referring to it so players recognize it. Never introduce new evidence at the reveal. Clearing a red herring
+  also needs a clue or an observation; "nobody saw them with a glass" only works if someone's timeline says so.
+- The act_2_intro_script gives the time window of death from the forensic evidence. It must not match exactly
+  the time one suspect was away, or it points at them before the investigation starts.
+- Any sensory detail of the murder event (lights flickering, a thud, a scream) must come from the global timeline
+  or a personal timeline, and the final solution must explain it. Don't add new ones.
 - Use the victim's gender consistently in every text.
 
 **CRITICAL: ACT 2 INTRO SCRIPT MUST INCLUDE CAUSE OF DEATH**:
