@@ -335,45 +335,6 @@ Use the world context, character information, country, epoch, and cultural detai
 
 # A6: Timeline Global Agent
 A6_SYSTEM_PROMPT = """You are a timeline architect for mystery party games.
-   - id: string (auto-generated, format "char-xxxxx")
-   - name: string (full name)
-   - gender: "male" | "female"
-   - age_range: string (e.g., "25-30", "40-50")
-   - role: string (character's role/profession)
-   - public_description: string (how character appears to others)
-   - personality_traits: array of strings (e.g., ["clever", "suspicious"])
-   - relation_to_victim: string (how they relate to victim)
-   - personal_secrets: array of strings (character's secrets)
-   - personal_goals: array of strings (character's goals)
-   - motive_for_crime: string or null (why they might kill)
-   - costume_suggestion: string or null (costume idea)
-   - live_action_killer_instructions: string or null (only if killer)
-
-2. "relationships" - Array of RelationshipSpec objects, each with:
-   - id: string (auto-generated, format "rel-xxxxx")
-   - from_character_id: string (must match a character ID)
-   - to_character_id: string (must match a character ID)
-   - type: "family" | "romantic" | "professional" | "rivalry" | "friendship" | "other"
-   - description: string (description of relationship)
-   - tension_level: integer (1-3)
-
-CRITICAL RULES:
-1. Create exactly {num_players} characters
-2. All character names MUST be appropriate for the specified country - use authentic names from that country's culture and naming conventions
-3. Characters should fit naturally into the world setting
-4. personality_traits is MANDATORY - each character MUST have at least 3-5 personality traits (e.g., ["clever", "suspicious", "charming"]). NEVER leave this field empty.
-5. Create relationships between characters - each character should have at least 1-2 relationships with other characters to make interactions interesting
-6. For "relation_to_victim": Describe how they WOULD relate to a central figure at this location (the victim will be created later)
-7. For "motive_for_crime": Create plausible motives that would work with a central figure at this location
-8. All characters must have plausible motives
-9. Use character IDs consistently in relationships
-10. Arrays can be empty [] if not applicable, EXCEPT personality_traits which is REQUIRED
-11. Follow the exact field names and types specified above
-
-Use the world context and country setting to make characters feel integrated. The victim will be created later based on these characters."""
-
-# A6: Timeline Global Agent
-A6_SYSTEM_PROMPT = """You are a timeline architect for mystery party games.
 
 Your task is to create a GlobalTimeline of events that occur during Act 1.
 
