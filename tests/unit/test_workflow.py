@@ -3,6 +3,7 @@
 import pytest
 
 from mystery_agents.graph.workflow import (
+    route_after_game_validation,
     should_retry_validation,
     should_retry_world_validation,
 )
@@ -183,3 +184,17 @@ def test_validation_node_with_click_output(basic_state: GameState) -> None:
 
     # In dry run mode, validation passes so retry_count gets reset to 0
     assert result.retry_count == 0  # Reset after successful validation
+
+
+def test_route_after_game_validation_fans_out_on_pass(basic_state: GameState) -> None:
+    """A valid game runs content and character portraits in the same step."""
+    basic_state.validation = ValidationReport(is_consistent=True, issues=[], suggested_fixes=[])
+
+    assert route_after_game_validation(basic_state) == ["a8_content", "a3_5_character_images"]
+
+
+def test_route_after_game_validation_retry(basic_state: GameState) -> None:
+    """A failed validation with retries left goes back to the timeline."""
+    basic_state.validation = ValidationReport(is_consistent=False, issues=[], suggested_fixes=[])
+
+    assert route_after_game_validation(basic_state) == ["a6_timeline"]

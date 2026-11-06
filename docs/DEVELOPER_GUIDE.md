@@ -53,7 +53,6 @@ Config (YAML)
 │ PHASE 2: Characters & Relationships                   │
 ├───────────────────────────────────────────────────────┤
 │  A3: Characters                                       │
-│  A3.5: Character Images (optional, parallel)          │
 │  A4: Relationships                                    │
 └───────────────────────────────────────────────────────┘
     ↓
@@ -71,9 +70,10 @@ Config (YAML)
 ┌───────────────────────────────────────────────────────┐
 │ PHASE 4: Content & Packaging                          │
 ├───────────────────────────────────────────────────────┤
-│  A8: Content Generation                               │
-│  A8.5: Host Images (optional, parallel)               │
-│  A9: Packaging (PDF + ZIP, parallel)                  │
+│  A8: Content Generation  ║ A3.5: Character Images     │
+│  A8.5: Host Images       ║   (optional, same step     │
+│                          ║    as A8)                  │
+│  A9: Packaging (waits for both branches; PDF + ZIP)   │
 └───────────────────────────────────────────────────────┘
     ↓
 Final Output (ZIP)
@@ -92,17 +92,18 @@ graph TD
     V1 -->|retry| A2
     V1 -->|fail| END
     A2_5 --> A3[A3: Characters]
-    A3 --> A3_5[A3.5: Character Images]
-    A3_5 --> A4[A4: Relationships]
+    A3 --> A4[A4: Relationships]
     A4 --> A5[A5: Crime]
     A5 --> A6[A6: Timeline]
     A6 --> A7[A7: Killer Selection]
     A7 --> V2[V2: Game Logic Validator]
     V2 -->|pass| A8[A8: Content Generation]
+    V2 -->|pass| A3_5[A3.5: Character Images]
     V2 -->|retry| A6
     V2 -->|fail| END
     A8 --> A8_5[A8.5: Host Images]
     A8_5 --> A9[A9: Packaging]
+    A3_5 --> A9
     A9 --> END
 ```
 

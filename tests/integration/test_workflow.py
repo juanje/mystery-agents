@@ -225,3 +225,48 @@ def test_node_retried_on_structured_output_error(tmp_path: Path) -> None:
 
     assert calls == 2
     assert final["world"] is not None
+
+
+def test_character_images_reach_packaging(tmp_path: Path) -> None:
+    """Portraits from the parallel image branch are attached before packaging."""
+    import yaml
+
+    config_file = tmp_path / "game.yml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "language": "en",
+                "country": "United States",
+                "epoch": "modern",
+                "theme": "family_mansion",
+                "players": {"male": 2, "female": 2},
+                "host_gender": "male",
+            }
+        )
+    )
+    state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_MIN_PLAYERS),
+            duration_minutes=TEST_MIN_DURATION,
+            dry_run=True,
+            generate_images=True,
+            config_file=str(config_file),
+            output_dir=str(tmp_path / "output"),
+        ),
+    )
+    packaged: list[GameState] = []
+
+    def capture_packaging(s: GameState, **_: object) -> GameState:
+        packaged.append(s)
+        return s
+
+    with patch(
+        "mystery_agents.agents.a9_packaging.PackagingAgent.run", side_effect=capture_packaging
+    ):
+        create_workflow().invoke(state, config={"recursion_limit": DEFAULT_RECURSION_LIMIT})
+
+    assert len(packaged) == 1
+    characters = packaged[0].characters
+    assert characters
+    assert all(char.image_path for char in characters)

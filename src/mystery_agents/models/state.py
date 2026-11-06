@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import operator
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -660,6 +661,9 @@ class GameState(BaseModel):
         None  # Brief narrative for killer if they know their identity
     )
     visual_style: VisualStyle | None = None
+    # Portrait paths by character ID. Written by the image branch while other nodes run
+    # in parallel, so concurrent writes are merged instead of conflicting.
+    character_image_paths: Annotated[dict[str, str], operator.or_] = Field(default_factory=dict)
 
     validation: ValidationReport | None = None
     world_validation: WorldValidation | None = None
