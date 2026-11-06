@@ -69,11 +69,15 @@ GAME_TONE_STYLE = "mystery_party"  # Internal identifier (legacy)
 LLM_MODEL_TIER1 = "gemini-3.8-flash"
 LLM_MODEL_TIER2 = "gemini-3.6-flash"
 LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
+# Seconds per request. Without a timeout a dropped connection (e.g. the laptop
+# going to sleep) hangs the run forever; failing lets the user --resume it.
+LLM_REQUEST_TIMEOUT = 180.0
 DRY_RUN_DUMMY_API_KEY = "dry-run-dummy-key"
 
 # Image generation configuration
 IMAGE_GENERATION_MODEL = "gemini-nano-banana-2.1"
 IMAGE_GENERATION_TEMPERATURE = 0.6
+IMAGE_GENERATION_TIMEOUT = 120.0  # Seconds per image request
 IMAGE_GENERATION_MAX_RETRIES = 3
 IMAGE_GENERATION_RETRY_DELAY_BASE = 2.0  # seconds
 IMAGE_GENERATION_MAX_CONCURRENT = 5  # parallel requests limit

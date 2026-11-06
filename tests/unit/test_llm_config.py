@@ -3,6 +3,7 @@
 import pytest
 
 from mystery_agents.config import LLMConfig
+from mystery_agents.utils.constants import LLM_REQUEST_TIMEOUT
 
 
 def test_temperature_unset_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -21,3 +22,10 @@ def test_temperature_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     model = LLMConfig.get_model("tier1")
 
     assert model.temperature == 0.4  # type: ignore[attr-defined]
+
+
+def test_models_have_request_timeout() -> None:
+    """A dropped connection must fail instead of hanging the run forever."""
+    model = LLMConfig.get_model("tier3")
+
+    assert model.timeout == LLM_REQUEST_TIMEOUT  # type: ignore[attr-defined]

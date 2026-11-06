@@ -11,6 +11,7 @@ from mystery_agents.utils.constants import (
     LLM_MODEL_TIER1,
     LLM_MODEL_TIER2,
     LLM_MODEL_TIER3,
+    LLM_REQUEST_TIMEOUT,
 )
 
 
@@ -79,16 +80,19 @@ class LLMConfig:
                 model=model_tier1,
                 google_api_key=api_key,
                 temperature=temp_tier1,
+                timeout=LLM_REQUEST_TIMEOUT,
             ),
             "tier2": ChatGoogleGenerativeAI(
                 model=model_tier2,
                 google_api_key=api_key,
                 temperature=temp_tier2,
+                timeout=LLM_REQUEST_TIMEOUT,
             ),
             "tier3": ChatGoogleGenerativeAI(
                 model=model_tier3,
                 google_api_key=api_key,
                 temperature=temp_tier3,
+                timeout=LLM_REQUEST_TIMEOUT,
             ),
         }
         return models[tier]

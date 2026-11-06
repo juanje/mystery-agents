@@ -20,6 +20,7 @@ from mystery_agents.utils.constants import (
     IMAGE_GENERATION_MODEL,
     IMAGE_GENERATION_RETRY_DELAY_BASE,
     IMAGE_GENERATION_TEMPERATURE,
+    IMAGE_GENERATION_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ def _get_image_model(api_key: str) -> ChatGoogleGenerativeAI:
         temperature=IMAGE_GENERATION_TEMPERATURE,
         google_api_key=api_key,
         response_modalities=["IMAGE"],
+        timeout=IMAGE_GENERATION_TIMEOUT,
     )
 
 
