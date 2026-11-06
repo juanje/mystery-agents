@@ -924,6 +924,38 @@ ZIP file: {zip_path}
 
         path.write_text(content, encoding="utf-8")
 
+    def _build_suspects_accounts_section(self, state: GameState, labels: dict[str, str]) -> str:
+        """
+        Build the detective's summary of what each suspect will claim and what they saw.
+
+        The host uses it during the interrogations to spot lies and to know who holds
+        each key observation.
+        """
+        if not state.personal_timelines:
+            return ""
+
+        blocks = []
+        for character in state.characters:
+            timeline = state.personal_timelines.get(character.id)
+            if not timeline:
+                continue
+            lines = []
+            for event in timeline.events:
+                lines.append(
+                    f"- **{event.time}** · {event.location}: {event.what_they_will_tell_others}"
+                )
+                lines.extend(
+                    f"  - *{labels['observed']}*: {seen}" for seen in event.info_they_observed
+                )
+            blocks.append(f"### {character.name}\n\n" + "\n".join(lines))
+
+        return f"""
+## {labels["suspects_accounts"]}
+
+*{labels["suspects_accounts_hint"]}*
+
+{chr(10).join(f"{block}{chr(10)}" for block in blocks)}"""
+
     def _write_detective_sheet(self, state: GameState, path: Path) -> None:
         """Write a character sheet for the detective (host's Act 2 role)."""
         if not state.host_guide or not state.host_guide.host_act2_detective_role:
@@ -957,7 +989,7 @@ ZIP file: {zip_path}
                 f"- {trait}" for trait in detective.personality_traits
             )
         else:
-            personality_traits_section = f"- {labels['no_objectives']}"
+            personality_traits_section = f"- {labels['no_traits']}"
 
         content = f"""# {labels["detective_sheet_title"]}: {detective.character_name}
 {image_section}
@@ -975,9 +1007,13 @@ ZIP file: {zip_path}
 
 ## {labels["host_act2_role"]}
 
+### {labels["intro_script"]}
+
+{state.host_guide.act_2_intro_script or labels["no_act2_intro"]}
+{self._build_suspects_accounts_section(state, labels)}
 ## {labels["guiding_questions"]}
 
-{chr(10).join(f"- {question}" for question in detective.guiding_questions) if detective.guiding_questions else f"- {labels['no_objectives']}"}
+{chr(10).join(f"- {question}" for question in detective.guiding_questions) if detective.guiding_questions else f"- {labels['no_description']}"}
 
 ## {labels["clues_to_reveal"]}
 

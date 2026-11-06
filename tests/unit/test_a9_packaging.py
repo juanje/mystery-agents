@@ -10,6 +10,7 @@ from mystery_agents.models.state import (
     CharacterSpec,
     CrimeScene,
     CrimeSpec,
+    DetectiveRole,
     GameConfig,
     GameState,
     HostGuide,
@@ -625,3 +626,25 @@ def test_killer_instructions_follow_game_language(
 
     assert "**avoid being discovered**" in content
     assert "Mantén la calma" not in content
+
+
+def test_detective_sheet_lists_suspects_accounts(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """The detective sees each suspect's claimed account and observations, not the truth."""
+    _add_evening(basic_game_state, killer=False)
+    assert basic_game_state.host_guide is not None
+    basic_game_state.host_guide.host_act2_detective_role = DetectiveRole(
+        public_description="Sharp", clues_to_reveal=[], final_solution_script="It was them."
+    )
+    path = tmp_path / "detective.md"
+
+    PackagingAgent()._write_detective_sheet(basic_game_state, path)
+
+    content = path.read_text(encoding="utf-8")
+    assert "Act 2 intro" in content
+    assert "## Versiones de los sospechosos" in content
+    assert "### Elena Martinez" in content
+    assert "**22:00** · Study: You went to fetch your shawl." in content
+    assert "*Vio*: You saw the butler in the hall." in content
+    assert "poison" not in content
