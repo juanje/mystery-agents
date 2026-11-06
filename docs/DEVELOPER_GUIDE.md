@@ -275,7 +275,7 @@ players:
 # Developer-defined system defaults
 DEFAULT_RECURSION_LIMIT = 50
 IMAGE_GENERATION_MODEL = "gemini-nano-banana-2.1"
-LLM_MODEL_TIER1 = "gemini-3.8-flash"
+LLM_MODEL_TIER1 = "gemini-3.6-flash"
 LLM_MODEL_TIER2 = "gemini-3.6-flash"
 LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
 IMAGE_GENERATION_MAX_CONCURRENT = 5
@@ -293,7 +293,7 @@ IMAGE_GENERATION_MAX_CONCURRENT = 5
 ```bash
 # .env file
 GOOGLE_API_KEY=xxx           # Required
-LLM_MODEL_TIER1=gemini-3.8-flash    # Optional override
+LLM_MODEL_TIER1=gemini-3.6-flash    # Optional override
 LLM_MODEL_TIER2=gemini-3.6-flash
 LLM_MODEL_TIER3=gemini-3.5-flash-lite
 ```
@@ -425,7 +425,7 @@ We use **tiered LLMs** based on task complexity:
 
 | Tier | Default Model | Use Case | Examples |
 |------|--------------|----------|----------|
-| **Tier 1** | gemini-3.8-flash | Complex reasoning | World, crime, killer selection, personal timelines, clues and guides (A8), V2, V3 |
+| **Tier 1** | gemini-3.6-flash | Complex reasoning | World, crime, killer selection, personal timelines, clues and guides (A8), V2, V3 |
 | **Tier 2** | gemini-3.6-flash | Content generation | Style guide, characters, relationships, timeline, V1 |
 | **Tier 3** | gemini-3.5-flash-lite | Quick tasks | Packaging |
 

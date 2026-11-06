@@ -66,7 +66,9 @@ GAME_TONE_SHORT = "Cluedo meets Knives Out"
 GAME_TONE_STYLE = "mystery_party"  # Internal identifier (legacy)
 
 # LLM model configuration
-LLM_MODEL_TIER1 = "gemini-3.8-flash"
+# gemini-3.8-flash was tried for tier 1, but in real runs it took minutes per call and
+# often refused prompts (block_reason OTHER); 3.6-flash is stable and fast for the same work.
+LLM_MODEL_TIER1 = "gemini-3.6-flash"
 LLM_MODEL_TIER2 = "gemini-3.6-flash"
 LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
 # Seconds per request. Without a timeout a dropped connection (e.g. the laptop

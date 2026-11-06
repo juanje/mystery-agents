@@ -127,7 +127,7 @@ uv run mystery-agents game.example.yml --dry-run
 - 🖼️ **Character Portraits** - AI-generated images with consistent visual style
 - 🎯 **Visual Style Guide** - Unified aesthetic (color palette, lighting, no text overlays)
 - 🔄 **Parallel Generation** - Fast image creation with rate limiting
-- 🤖 **Google Gemini Integration** - gemini-3.8-flash for logic, gemini-3.6-flash for content
+- 🤖 **Google Gemini Integration** - gemini-3.6-flash for logic and content, gemini-3.5-flash-lite for simple tasks
 
 ---
 
@@ -249,7 +249,7 @@ Create a `.env` file (or set environment variables):
 GOOGLE_API_KEY=your-api-key-here
 
 # Optional: Override LLM models per tier
-LLM_MODEL_TIER1=gemini-3.8-flash       # Logic/creativity
+LLM_MODEL_TIER1=gemini-3.6-flash       # Logic/creativity
 LLM_MODEL_TIER2=gemini-3.6-flash       # Content generation
 LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Simple tasks
 
