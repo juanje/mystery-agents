@@ -7,6 +7,7 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A7_5_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
+    format_personal_timelines,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_time_of_death,
@@ -15,6 +16,9 @@ from mystery_agents.utils.state_helpers import (
 )
 
 from .base import BaseAgent, StructuredOutputError
+
+# Calls to complete every suspect's timeline before giving up on this attempt
+MAX_COMPLETION_CALLS = 3
 
 
 class A7_5Output(BaseModel):
@@ -109,20 +113,50 @@ Return exactly {len(state.characters)} timelines, one for each of these characte
 Return the response in the exact JSON format specified in the system prompt.
 """
 
-        result = self.invoke(state, user_message)
-
-        suspect_ids = {char.id for char in state.characters}
-        timelines = {t.character_id: t for t in result.timelines if t.character_id in suspect_ids}
-        missing = suspect_ids - timelines.keys()
-        if missing:
-            # Raising lets the graph retry the node for a complete answer
+        suspect_ids = [char.id for char in state.characters]
+        timelines: dict[str, PersonalTimeline] = {}
+        returned: list[str] = []
+        for _ in range(MAX_COMPLETION_CALLS):
+            missing = [char_id for char_id in suspect_ids if char_id not in timelines]
+            if not missing:
+                break
+            result = self.invoke(
+                state, user_message + self._completion_request(state, timelines, missing)
+            )
             returned = [t.character_id for t in result.timelines]
+            timelines.update(
+                (t.character_id, t) for t in result.timelines if t.character_id in missing
+            )
+
+        missing = [char_id for char_id in suspect_ids if char_id not in timelines]
+        if missing:
+            # Raising lets the graph retry the node from scratch
             raise StructuredOutputError(
-                f"No personal timeline for suspects: {sorted(missing)} (returned: {returned})"
+                f"No personal timeline for suspects: {missing} (last returned: {returned})"
             )
 
         state.personal_timelines = timelines
         return state
+
+    def _completion_request(
+        self, state: GameState, written: dict[str, PersonalTimeline], missing: list[str]
+    ) -> str:
+        """
+        Ask for the timelines still missing, showing the ones already written.
+
+        The model sometimes returns only the first suspect. Asking for the rest with the
+        written ones as context keeps observations consistent across suspects without
+        throwing away the work already done.
+        """
+        if not written:
+            return ""
+        done = state.model_copy(update={"personal_timelines": written})
+        return f"""
+ALREADY WRITTEN (keep them as they are and stay consistent with them):
+{format_personal_timelines(done)}
+
+Now return ONLY the timelines for these character_ids: {", ".join(missing)}
+"""
 
     def _mock_output(self, state: GameState) -> GameState:
         """Generate mock personal timelines for dry run mode."""

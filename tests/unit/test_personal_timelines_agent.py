@@ -82,3 +82,22 @@ def test_run_raises_when_a_suspect_is_missing(state: GameState) -> None:
     with patch.object(agent, "invoke", return_value=A7_5Output(timelines=[_timeline("char-1")])):
         with pytest.raises(StructuredOutputError, match="char-2"):
             agent.run(state)
+
+
+def test_run_asks_for_missing_suspects_only(state: GameState) -> None:
+    """A partial answer is completed by asking only for the missing suspects."""
+    agent = PersonalTimelinesAgent()
+    answers = [
+        A7_5Output(timelines=[_timeline("char-1")]),
+        A7_5Output(timelines=[_timeline("char-2")]),
+    ]
+
+    with patch.object(agent, "invoke", side_effect=answers) as mock_invoke:
+        result = agent.run(state)
+
+    assert set(result.personal_timelines) == {"char-1", "char-2"}
+    assert mock_invoke.call_count == 2
+    second_message = mock_invoke.call_args_list[1][0][1]
+    assert "ALREADY WRITTEN" in second_message
+    assert "### Ana (ID: char-1)" in second_message
+    assert "Now return ONLY the timelines for these character_ids: char-2" in second_message
