@@ -372,6 +372,14 @@ def test_user_message_includes_all_context(complete_game_state: GameState) -> No
         if complete_game_state.killer_selection:
             assert complete_game_state.killer_selection.killer_id in user_message
 
+        # Clues must be written against the same facts as the player sheets
+        assert "RELATIONSHIPS" in user_message
+        assert "GLOBAL TIMELINE" in user_message
+        assert "PERSONAL TIMELINES" in user_message
+        assert f"Difficulty: {complete_game_state.config.difficulty}" in user_message
+        character = complete_game_state.characters[0]
+        assert f"Relation to victim: {character.relation_to_victim}" in user_message
+
 
 def test_a8_output_schema_has_no_const_fields() -> None:
     """Gemini's native structured output ignores JSON Schema `const`, so avoid it."""

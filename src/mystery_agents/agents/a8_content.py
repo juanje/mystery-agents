@@ -16,6 +16,8 @@ from mystery_agents.utils.constants import (
 )
 from mystery_agents.utils.prompts import A8_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_global_timeline,
+    format_personal_timelines,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_time_of_death,
@@ -97,9 +99,20 @@ class ContentGenerationAgent(BaseAgent):
         characters_summary = []
         for char in state.characters:
             is_killer = " [KILLER]" if killer and char.id == killer.id else ""
+            secrets = "; ".join(char.personal_secrets) if char.personal_secrets else "None"
             characters_summary.append(
-                f"- {char.name}{is_killer}: {char.role}, motive: {char.motive_for_crime}"
+                f"- {char.name} (ID: {char.id}){is_killer}: {char.role}, age {char.age_range}\n"
+                f"  Relation to victim: {char.relation_to_victim}\n"
+                f"  Motive: {char.motive_for_crime or 'None'}\n"
+                f"  Secrets: {secrets}"
             )
+
+        names = {char.id: char.name for char in state.characters}
+        relationships_summary = [
+            f"- {names.get(rel.from_character_id, rel.from_character_id)} / "
+            f"{names.get(rel.to_character_id, rel.to_character_id)} ({rel.type}): {rel.description}"
+            for rel in state.relationships
+        ]
 
         user_message = f"""Generate ALL written content for this mystery party game:
 
@@ -109,6 +122,7 @@ GAME INFO:
 - Duration: {state.config.duration_minutes} minutes
 - Players: {len(state.characters)}
 - Host gender: {state.config.host_gender}
+- Difficulty: {state.config.difficulty}
 
 SETTING:
 - Location: {safe_get_world_location_name(state)}
@@ -122,8 +136,11 @@ VICTIM (HOST'S ACT 1 ROLE):
 - Public persona: {safe_get_crime_victim_persona(state)}
 - Secrets: {safe_get_crime_victim_secrets(state)}
 
-CHARACTERS (SUSPECTS):
+CHARACTERS (SUSPECTS) - their sheets are already written; clues must match these facts:
 {chr(10).join(characters_summary) if characters_summary else "No characters"}
+
+RELATIONSHIPS:
+{chr(10).join(relationships_summary) if relationships_summary else "None"}
 
 KILLER:
 - {killer.name if killer else "Unknown"} (ID: {state.killer_selection.killer_id if state.killer_selection else "N/A"})
@@ -137,6 +154,12 @@ CRIME:
 
 SOLUTION:
 {state.killer_selection.truth_narrative if state.killer_selection else "No solution"}
+
+GLOBAL TIMELINE (times and places in every document must match it):
+{format_global_timeline(state)}
+
+PERSONAL TIMELINES (each player's sheet shows what they did, will claim and observed):
+{format_personal_timelines(state)}
 
 REQUIREMENTS:
 1. Create a "host_guide" HostGuide object with all required fields
