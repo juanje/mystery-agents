@@ -331,7 +331,8 @@ You MUST return a JSON object with exactly one field:
 
 CRITICAL RULES:
 1. The victim MUST be designed as a character the HOST will roleplay in Act 1
-3. The victim should be central to the setting and have relationships with the characters
+3. The victim should be central to the setting and have relationships with the characters. The victim's secrets about
+   family (an illegitimate child, a hidden relative) must agree with each suspect's relation to the victim
 4. The victim's name MUST be appropriate for the specified country - use authentic names from that country's culture
 5. The murder method and weapon should be culturally and historically appropriate for the country and epoch
 6. Consider the characters' relationships and motives when designing the crime

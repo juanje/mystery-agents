@@ -87,6 +87,7 @@ class RelationshipsAgent(BaseAgent):
         character_summaries = []
         for char in state.characters:
             summary = f"- {char.name} (ID: {char.id}): {char.role}, age {char.age_range}"
+            summary += f"\n  Relation to victim: {char.relation_to_victim}"
             summary += f"\n  Public: {char.public_description}"
             summary += f"\n  Secrets: {', '.join(char.personal_secrets[:2]) if char.personal_secrets else 'None'}"
             character_summaries.append(summary)
@@ -125,7 +126,8 @@ REQUIREMENTS:
 8. Relationships should reveal character depth and create natural conflicts
 9. Mix symmetric relationships (mutual) with asymmetric ones (one-sided feelings or power dynamics)
 10. Ensure no character is isolated - all must be connected to the social web
-11. **ONE relationship per pair**: A-B and B-A are the same pair. If two characters share several ties (e.g., business partners AND rivals), describe them all in a single relationship and use the dominant type
+11. **FAMILY TIES must agree with each character's relation to the victim** (two siblings are both the victim's nephews, a "half-brother" must share a parent, etc.). Don't invent family ties that contradict them
+12. **ONE relationship per pair**: A-B and B-A are the same pair. If two characters share several ties (e.g., business partners AND rivals), describe them all in a single relationship and use the dominant type
 
 **IMPORTANT**: The richer the relationship network, the more engaging the mystery party will be. Aim for depth and complexity.
 

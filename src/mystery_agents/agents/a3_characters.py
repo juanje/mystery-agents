@@ -98,6 +98,10 @@ REQUIREMENTS:
 3. All character names MUST be appropriate for {state.config.country}
 4. Characters should fit naturally into the world setting ({safe_get_world_location_name(state)}) and epoch ({safe_get_world_epoch(state)})
 5. Relationships between characters will be created by a separate agent later
+6. FAMILY TREE: relation_to_victim is always relative to the victim. Words like "the host", "the patriarch" or "the
+   head of the family" always mean the victim, never someone else (no "late patriarch" who is not the victim).
+   Relatives must be consistent with each other: siblings share the same relation to the victim (if one is the
+   victim's niece, her brother is the victim's nephew), and ages must fit each relation.
 
 Return the response in the exact JSON format specified in the system prompt.
 """
