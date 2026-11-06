@@ -240,7 +240,8 @@ LLM_MODEL_TIER1=gemini-3.8-flash       # Logic/creativity
 LLM_MODEL_TIER2=gemini-3.6-flash       # Content generation
 LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Simple tasks
 
-# Optional: Override temperatures
+# Optional: Override temperatures (unset by default; Gemini 3.6+ models
+# use fixed sampling and ignore them)
 LLM_TEMPERATURE_TIER1=0.6
 LLM_TEMPERATURE_TIER2=0.7
 LLM_TEMPERATURE_TIER3=0.3

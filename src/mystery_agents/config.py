@@ -11,10 +11,13 @@ from mystery_agents.utils.constants import (
     LLM_MODEL_TIER1,
     LLM_MODEL_TIER2,
     LLM_MODEL_TIER3,
-    LLM_TEMPERATURE_TIER1,
-    LLM_TEMPERATURE_TIER2,
-    LLM_TEMPERATURE_TIER3,
 )
+
+
+def _optional_temperature(env_var: str) -> float | None:
+    """Read an optional temperature override from the environment."""
+    value = os.getenv(env_var)
+    return float(value) if value else None
 
 
 class LLMConfig:
@@ -51,7 +54,9 @@ class LLMConfig:
             Model names and temperatures can be overridden via environment variables:
             - LLM_MODEL_TIER1, LLM_MODEL_TIER2, LLM_MODEL_TIER3
             - LLM_TEMPERATURE_TIER1, LLM_TEMPERATURE_TIER2, LLM_TEMPERATURE_TIER3
-            Default values are configured in constants.py
+            Default model names are configured in constants.py. Temperature is not
+            sent unless overridden: Gemini 3.6+ models use fixed sampling defaults
+            and ignore custom sampling parameters.
         """
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
@@ -64,10 +69,10 @@ class LLMConfig:
         model_tier2 = os.getenv("LLM_MODEL_TIER2", LLM_MODEL_TIER2)
         model_tier3 = os.getenv("LLM_MODEL_TIER3", LLM_MODEL_TIER3)
 
-        # Get temperatures from environment or use defaults
-        temp_tier1 = float(os.getenv("LLM_TEMPERATURE_TIER1", str(LLM_TEMPERATURE_TIER1)))
-        temp_tier2 = float(os.getenv("LLM_TEMPERATURE_TIER2", str(LLM_TEMPERATURE_TIER2)))
-        temp_tier3 = float(os.getenv("LLM_TEMPERATURE_TIER3", str(LLM_TEMPERATURE_TIER3)))
+        # Temperatures are optional overrides (None keeps the model's own default)
+        temp_tier1 = _optional_temperature("LLM_TEMPERATURE_TIER1")
+        temp_tier2 = _optional_temperature("LLM_TEMPERATURE_TIER2")
+        temp_tier3 = _optional_temperature("LLM_TEMPERATURE_TIER3")
 
         models: dict[str, BaseChatModel] = {
             "tier1": ChatGoogleGenerativeAI(
