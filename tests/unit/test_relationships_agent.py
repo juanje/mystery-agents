@@ -4,8 +4,14 @@ import pytest
 
 from mystery_agents.agents.a2_world import WorldAgent
 from mystery_agents.agents.a3_characters import CharactersAgent
-from mystery_agents.agents.a4_relationships import RelationshipsAgent
-from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig
+from mystery_agents.agents.a4_relationships import RelationshipsAgent, merge_duplicate_pairs
+from mystery_agents.models.state import (
+    GameConfig,
+    GameState,
+    MetaInfo,
+    PlayerConfig,
+    RelationshipSpec,
+)
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 
 
@@ -139,3 +145,38 @@ def test_relationships_agent_run_dry_run(state_with_characters: GameState) -> No
     # In dry run, should use mock output
     if len(result.characters) >= 2:
         assert len(result.relationships) >= 1
+
+
+def test_merge_duplicate_pairs_keeps_one_per_pair() -> None:
+    """The same pair in either direction is folded into the most tense relationship."""
+    relationships = [
+        RelationshipSpec(
+            from_character_id="a",
+            to_character_id="b",
+            type="professional",
+            description="Business partners.",
+            tension_level=1,
+        ),
+        RelationshipSpec(
+            from_character_id="b",
+            to_character_id="a",
+            type="rivalry",
+            description="Rivals for the same contract.",
+            tension_level=3,
+        ),
+        RelationshipSpec(
+            from_character_id="a",
+            to_character_id="c",
+            type="friendship",
+            description="Old friends.",
+            tension_level=1,
+        ),
+    ]
+
+    merged = merge_duplicate_pairs(relationships)
+
+    assert len(merged) == 2
+    pair_ab = next(r for r in merged if {r.from_character_id, r.to_character_id} == {"a", "b"})
+    assert pair_ab.type == "rivalry"
+    assert pair_ab.tension_level == 3
+    assert pair_ab.description == "Rivals for the same contract. Business partners."

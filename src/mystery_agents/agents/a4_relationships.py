@@ -22,6 +22,30 @@ class A4Output(BaseModel):
     )
 
 
+def merge_duplicate_pairs(relationships: list[RelationshipSpec]) -> list[RelationshipSpec]:
+    """
+    Keep one relationship per pair of characters, regardless of direction.
+
+    The LLM sometimes returns the same pair twice with different types. Character
+    sheets would then list that person twice, so the duplicates are folded into the
+    most tense relationship, keeping every description.
+    """
+    merged: dict[frozenset[str], RelationshipSpec] = {}
+    for rel in relationships:
+        pair = frozenset((rel.from_character_id, rel.to_character_id))
+        existing = merged.get(pair)
+        if existing is None:
+            merged[pair] = rel
+            continue
+        main, extra = (
+            (existing, rel) if existing.tension_level >= rel.tension_level else (rel, existing)
+        )
+        merged[pair] = main.model_copy(
+            update={"description": f"{main.description} {extra.description}"}
+        )
+    return list(merged.values())
+
+
 class RelationshipsAgent(BaseAgent):
     """
     A4: Relationships Agent.
@@ -100,6 +124,7 @@ REQUIREMENTS:
 8. Relationships should reveal character depth and create natural conflicts
 9. Mix symmetric relationships (mutual) with asymmetric ones (one-sided feelings or power dynamics)
 10. Ensure no character is isolated - all must be connected to the social web
+11. **ONE relationship per pair**: A-B and B-A are the same pair. If two characters share several ties (e.g., business partners AND rivals), describe them all in a single relationship and use the dominant type
 
 **IMPORTANT**: The richer the relationship network, the more engaging the mystery party will be. Aim for depth and complexity.
 
@@ -108,7 +133,7 @@ Return the response in the exact JSON format specified in the system prompt.
 
         result = self.invoke(state, user_message)
 
-        state.relationships = result.relationships
+        state.relationships = merge_duplicate_pairs(result.relationships)
 
         return state
 
