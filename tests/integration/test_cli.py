@@ -19,6 +19,7 @@ from mystery_agents.utils.constants import (
     TEST_MIN_DURATION,
     TEST_MIN_PLAYERS,
 )
+from tests.helpers import isolated_cwd
 
 
 @pytest.fixture
@@ -422,7 +423,7 @@ def test_cli_uses_default_game_yml_when_no_arg(tmp_path: Path) -> None:
     """Test that CLI uses game.yml by default when it exists and no argument is provided."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         # Create a game.yml config file
         game_config = """
 language: es
@@ -458,7 +459,7 @@ def test_cli_fails_when_no_config_file_found(tmp_path: Path) -> None:
     """Test that CLI fails with clear error when no config file exists."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         # Don't create any config file
         result = runner.invoke(generate)
 
@@ -472,7 +473,7 @@ def test_cli_uses_specified_config_file(tmp_path: Path) -> None:
     """Test that CLI uses the specified config file when provided as argument."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         # Create a custom config file
         custom_config = """
 language: en
@@ -507,7 +508,7 @@ def test_cli_fails_when_specified_config_not_exists(tmp_path: Path) -> None:
     """Test that CLI fails with clear error when specified config file doesn't exist."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         # Try to use a non-existent file
         result = runner.invoke(generate, ["nonexistent.yml"])
 
@@ -521,7 +522,7 @@ def test_cli_config_file_takes_precedence_over_default(tmp_path: Path) -> None:
     """Test that explicitly specified config file takes precedence over default game.yml."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         # Create both game.yml and a custom config
         default_config = """
 language: es
@@ -568,7 +569,7 @@ def test_cli_verbose_flag_shows_logs(tmp_path: Path) -> None:
     """Test that -v flag shows structured logs instead of visual progress."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         config_content = """
 language: es
 country: Spain
@@ -595,7 +596,7 @@ def test_cli_quiet_and_verbose_mutually_exclusive(tmp_path: Path) -> None:
     """Test that --quiet and -v are mutually exclusive."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
+    with isolated_cwd(temp_dir=tmp_path):
         config_content = """
 language: es
 country: Spain

@@ -13,6 +13,7 @@ from mystery_agents.models.state import (
     ValidationReport,
     WorldValidation,
 )
+from tests.helpers import isolated_cwd
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ def test_cli_quiet_and_verbose_mutually_exclusive(sample_game_yml: Path) -> None
     """Test that --quiet and -v flags are mutually exclusive."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         result = runner.invoke(generate, ["--quiet", "-v"])
 
         assert result.exit_code == 1
@@ -51,7 +52,7 @@ def test_cli_no_config_file_error() -> None:
     """Test that CLI shows helpful error when no config file exists."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem():
+    with isolated_cwd():
         result = runner.invoke(generate)
 
         assert result.exit_code == 1
@@ -64,7 +65,7 @@ def test_cli_config_file_not_found() -> None:
     """Test that CLI shows error when specified config file doesn't exist."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem():
+    with isolated_cwd():
         result = runner.invoke(generate, ["nonexistent.yml"])
 
         assert result.exit_code == 1
@@ -76,7 +77,7 @@ def test_cli_workflow_no_output_error(sample_game_yml: Path) -> None:
     """Test that CLI handles workflow with no output."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -97,7 +98,7 @@ def test_cli_workflow_unexpected_state_format(sample_game_yml: Path) -> None:
     """Test that CLI handles unexpected state format."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             # Simulate workflow that returns non-dict state
@@ -113,7 +114,7 @@ def test_cli_world_validation_failure(sample_game_yml: Path) -> None:
     """Test that CLI handles world validation failure."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -144,7 +145,7 @@ def test_cli_validation_failure(sample_game_yml: Path) -> None:
     """Test that CLI handles game validation failure."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -177,7 +178,7 @@ def test_cli_missing_meta_error(sample_game_yml: Path) -> None:
     """Test that CLI handles missing meta information."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -203,7 +204,7 @@ def test_cli_keyboard_interrupt(sample_game_yml: Path) -> None:
     """Test that CLI handles KeyboardInterrupt gracefully."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -223,7 +224,7 @@ def test_cli_api_key_error(sample_game_yml: Path) -> None:
     """Test that CLI shows helpful error for API key issues."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -243,7 +244,7 @@ def test_cli_generic_error_handling(sample_game_yml: Path) -> None:
     """Test that CLI handles generic errors gracefully."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         # Copy the config file to the isolated filesystem
         import shutil
 
@@ -266,7 +267,7 @@ def test_cli_success_output(sample_game_yml: Path, tmp_path: Path) -> None:
     output_dir = tmp_path / "output"
     output_dir.mkdir()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
 
@@ -299,7 +300,7 @@ def test_cli_no_images_flag(sample_game_yml: Path) -> None:
     """Test that --no-images flag sets generate_images to False."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
@@ -327,7 +328,7 @@ def test_cli_keep_work_dir_flag(sample_game_yml: Path) -> None:
     """Test that --keep-work-dir flag is accepted."""
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
@@ -344,7 +345,7 @@ def test_cli_log_file_option(sample_game_yml: Path, tmp_path: Path) -> None:
 
     log_file = tmp_path / "test.log"
 
-    with runner.isolated_filesystem(temp_dir=sample_game_yml.parent):
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
         with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
             mock_instance = mock_workflow.return_value
             mock_instance.stream.side_effect = Exception("Test stopped")
