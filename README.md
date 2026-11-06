@@ -375,8 +375,8 @@ If validation fails, the system automatically retries (up to 2-3 times) before g
 
 **Setup:**
 ```bash
-# Install with dev dependencies
-uv sync --all-extras
+# Install with dev dependencies (the dev group is synced by default)
+uv sync
 ```
 
 **Quality Checks:**

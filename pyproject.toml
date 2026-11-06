@@ -24,16 +24,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "ruff>=0.8.0",
-    "mypy>=1.11.0",
-    "pytest>=8.3.0",
-    "pytest-asyncio>=0.24.0",
-    "pytest-cov>=6.0.0",
-    "types-PyYAML>=6.0.0",
-]
-
 [project.scripts]
 mystery-agents = "mystery_agents.cli:generate"
 
