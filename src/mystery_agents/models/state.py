@@ -423,7 +423,7 @@ class MapSpec(BaseModel):
     description: str
 
 
-# --- Host Guide and Audio ---
+# --- Host Guide ---
 class ClueSolutionEntry(BaseModel):
     """Clue solution entry for host guide."""
 

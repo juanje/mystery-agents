@@ -140,12 +140,11 @@ SOLUTION:
 
 REQUIREMENTS:
 1. Create a "host_guide" HostGuide object with all required fields
-2. Create an "audio_script" AudioScript object
-3. Create a "clues" array with at least {max(MIN_CLUES_PER_GAME, len(state.characters))} ClueSpec objects
-4. Character IDs in clues must match existing character IDs
-5. All string fields must have values - do not leave any empty
-6. Arrays can be empty [] if not applicable
-7. Create a "killer_brief_narrative" field:
+2. Create a "clues" array with at least {max(MIN_CLUES_PER_GAME, len(state.characters))} ClueSpec objects
+3. Character IDs in clues must match existing character IDs
+4. All string fields must have values - do not leave any empty
+5. Arrays can be empty [] if not applicable
+6. Create a "killer_brief_narrative" field:
    - If killer_knows_identity is TRUE, generate a brief narrative for the killer (2-3 paragraphs)
    - If killer_knows_identity is FALSE, set this field to null
    - The brief narrative should be written in second person and help the killer play their role
