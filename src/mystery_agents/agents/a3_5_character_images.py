@@ -226,6 +226,7 @@ CHARACTER DETAILS:
 - Role: {character.role}
 - Description: {character.public_description}
 - Personality: {personality}
+- Physical appearance (follow it closely, it tells this character apart from the others): {character.physical_appearance or "Distinctive, ordinary features"}
 
 SETTING CONTEXT:
 - Historical Period: {epoch}

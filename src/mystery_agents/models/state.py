@@ -261,6 +261,10 @@ class CharacterSpec(BaseModel):
         default=None,
         description="Suggestion for what costume this character should wear (e.g., '1920s flapper dress', 'Business suit'). Can be null.",
     )
+    physical_appearance: str = Field(
+        default="",
+        description="Distinctive physical features for the portrait: hair (colour, length, style), face shape, build, skin tone, facial hair, glasses or marks. Must make the character easy to tell apart from the others.",
+    )
     live_action_killer_instructions: str | None = Field(
         default=None,
         description="Special instructions if this character is the killer (for live action). Can be null.",

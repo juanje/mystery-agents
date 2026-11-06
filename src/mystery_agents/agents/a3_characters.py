@@ -94,6 +94,7 @@ REQUIREMENTS:
    - relation_to_victim, personal_secrets (at least 2-3 secrets), personal_goals (at least 1-2 goals)
    - act1_objectives: array of 2-3 specific actionable tasks for Act 1 (REQUIRED)
    - motive_for_crime, costume_suggestion
+   - physical_appearance: concrete features for the portrait (hair colour and style, face shape, build, facial hair, glasses...). Make every character clearly different from the others, especially those of the same gender and similar age
 3. All character names MUST be appropriate for {state.config.country}
 4. Characters should fit naturally into the world setting ({safe_get_world_location_name(state)}) and epoch ({safe_get_world_epoch(state)})
 5. Relationships between characters will be created by a separate agent later

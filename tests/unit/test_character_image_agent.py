@@ -237,3 +237,18 @@ def test_character_image_agent_caching(mock_google_api_key: None) -> None:
 
     # Clean up
     clear_all_caches()
+
+
+def test_build_image_prompt_uses_physical_appearance(
+    game_state_with_characters: GameState, mock_google_api_key: None
+) -> None:
+    """Distinctive features reach the image prompt, and text in images is forbidden."""
+    character = game_state_with_characters.characters[0]
+    character.physical_appearance = "Short silver hair, round glasses, tall and thin"
+
+    prompt = CharacterImageAgent(llm=MagicMock())._build_image_prompt(
+        character, game_state_with_characters
+    )
+
+    assert "Short silver hair, round glasses, tall and thin" in prompt
+    assert "NO TEXT anywhere" in prompt

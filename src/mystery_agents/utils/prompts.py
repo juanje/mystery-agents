@@ -22,7 +22,8 @@ PORTRAIT_COMPOSITION_REQUIREMENTS = """CRITICAL COMPOSITION REQUIREMENTS:
 - NO full body shots, NO extreme close-ups, NO cropped heads
 - CONSISTENT FRAMING: All portraits must use identical framing distance
 - ASPECT RATIO: Square 1:1 or portrait 3:4 format only
-- CENTER SUBJECT: Character centered horizontally and vertically in frame"""
+- CENTER SUBJECT: Character centered horizontally and vertically in frame
+- NO TEXT anywhere: no letters, words, logos or signs, not even on clothing, jewellery or accessories"""
 
 REALISTIC_APPEARANCE_REQUIREMENTS = """CHARACTER APPEARANCE:
 - REALISTIC, EVERYDAY PERSON: Natural features, NOT model-like or overly attractive
