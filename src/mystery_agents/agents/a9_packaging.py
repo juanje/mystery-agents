@@ -788,11 +788,11 @@ ZIP file: {zip_path}
 
 ### {labels["your_mission"]}
 
-Tu objetivo es **evitar ser descubierto** durante la investigación:
-- Mantén la calma y actúa naturalmente
-- Utiliza tu coartada y tus secretos estratégicamente
-- Desvía las sospechas hacia otros personajes cuando sea posible
-- Recuerda: otros personajes también tienen motivos y secretos
+{labels["killer_mission_goal"]}
+- {labels["killer_mission_calm"]}
+- {labels["killer_mission_story"]}
+- {labels["killer_mission_deflect"]}
+- {labels["killer_mission_others"]}
 
 ---
 """

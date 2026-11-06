@@ -610,3 +610,18 @@ def test_evening_section_gives_aware_killer_the_cover_story(
 
     assert "You poured the poison." in content
     assert "**22:00**: You went to fetch your shawl." in content
+
+
+def test_killer_instructions_follow_game_language(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """The killer's mission is translated instead of always being in Spanish."""
+    _add_evening(basic_game_state, killer=True)
+    basic_game_state.config.killer_knows_identity = True
+    basic_game_state.config.language = "en"
+    basic_game_state.killer_brief_narrative = "You did it."
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "**avoid being discovered**" in content
+    assert "Mantén la calma" not in content
