@@ -111,6 +111,17 @@ def markdown_to_pdf(
             font-style: italic;
             color: #555;
         }
+        /* Pagination: keep headings with their content and short blocks in one piece */
+        h1, h2, h3 {
+            break-after: avoid;
+        }
+        li, blockquote, img {
+            break-inside: avoid;
+        }
+        p, li {
+            orphans: 3;
+            widows: 3;
+        }
     """
 
     # RTL CSS for right-to-left languages (Hebrew, Arabic, etc.)
