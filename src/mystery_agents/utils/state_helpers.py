@@ -126,7 +126,8 @@ def format_personal_timelines(state: GameState) -> str:
                 f"- {event.time} @ {event.location}: really did: {event.what_they_really_did}"
             )
             if event.what_they_will_tell_others != event.what_they_really_did:
-                lines.append(f"  claims: {event.what_they_will_tell_others}")
+                claimed_where = f" @ {event.claimed_location}" if event.claimed_location else ""
+                lines.append(f"  claims{claimed_where}: {event.what_they_will_tell_others}")
             lines.extend(f"  observed: {seen}" for seen in event.info_they_observed)
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)

@@ -672,3 +672,17 @@ def test_detective_sheet_numbers_clue_ids(basic_game_state: GameState, tmp_path:
     content = path.read_text(encoding="utf-8")
     assert "(Pista 2) shows" in content
     assert "00106" not in content
+
+
+def test_evening_section_shows_claimed_location_for_unaware_killer(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """The killer's account shows where they claim to be, so their sheet looks like the rest."""
+    _add_evening(basic_game_state, killer=True)
+    basic_game_state.config.killer_knows_identity = False
+    basic_game_state.personal_timelines["char-001"].events[0].claimed_location = "Cloakroom"
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "**22:00** · Cloakroom: You went to fetch your shawl." in content
+    assert "Study" not in content

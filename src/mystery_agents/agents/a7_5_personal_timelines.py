@@ -188,6 +188,7 @@ Now return ONLY the timelines for these character_ids: {", ".join(batch)}
                     PersonalEvent(
                         time="21:30-21:45",
                         location="Study" if is_killer else "Garden",
+                        claimed_location="Garden" if is_killer else "",
                         what_they_really_did=(
                             "You slipped into the study and poured poison into the brandy."
                             if is_killer

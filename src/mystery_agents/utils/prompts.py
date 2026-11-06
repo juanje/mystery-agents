@@ -478,6 +478,7 @@ Return an object with "timelines": one PersonalTimeline per suspect, each with:
 - events: array of PersonalEvent objects in chronological order:
   * time: "HH:MM" or "HH:MM-HH:MM"
   * location: string (a readable place name in the game's language, e.g. "Library", never an ID like "main_hall")
+  * claimed_location: string (where they say they were; "" if the same as location)
   * what_they_really_did: string (second person: "You went to...")
   * what_they_will_tell_others: string (second person)
   * info_they_observed: array of strings (second person: "You saw...")
@@ -494,6 +495,8 @@ CRITICAL RULES:
      account must read as a normal evening.
    - The killer's info_they_observed must fit their cover story: never mention places they claim not to have
      been (if they claim to have been in the cellar, they can't have seen someone upstairs "while going up").
+   - The killer's sheet must look like everyone else's: claimed_location filled wherever the account differs, and
+     observations spread across the whole evening, including around the time of the crime.
 4. INNOCENT SUSPECTS:
    - At least two of them hide something unrelated to the murder (an affair, a theft, a secret meeting), so
      what_they_will_tell_others differs from what_they_really_did. These lies create suspicion and red herrings.

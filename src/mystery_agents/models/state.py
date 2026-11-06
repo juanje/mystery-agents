@@ -376,6 +376,10 @@ class PersonalEvent(BaseModel):
         description="Time or time range in HH:MM format (e.g., '21:30' or '21:30-21:45')."
     )
     location: str = Field(description="Where the character was (e.g., 'Library', 'Garden').")
+    claimed_location: str = Field(
+        default="",
+        description="Where the character says they were. Empty if it's the same as location; required when what_they_will_tell_others places them somewhere else.",
+    )
     what_they_really_did: str = Field(
         description="What the character really did, in second person ('You went to...'). For the killer this includes the crime."
     )
