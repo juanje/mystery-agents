@@ -521,3 +521,17 @@ def test_write_character_sheet_shows_age(basic_game_state: GameState, tmp_path: 
     PackagingAgent()._write_character_sheet(basic_game_state, basic_game_state.characters[0], path)
 
     assert "**Edad**: 30-35" in path.read_text(encoding="utf-8")
+
+
+def test_write_victim_sheet(basic_game_state: GameState, tmp_path: Path) -> None:
+    """The victim sheet includes the Act 1 role and the murder event, with a single note."""
+    assert basic_game_state.host_guide is not None
+    path = tmp_path / "victim.md"
+
+    PackagingAgent()._write_victim_sheet(basic_game_state, path)
+
+    content = path.read_text(encoding="utf-8")
+    act1_section = content.split("## Tu rol en el acto 1", 1)[1].split("##", 1)[0]
+    assert "You are the victim" in act1_section
+    assert "Murder guide" in content
+    assert content.count("Nota importante") == 1

@@ -826,7 +826,13 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
                 f"- {trait}" for trait in victim.personality_traits
             )
         else:
-            personality_traits_section = f"- {labels['no_objectives']}"
+            personality_traits_section = f"- {labels['no_traits']}"
+
+        hg = state.host_guide
+        act1_role = (hg.host_act1_role_description if hg else None) or labels["no_description"]
+        murder_event = (hg.live_action_murder_event_guide if hg else None) or labels[
+            "no_murder_guide"
+        ]
 
         content = f"""# {labels["victim_sheet_title"]}: {victim.name}
 {image_section}
@@ -843,17 +849,20 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
 {personality_traits_section}
 
 ## {labels["personal_secrets"]}
-{chr(10).join(f"- {secret}" for secret in victim.secrets) if victim.secrets else f"- {labels['no_objectives']}"}
+{chr(10).join(f"- {secret}" for secret in victim.secrets) if victim.secrets else f"- {labels['no_secrets']}"}
 
 ## {labels["costume"]}
 {victim.costume_suggestion or labels["no_costume"]}
 
 ## {labels["host_act1_role"]}
+{act1_role}
+
+## {labels["murder_event"]}
+{murder_event}
 
 ## {labels["important_note"]}
 {labels["died_before_act2"]}
 
-**{labels["important_note"]}**:
 - {labels["embody_character"]}
 - {labels["create_tension"]}
 - {labels["follow_timing"]}
