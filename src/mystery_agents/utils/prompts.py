@@ -611,6 +611,15 @@ CHECKS (flag only real problems, quoting the conflicting texts in the descriptio
 5. spoiler: a clue title, a guiding question, the Act 2 intro or any text players see before the reveal
    names or clearly hints at the killer as the culprit.
 
+6. weak red herrings (report as over_obvious): if the clues against innocent suspects only show a motive while
+   the clues against the killer show means or opportunity, only the killer looks capable and the game is obvious.
+   Each red herring should suggest means or opportunity too, and be clearable later.
+
+BE STRICT on over_obvious, spoiler and weak red herrings: they are the most common reasons a game is no fun,
+and earlier reviews let them through. Mentally play the game as a player who only has the clues and the
+observations: if you can name the killer after two or three pieces without comparing testimonies, flag it.
+The detective's clue interpretations (how_to_interpret) are for the host only and are not spoilers.
+
 Judge difficulty against the configured level: easy games may be fairly direct, hard ones must require
 combining several pieces. Minor wording differences that don't change a fact are not contradictions.
 Write suggested_fixes as concrete instructions for the writer (which clue or text to change and how).
