@@ -501,3 +501,14 @@ def test_write_invitation(basic_game_state: GameState, tmp_path: Path) -> None:
     assert "**Ubicación**: ______" in content
     assert "**Fecha y hora**: ______" in content
     assert "![" not in content  # Sent before the party: no portrait
+
+
+def test_get_game_context_skips_parts_already_in_location(basic_game_state: GameState) -> None:
+    """Region and country are not repeated when the location name already has them."""
+    assert basic_game_state.world is not None
+    basic_game_state.world.location_name = "Hotel Metropole, Las Palmas de Gran Canaria"
+    basic_game_state.config.region = "Las Palmas de Gran Canaria"
+
+    _, location_detail = PackagingAgent()._get_game_context(basic_game_state)
+
+    assert location_detail == "Hotel Metropole, Las Palmas de Gran Canaria, España"

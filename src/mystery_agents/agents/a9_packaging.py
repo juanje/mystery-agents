@@ -113,7 +113,12 @@ class PackagingAgent(BaseAgent):
         country = translate_country_name(state.config.country, state.config.language)
         region = state.config.region or ""
 
-        location_detail = f"{location}, {region}, {country}" if region else f"{location}, {country}"
+        # The generated location name often already includes the city or country
+        parts = [location]
+        for part in (region, country):
+            if part and part.casefold() not in location.casefold():
+                parts.append(part)
+        location_detail = ", ".join(parts)
 
         return era, location_detail
 
