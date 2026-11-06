@@ -1,3 +1,6 @@
 """Mystery Agents - AI-powered mystery party game generator."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+# Single source of truth is pyproject.toml; read it from the installed package metadata
+__version__ = version("mystery-agents")
