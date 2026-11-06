@@ -158,11 +158,11 @@ def markdown_to_pdf(
             margin: 1cm;
         }
         body {
-            font-size: 10pt;
-            line-height: 1.45;
+            font-size: 12pt;
+            line-height: 1.5;
         }
         h1 {
-            font-size: 13pt;
+            font-size: 15pt;
             margin-top: 0;
         }
     """
