@@ -168,6 +168,18 @@ def a7_killer_node(state: GameState) -> GameState:
     return cast(GameState, result)
 
 
+def a7_5_personal_timelines_node(state: GameState) -> GameState:
+    """A7.5: Personal timelines node (alibis, cover stories, observations)."""
+    from mystery_agents.agents.a7_5_personal_timelines import PersonalTimelinesAgent
+
+    log = AgentLogger("a7_5_personal_timelines", state)
+    log.info("Writing each suspect's evening (alibis and observations)...")
+    agent = AgentFactory.get_agent(PersonalTimelinesAgent)
+    result = agent.run(state)
+    log.info(f"✓ Personal timelines for {len(result.personal_timelines)} suspects")
+    return cast(GameState, result)
+
+
 def v2_game_logic_validator_node(state: GameState) -> GameState:
     """V2: Game logic validation node (validates entire game logic)."""
     from mystery_agents.agents.v2_game_logic_validator import GameLogicValidatorAgent
@@ -348,6 +360,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_node("a5_crime", a5_crime_node)
     graph.add_node("a6_timeline", a6_timeline_node)
     graph.add_node("a7_killer", a7_killer_node)
+    graph.add_node("a7_5_personal_timelines", a7_5_personal_timelines_node)
     graph.add_node("v2_game_logic_validator", v2_game_logic_validator_node)
     graph.add_node("a8_content", a8_content_node)
     graph.add_node("a8_5_host_images", a8_5_host_images_node)
@@ -377,7 +390,8 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_edge("a4_relationships", "a5_crime")
     graph.add_edge("a5_crime", "a6_timeline")
     graph.add_edge("a6_timeline", "a7_killer")
-    graph.add_edge("a7_killer", "v2_game_logic_validator")
+    graph.add_edge("a7_killer", "a7_5_personal_timelines")
+    graph.add_edge("a7_5_personal_timelines", "v2_game_logic_validator")
 
     # Full validation loop; a valid game fans out to content and character portraits
     graph.add_conditional_edges(

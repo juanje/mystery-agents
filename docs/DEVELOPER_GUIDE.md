@@ -62,6 +62,7 @@ Config (YAML)
 │  A5: Crime                                            │
 │  A6: Timeline                                         │
 │  A7: Killer Selection                                 │
+│  A7.5: Personal Timelines (alibis, observations)      │
 │  V2: Game Logic Validator ──┐                         │
 │    ├─ pass → continue        │  (Logic Retry Loop)    │
 │    └─ fail → retry A6 ───────┘  (max 3 retries)      │
@@ -96,7 +97,8 @@ graph TD
     A4 --> A5[A5: Crime]
     A5 --> A6[A6: Timeline]
     A6 --> A7[A7: Killer Selection]
-    A7 --> V2[V2: Game Logic Validator]
+    A7 --> A7_5[A7.5: Personal Timelines]
+    A7_5 --> V2[V2: Game Logic Validator]
     V2 -->|pass| A8[A8: Content Generation]
     V2 -->|pass| A3_5[A3.5: Character Images]
     V2 -->|retry| A6

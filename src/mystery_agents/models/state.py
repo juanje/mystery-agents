@@ -366,22 +366,35 @@ class KillerSelection(BaseModel):
 
 # --- Personal Timelines ---
 class PersonalEvent(BaseModel):
-    """Personal event from a character's perspective."""
+    """One moment of a suspect's evening, as it really happened and as they will tell it."""
 
-    id: str = Field(default_factory=lambda: f"pevt-{uuid4().hex[:8]}")
-    global_time_block_id: str
-    what_they_really_did: str
-    what_they_will_tell_others: str
-    info_they_observed: list[str] = []
-    hidden_actions: str | None = None
+    time: str = Field(
+        description="Time or time range in HH:MM format (e.g., '21:30' or '21:30-21:45')."
+    )
+    location: str = Field(description="Where the character was (e.g., 'Library', 'Garden').")
+    what_they_really_did: str = Field(
+        description="What the character really did, in second person ('You went to...'). For the killer this includes the crime."
+    )
+    what_they_will_tell_others: str = Field(
+        description="The character's own account of this moment, in second person. Equal to what_they_really_did unless they hide something (a secret, an affair, the crime). For the killer it is an innocent-looking version that never mentions the crime."
+    )
+    info_they_observed: list[str] = Field(
+        default_factory=list,
+        description="Concrete facts the character saw or heard about OTHER people at this moment (e.g., 'You saw Dr. Ross leave the conservatory carrying his bag'). Observations, not conclusions.",
+    )
 
 
 class PersonalTimeline(BaseModel):
-    """Personal timeline for a character."""
+    """A suspect's evening, used for alibis and interrogations."""
 
-    character_id: str
-    events: list[PersonalEvent] = []
-    subjective_narrative: str
+    character_id: str = Field(description="ID of the suspect. Must match a character ID.")
+    events: list[PersonalEvent] = Field(
+        default_factory=list,
+        description="The character's evening in chronological order, covering the whole Act 1 timeline.",
+    )
+    subjective_narrative: str = Field(
+        description="Two or three sentences summarizing the evening as the character will tell it, in second person. For the killer, never reveal the crime here."
+    )
 
 
 PersonalTimelineByCharacter = dict[str, PersonalTimeline]
