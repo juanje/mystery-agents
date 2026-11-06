@@ -676,9 +676,41 @@ CRITICAL RULES:
 2. All string fields must be non-empty (except killer_brief_narrative which can be null)
 3. Arrays can be empty [] if not applicable
 4. Character IDs in clues must match existing character IDs
-5. Include at least one clue per character
-6. Follow the exact field names and types specified above
-7. killer_brief_narrative should be present in output (as string or null) based on killer_knows_identity flag
+5. Follow the exact field names and types specified above
+6. killer_brief_narrative should be present in output (as string or null) based on killer_knows_identity flag
+
+**CLUE DESIGN (THIS DECIDES WHETHER THE GAME IS FUN)**:
+Players solve the case by combining the physical clues with what they saw (their personal timelines) during the
+interrogations. A good game has several plausible suspects and only one who had means AND opportunity.
+1. No single clue identifies the killer. The killer can only be found by combining clues with player observations:
+   - easy: two clues plus one clear observation
+   - medium: two or three clues plus observations from at least two players
+   - hard: three or more clues plus several observations, some of which only make sense together
+2. At most ONE clue names the killer, and it must be ambiguous on its own (e.g. a motive other suspects share).
+3. Clue titles describe the object neutrally ("Torn letter", "Pharmacy receipt"). Never put a suspect's name or a
+   conclusion in a title.
+4. Every suspect with a motive gets at least one clue against them. Red herrings must suggest MEANS or OPPORTUNITY,
+   not only motive, and each one must be possible to clear later with another clue or a player observation.
+5. Clues must match the established facts exactly: objects, substances, places, times and secrets in the character
+   sheets, relationships and timelines. Never contradict them (if a sheet says the contraband was alcohol, a clue
+   can't say tobacco; if the poison bottle is missing, no clue can say it was found).
+6. Order the clues array in the order the detective should reveal them: crime scene and context first, red herrings
+   early, and the clues that break the killer's account in the second half.
+7. incriminates and exonerates reflect what each clue suggests on its own.
+
+**DETECTIVE MATERIAL**:
+- clues_to_reveal: one entry per clue, in the same order as the clues array, with clue_id equal to that clue's id.
+  how_to_interpret tells the host what the clue suggests and what it can be combined with.
+- guiding_questions: for when players are stuck. Point them to compare testimonies and to the observations players
+  hold (e.g. "Who was in the corridor between 22:10 and 22:20?"). Never name or hint at the killer as the culprit,
+  and spread the questions across several suspects.
+
+**CONSISTENCY WITH THE STORY**:
+- host_act1_role_description and live_action_murder_event_guide use the same times as the global timeline and the
+  truth narrative (when the victim retires, drinks, leaves the room...). Give the host those cues explicitly.
+- The final_solution_script only uses evidence that exists as a clue or as an observation in a personal timeline,
+  referring to it so players recognize it. Never introduce new evidence at the reveal.
+- Use the victim's gender consistently in every text.
 
 **CRITICAL: ACT 2 INTRO SCRIPT MUST INCLUDE CAUSE OF DEATH**:
 - The act_2_intro_script MUST clearly state the CAUSE OF DEATH (e.g., "blow to the head", "stab wound to the back", "poisoning", "gunshot wound")

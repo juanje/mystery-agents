@@ -184,6 +184,8 @@ REQUIREMENTS:
 - Include: who, why (complete motive), when (exact timing), where, how (method), how (weapon acquisition), how (opportunity exploitation), how (alibi creation), how (evidence placement)
 - Resolve ANY locked room mysteries, timeline puzzles, or apparent contradictions
 - Leave no unanswered questions
+- Use only evidence that appears in your clues or in the players' observations (personal timelines)
+- Explain every red herring: why that suspect looked guilty and what clears them
 
 Return the response in the exact JSON format specified in the system prompt.
 """
