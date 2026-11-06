@@ -71,7 +71,9 @@ LLM_MODEL_TIER2 = "gemini-3.6-flash"
 LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
 # Seconds per request. Without a timeout a dropped connection (e.g. the laptop
 # going to sleep) hangs the run forever; failing lets the user --resume it.
-LLM_REQUEST_TIMEOUT = 180.0
+# google-genai also sends it as the server deadline (X-Server-Timeout), so it must
+# leave room for long generations: at 180 s Gemini cut them off with 504 errors.
+LLM_REQUEST_TIMEOUT = 600.0
 DRY_RUN_DUMMY_API_KEY = "dry-run-dummy-key"
 
 # Image generation configuration
