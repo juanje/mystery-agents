@@ -399,7 +399,6 @@ class ClueSpec(BaseModel):
     incriminates: list[str] = []
     exonerates: list[str] = []
     relates_to_events: list[str] = []
-    reveal_phase: Literal["Act 2"] = "Act 2"
     assigned_to_character_id: str | None = None
     is_red_herring: bool = False
 

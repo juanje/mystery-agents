@@ -371,3 +371,9 @@ def test_user_message_includes_all_context(complete_game_state: GameState) -> No
         assert str(len(complete_game_state.characters)) in user_message
         if complete_game_state.killer_selection:
             assert complete_game_state.killer_selection.killer_id in user_message
+
+
+def test_a8_output_schema_has_no_const_fields() -> None:
+    """Gemini's native structured output ignores JSON Schema `const`, so avoid it."""
+    schema_text = str(A8Output.model_json_schema())
+    assert "'const'" not in schema_text
