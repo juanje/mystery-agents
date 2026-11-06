@@ -619,6 +619,8 @@ BE STRICT on over_obvious, spoiler and weak red herrings: they are the most comm
 and earlier reviews let them through. Mentally play the game as a player who only has the clues and the
 observations: if you can name the killer after two or three pieces without comparing testimonies, flag it.
 The detective's clue interpretations (how_to_interpret) are for the host only and are not spoilers.
+The Act 2 intro MUST state the cause of death (e.g. poisoning, even naming the substance): that is not a
+spoiler unless it points at a single suspect (e.g. "a poison only a doctor could get").
 
 Judge difficulty against the configured level: easy games may be fairly direct, hard ones must require
 combining several pieces. Minor wording differences that don't change a fact are not contradictions.
@@ -700,6 +702,11 @@ interrogations. A good game has several plausible suspects and only one who had 
    conclusion in a title.
 4. Every suspect with a motive gets at least one clue against them. Red herrings must suggest MEANS or OPPORTUNITY,
    not only motive, and each one must be possible to clear later with another clue or a player observation.
+   - Motive only (too weak): "Letter threatening to disinherit Laura".
+   - Means: "Receipt for rat poison bought by the estate's gardener this week" (later: the poison used was a
+     different substance).
+   - Opportunity: "Cloakroom ticket showing a coat collected at 22:10, near the time of death" (later: a witness
+     saw that guest leave by the front door).
 5. Clues must match the established facts exactly: objects, substances, places, times and secrets in the character
    sheets, relationships and timelines. Never contradict them (if a sheet says the contraband was alcohol, a clue
    can't say tobacco; if the poison bottle is missing, no clue can say it was found).
