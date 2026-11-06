@@ -13,9 +13,12 @@ from mystery_agents.models.state import (
     GameConfig,
     GameState,
     HostGuide,
+    KillerSelection,
     MetaInfo,
     MurderMethod,
     PackagingInfo,
+    PersonalEvent,
+    PersonalTimeline,
     PlayerConfig,
     VictimSpec,
     WorldBible,
@@ -535,3 +538,75 @@ def test_write_victim_sheet(basic_game_state: GameState, tmp_path: Path) -> None
     assert "You are the victim" in act1_section
     assert "Murder guide" in content
     assert content.count("Nota importante") == 1
+
+
+def _add_evening(state: GameState, killer: bool) -> None:
+    """Give the fixture's only character a personal timeline with a hidden action."""
+    state.personal_timelines = {
+        "char-001": PersonalTimeline(
+            character_id="char-001",
+            subjective_narrative="A calm evening.",
+            events=[
+                PersonalEvent(
+                    time="22:00",
+                    location="Study",
+                    what_they_really_did="You poured the poison.",
+                    what_they_will_tell_others="You went to fetch your shawl.",
+                    info_they_observed=["You saw the butler in the hall."],
+                )
+            ],
+        )
+    }
+    state.killer_selection = KillerSelection(
+        killer_id="char-001" if killer else "someone-else",
+        rationale="Opportunity",
+        truth_narrative="Truth",
+    )
+
+
+def _sheet(state: GameState, tmp_path: Path) -> str:
+    path = tmp_path / "sheet.md"
+    PackagingAgent()._write_character_sheet(state, state.characters[0], path)
+    return path.read_text(encoding="utf-8")
+
+
+def test_evening_section_for_innocent_with_secret(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """An innocent hiding something sees the truth and the account to give."""
+    _add_evening(basic_game_state, killer=False)
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "## Tu noche" in content
+    assert "**22:00** · Study: You poured the poison." in content
+    assert "### Lo que contarás si te preguntan" in content
+    assert "**22:00**: You went to fetch your shawl." in content
+    assert "**22:00**: You saw the butler in the hall." in content
+
+
+def test_evening_section_hides_crime_from_unaware_killer(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """A killer who doesn't know only gets the innocent-looking account."""
+    _add_evening(basic_game_state, killer=True)
+    basic_game_state.config.killer_knows_identity = False
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "**22:00** · Study: You went to fetch your shawl." in content
+    assert "poison" not in content
+    assert "Lo que contarás" not in content
+
+
+def test_evening_section_gives_aware_killer_the_cover_story(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """A killer who knows sees what they did and the cover story to keep."""
+    _add_evening(basic_game_state, killer=True)
+    basic_game_state.config.killer_knows_identity = True
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "You poured the poison." in content
+    assert "**22:00**: You went to fetch your shawl." in content

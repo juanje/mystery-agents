@@ -632,6 +632,60 @@ ZIP file: {zip_path}
 
         path.write_text(content, encoding="utf-8")
 
+    def _build_evening_section(
+        self, state: GameState, character: Any, labels: dict[str, str]
+    ) -> str:
+        """
+        Build the 'Your evening' section from the character's personal timeline.
+
+        Innocent suspects see what they really did, plus what they will claim where
+        they hide something. A killer who doesn't know their identity only gets the
+        innocent-looking account; one who knows also gets the cover story to keep.
+        """
+        timeline = state.personal_timelines.get(character.id)
+        if not timeline:
+            return ""
+
+        is_killer = bool(
+            state.killer_selection and state.killer_selection.killer_id == character.id
+        )
+        hide_truth = is_killer and not state.config.killer_knows_identity
+
+        did_lines: list[str] = []
+        will_say_lines: list[str] = []
+        saw_lines: list[str] = []
+        for event in timeline.events:
+            did = event.what_they_will_tell_others if hide_truth else event.what_they_really_did
+            did_lines.append(f"- **{event.time}** · {event.location}: {did}")
+            if not hide_truth and event.what_they_will_tell_others != event.what_they_really_did:
+                will_say_lines.append(f"- **{event.time}**: {event.what_they_will_tell_others}")
+            saw_lines.extend(f"- **{event.time}**: {seen}" for seen in event.info_they_observed)
+
+        section = f"""
+## {labels["evening_title"]}
+
+*{labels["evening_hint"]}*
+
+{timeline.subjective_narrative}
+
+### {labels["evening_did"]}
+
+{chr(10).join(did_lines)}
+"""
+        if will_say_lines:
+            section += f"""
+### {labels["evening_will_say"]}
+
+{chr(10).join(will_say_lines)}
+"""
+        if saw_lines:
+            section += f"""
+### {labels["evening_saw"]}
+
+{chr(10).join(saw_lines)}
+"""
+        return section
+
     def _write_character_sheet(self, state: GameState, character: Any, path: Path) -> None:
         """Write a character sheet with consistent formatting."""
         # Get translated labels
@@ -790,7 +844,7 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
 ## {labels["relationships"]}
 
 {relationships_content}
-{killer_section}
+{self._build_evening_section(state, character, labels)}{killer_section}
 ---
 
 {labels["remember_secrets"]}
