@@ -161,7 +161,7 @@ These requirements override any language assumptions in the instructions above.
                 response_format=self.response_format,
             )
 
-        result: dict[str, Any] = agent_to_use.invoke({"messages": messages})  # type: ignore[arg-type]
+        result: dict[str, Any] = agent_to_use.invoke({"messages": messages})  # type: ignore[call-overload]
 
         if self.response_format:
             if "structured_response" in result:
