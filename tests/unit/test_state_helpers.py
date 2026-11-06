@@ -12,6 +12,8 @@ from mystery_agents.models.state import (
     GlobalTimeline,
     MetaInfo,
     MurderMethod,
+    PersonalEvent,
+    PersonalTimeline,
     PlayerConfig,
     TimeBlock,
     VictimSpec,
@@ -20,6 +22,7 @@ from mystery_agents.models.state import (
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
+    format_personal_timelines,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_scene_room_id,
@@ -295,3 +298,52 @@ def test_format_global_timeline_uses_character_names() -> None:
     assert "--- 21:00 to 22:00 ---" in text
     assert "21:15 [Ana] (Location: kitchen): Leaves the kitchen" in text
     assert "char-1" not in text
+
+
+def test_format_personal_timelines_shows_claims_only_when_different() -> None:
+    """Claims are listed only where they differ from what really happened."""
+    state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_DEFAULT_PLAYERS), duration_minutes=TEST_DEFAULT_DURATION
+        ),
+        characters=[
+            CharacterSpec(
+                id="char-1",
+                name="Ana",
+                gender="female",
+                age_range="30-40",
+                role="Cook",
+                public_description="Busy",
+                relation_to_victim="Employee",
+            )
+        ],
+        personal_timelines={
+            "char-1": PersonalTimeline(
+                character_id="char-1",
+                subjective_narrative="Busy night.",
+                events=[
+                    PersonalEvent(
+                        time="21:00",
+                        location="Kitchen",
+                        what_they_really_did="Cooked.",
+                        what_they_will_tell_others="Cooked.",
+                        info_they_observed=["Saw Bob."],
+                    ),
+                    PersonalEvent(
+                        time="22:00",
+                        location="Cellar",
+                        what_they_really_did="Stole wine.",
+                        what_they_will_tell_others="Stayed in the kitchen.",
+                    ),
+                ],
+            )
+        },
+    )
+
+    text = format_personal_timelines(state)
+
+    assert "### Ana (ID: char-1)" in text
+    assert text.count("claims:") == 1
+    assert "claims: Stayed in the kitchen." in text
+    assert "observed: Saw Bob." in text

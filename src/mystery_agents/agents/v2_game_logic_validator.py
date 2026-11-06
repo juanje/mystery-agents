@@ -5,6 +5,7 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
+    format_personal_timelines,
     safe_get_crime_method_description,
     safe_get_crime_scene_room_id,
     safe_get_crime_time_of_death,
@@ -108,6 +109,9 @@ CRIME:
 
 COMPLETE TIMELINE:
 {format_global_timeline(state)}
+
+PERSONAL TIMELINES (what each suspect really did, claims and observed):
+{format_personal_timelines(state)}
 {truth_narrative}
 
 REQUIREMENTS:
@@ -123,6 +127,8 @@ VALIDATION GUIDELINES:
 - Check if the timeline is REASONABLY consistent (minor gaps are acceptable if explained in truth_narrative)
 - Check if the mystery can be solved with available information (some ambiguity is fine for medium difficulty)
 - Check if all characters are integrated (they should have roles and motives)
+- Check the personal timelines: they must not contradict the global timeline or the truth narrative, and an observation can only describe what the observed person really did at that time
+- Check that the observations exposing the killer's account exist and are held by at least two different innocent suspects
 - Only flag CRITICAL issues that make the game unplayable
 
 IMPORTANT:

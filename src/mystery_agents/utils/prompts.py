@@ -574,6 +574,7 @@ VALIDATION CHECKS:
 3. OVER-OBVIOUS: Is the solution too easy? Are clues too direct? (Only flag if solution is immediately obvious)
 4. TOO AMBIGUOUS: Is there not enough evidence? Are multiple solutions possible? (Some ambiguity is acceptable for medium difficulty)
 5. CHARACTER UNUSED: Are all characters properly integrated with motives and actions? (All characters should have some role)
+6. PERSONAL TIMELINES: Do the suspects' accounts and observations match the global timeline and the truth narrative? Can the killer's cover story be broken by combining what other suspects observed? (Flag as timeline_conflict or logic_gap)
 
 VALIDATION PHILOSOPHY:
 - Be REASONABLE, not overly strict
