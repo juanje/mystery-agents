@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.utils.constants import DEFAULT_COUNTRY_ES
+from mystery_agents.utils.constants import DEFAULT_COUNTRY_ES, DEFAULT_OUTPUT_DIR
 
 # --- Basic Types ---
 DifficultyLevel = Literal["easy", "medium", "hard"]
@@ -58,6 +58,7 @@ class GameConfig(BaseModel):
     verbosity: int = 0  # Logging verbosity: 0=default (visual), 1=-v (INFO), 2=-vv (DEBUG)
     quiet_mode: bool = False  # Minimal output mode
     log_file: str | None = None  # Optional file path to write logs to
+    output_dir: str = DEFAULT_OUTPUT_DIR  # Base directory for generated games
 
 
 # --- World ---

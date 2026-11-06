@@ -84,6 +84,7 @@ class ConfigLoaderAgent:
             verbosity=state.config.verbosity,
             quiet_mode=state.config.quiet_mode,
             log_file=state.config.log_file,
+            output_dir=state.config.output_dir,
             config_file=yaml_path,
         )
 

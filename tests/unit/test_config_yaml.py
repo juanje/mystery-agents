@@ -162,6 +162,7 @@ host_gender: male
             generate_images=True,
             debug_model=True,
             duration_minutes=90,
+            output_dir="my_games",
         ),
     )
 
@@ -171,6 +172,7 @@ host_gender: male
     assert config.dry_run is True
     assert config.generate_images is True
     assert config.debug_model is True
+    assert config.output_dir == "my_games"
 
 
 def test_load_from_yaml_with_killer_knows_identity(tmp_path: Path) -> None:

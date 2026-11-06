@@ -217,20 +217,15 @@ async def test_call_gemini_image_api_image_block_without_data(
 def test_get_character_image_output_dir() -> None:
     """Test that output directory path is constructed correctly."""
     game_id = "abc12345"
-    result = get_character_image_output_dir(game_id)
+    result = get_character_image_output_dir(game_id, "my_games")
 
-    assert isinstance(result, Path)
-    assert "output" in str(result)
-    assert f"game_{game_id}" in str(result)
-    assert "images" in str(result)
-    assert "characters" in str(result)
-    assert result == Path("output") / f"game_{game_id}" / "images" / "characters"
+    assert result == Path("my_games") / f"game_{game_id}" / "images" / "characters"
 
 
 def test_get_character_image_output_dir_short_id() -> None:
     """Test that output directory works with short game IDs."""
     game_id = "short"
-    result = get_character_image_output_dir(game_id)
+    result = get_character_image_output_dir(game_id, "output")
 
     assert f"game_{game_id}" in str(result)
 
@@ -238,7 +233,7 @@ def test_get_character_image_output_dir_short_id() -> None:
 def test_get_character_image_output_dir_long_id() -> None:
     """Test that output directory works with long game IDs."""
     game_id = "very_long_game_id_123456789"
-    result = get_character_image_output_dir(game_id)
+    result = get_character_image_output_dir(game_id, "output")
 
     assert f"game_{game_id}" in str(result)
 

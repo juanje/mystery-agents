@@ -88,7 +88,7 @@ class HostImageAgent(BaseAgent):
 
         # Create output directory for images
         game_id = state.meta.id[:8] if state.meta else "default"
-        output_dir = get_character_image_output_dir(game_id)
+        output_dir = get_character_image_output_dir(game_id, state.config.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate victim image
@@ -328,7 +328,7 @@ STRICT EXCLUSIONS (DO NOT INCLUDE):
             State with mock image paths
         """
         game_id = state.meta.id[:8] if state.meta else "default"
-        output_dir = get_character_image_output_dir(game_id)
+        output_dir = get_character_image_output_dir(game_id, state.config.output_dir)
         # Create directory structure even in dry-run mode for consistency
         output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -6,7 +6,6 @@ from langgraph.graph import END, START, StateGraph
 
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import AgentFactory
-from mystery_agents.utils.constants import DEFAULT_OUTPUT_DIR
 from mystery_agents.utils.logging_config import AgentLogger
 
 
@@ -232,7 +231,7 @@ def a9_packaging_node(state: GameState) -> GameState:
     log = AgentLogger("a9_packaging", state)
     log.info("Packaging final deliverables...")
     agent = AgentFactory.get_agent(PackagingAgent)
-    result = agent.run(state, output_dir=DEFAULT_OUTPUT_DIR)
+    result = agent.run(state, output_dir=state.config.output_dir)
     log.info("✓ Package created")
     return cast(GameState, result)
 

@@ -160,6 +160,7 @@ def generate(
             verbosity=verbose,
             quiet_mode=quiet,
             log_file=str(log_file) if log_file else None,
+            output_dir=str(output_dir),
         ),
     )
 

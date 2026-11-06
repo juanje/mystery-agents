@@ -257,7 +257,7 @@ COSTUME:
         """
         # Use game_id from meta
         game_id = state.meta.id[:8] if state.meta else "default"
-        return get_character_image_output_dir(game_id)
+        return get_character_image_output_dir(game_id, state.config.output_dir)
 
     def _mock_output(self, state: GameState) -> GameState:
         """

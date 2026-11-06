@@ -15,6 +15,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from PIL import Image as PILImage
 
 from mystery_agents.utils.constants import (
+    GAME_DIR_PREFIX,
     IMAGE_GENERATION_MAX_RETRIES,
     IMAGE_GENERATION_MODEL,
     IMAGE_GENERATION_RETRY_DELAY_BASE,
@@ -122,14 +123,15 @@ async def _call_gemini_image_api(prompt: str, output_path: Path) -> None:
     image.save(str(output_path), "PNG")
 
 
-def get_character_image_output_dir(game_id: str) -> Path:
+def get_character_image_output_dir(game_id: str, output_dir: str) -> Path:
     """
     Get the standard output directory for character images.
 
     Args:
         game_id: Game ID (first 8 characters)
+        output_dir: Base output directory for generated games
 
     Returns:
         Path to the images/characters directory for this game
     """
-    return Path("output") / f"game_{game_id}" / "images" / "characters"
+    return Path(output_dir) / f"{GAME_DIR_PREFIX}{game_id}" / "images" / "characters"
