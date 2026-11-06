@@ -504,7 +504,7 @@ Return an object with "timelines": one PersonalTimeline per suspect, each with:
 - character_id: string (must match a suspect ID exactly)
 - events: array of PersonalEvent objects in chronological order:
   * time: "HH:MM" or "HH:MM-HH:MM"
-  * location: string
+  * location: string (a readable place name in the game's language, e.g. "Library", never an ID like "main_hall")
   * what_they_really_did: string (second person: "You went to...")
   * what_they_will_tell_others: string (second person)
   * info_they_observed: array of strings (second person: "You saw...")
@@ -519,6 +519,8 @@ CRITICAL RULES:
      the crime, and that matches what others may have seen (e.g. "You stepped out to fetch your bag").
    - subjective_narrative is the innocent version. The player may not know they are the killer, so their own
      account must read as a normal evening.
+   - The killer's info_they_observed must fit their cover story: never mention places they claim not to have
+     been (if they claim to have been in the cellar, they can't have seen someone upstairs "while going up").
 4. INNOCENT SUSPECTS:
    - At least two of them hide something unrelated to the murder (an affair, a theft, a secret meeting), so
      what_they_will_tell_others differs from what_they_really_did. These lies create suspicion and red herrings.
@@ -528,10 +530,13 @@ CRITICAL RULES:
    - A character can only observe what really happened: check what_they_really_did of the person observed.
    - The observations that break the killer's account must be spread across AT LEAST TWO different innocent
      suspects, each one partial, so no single observation proves the killer's guilt on its own.
+   - Nobody sees the killer at the crime scene, with the victim, or handling the weapon. Decisive observations are
+     indirect: seen somewhere they later deny, at an odd time, carrying something, coming back from the wrong direction.
    - Include observations that make other suspects look suspicious, and observations that later confirm or
      clear them, so players can rule people out by comparing stories.
    - Nobody witnesses the murder itself.
-   - Every suspect has at least two observations in total.
+   - Each suspect has 3 to 5 observations in total, every one relevant to someone's motive, opportunity or alibi.
+     Avoid filler like "looked nervous" unless it matters for the story.
 6. Use the characters' full names in observations.
 7. Difficulty:
    - easy: the decisive observations are clear and point to the same gap in the killer's story.
