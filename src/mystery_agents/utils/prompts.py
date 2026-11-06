@@ -160,9 +160,10 @@ CRITICAL RULES:
 4. Think about what weapons or items would be culturally and historically appropriate
 5. The location should feel authentic and immersive
 6. The gathering_reason must be specific and contextual - it should explain WHY all these people are at this location on this particular night (e.g., family event, business meeting, celebration, ceremony). This is critical for player immersion.
-7. All string fields must be non-empty
-8. All arrays must be valid JSON arrays (use [] if empty)
-9. Follow the exact field names and types specified above
+7. Don't feature real historical people as guests or participants. If you mention one as background, the reference must fit the exact year (e.g., no "famous novelist" before they were famous)
+8. All string fields must be non-empty
+9. All arrays must be valid JSON arrays (use [] if empty)
+10. Follow the exact field names and types specified above
 
 Use the epoch, theme, country, and player count from the config to create an authentic, detailed world.
 The tone should be {GAME_TONE_DESCRIPTION}.
@@ -326,9 +327,10 @@ CRITICAL RULES:
 5. The murder method and weapon should be culturally and historically appropriate for the country and epoch
 6. Consider the characters' relationships and motives when designing the crime
 7. The crime should create interesting dynamics between the suspects
-8. All string fields must be non-empty
-9. All arrays must be valid JSON arrays (use [] if empty)
-10. Follow the exact field names and types specified above
+8. The method must be plausible: its timing must match how that poison or weapon really acts (a slow poison can't kill in minutes), and the killer must not act in front of the victim or a witness unless the plot explains why that doesn't expose them
+9. All string fields must be non-empty
+10. All arrays must be valid JSON arrays (use [] if empty)
+11. Follow the exact field names and types specified above
 
 Use the world context, character information, country, epoch, and cultural details to create a compelling crime.
 """
