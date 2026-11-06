@@ -127,7 +127,7 @@ uv run mystery-agents game.example.yml --dry-run
 - 🖼️ **Character Portraits** - AI-generated images with consistent visual style
 - 🎯 **Visual Style Guide** - Unified aesthetic (color palette, lighting, no text overlays)
 - 🔄 **Parallel Generation** - Fast image creation with rate limiting
-- 🤖 **Google Gemini Integration** - gemini-2.5-pro for generation, gemini-2.5-flash for validation
+- 🤖 **Google Gemini Integration** - gemini-3.8-flash for logic, gemini-3.6-flash for content
 
 ---
 
@@ -236,9 +236,9 @@ Create a `.env` file (or set environment variables):
 GOOGLE_API_KEY=your-api-key-here
 
 # Optional: Override LLM models per tier
-LLM_MODEL_TIER1=gemini-2.5-pro       # Logic/creativity
-LLM_MODEL_TIER2=gemini-2.5-pro       # Content generation
-LLM_MODEL_TIER3=gemini-2.5-flash     # Validation
+LLM_MODEL_TIER1=gemini-3.8-flash       # Logic/creativity
+LLM_MODEL_TIER2=gemini-3.6-flash       # Content generation
+LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Simple tasks
 
 # Optional: Override temperatures
 LLM_TEMPERATURE_TIER1=0.6
@@ -250,7 +250,7 @@ See `env.example` for full configuration options.
 
 ### Character Image Generation
 
-**Enabled by default.** Uses Google's Gemini 2.5 Flash Image model.
+**Enabled by default.** Uses Google's Gemini 3.1 Flash Image model.
 
 **Features:**
 - ✅ Photorealistic portraits coherent with game world
@@ -261,7 +261,7 @@ See `env.example` for full configuration options.
 - ✅ Embedded in PDFs, saved separately
 
 **Cost & Performance:**
-- Model: `gemini-2.5-flash-image` (cost-effective)
+- Model: `gemini-3.1-flash-image` (cost-effective)
 - Typical game: 6-8 images in ~1-2 minutes
 - **Note**: Image generation incurs API costs. Use `--no-images` to skip.
 

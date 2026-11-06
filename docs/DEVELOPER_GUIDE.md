@@ -267,10 +267,10 @@ players:
 ```python
 # Developer-defined system defaults
 DEFAULT_RECURSION_LIMIT = 50
-IMAGE_GENERATION_MODEL = "models/gemini-2.5-flash-image"
-LLM_MODEL_TIER1 = "gemini-2.5-pro"
-LLM_MODEL_TIER2 = "gemini-2.5-pro"
-LLM_MODEL_TIER3 = "gemini-2.5-flash"
+IMAGE_GENERATION_MODEL = "models/gemini-3.1-flash-image"
+LLM_MODEL_TIER1 = "gemini-3.8-flash"
+LLM_MODEL_TIER2 = "gemini-3.6-flash"
+LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
 IMAGE_GENERATION_MAX_CONCURRENT = 5
 ```
 
@@ -286,12 +286,12 @@ IMAGE_GENERATION_MAX_CONCURRENT = 5
 ```bash
 # .env file
 GOOGLE_API_KEY=xxx           # Required
-LLM_MODEL_TIER1=gemini-2.5-pro    # Optional override
-LLM_MODEL_TIER2=gemini-2.5-pro
-LLM_MODEL_TIER3=gemini-2.5-flash
+LLM_MODEL_TIER1=gemini-3.8-flash    # Optional override
+LLM_MODEL_TIER2=gemini-3.6-flash
+LLM_MODEL_TIER3=gemini-3.5-flash-lite
 ```
 
-Loaded via `python-dotenv` in `cli.py`, accessed via `os.getenv()` in `llm_config.py`.
+Loaded via `python-dotenv` in `cli.py`, accessed via `os.getenv()` in `config.py`.
 
 ---
 
@@ -418,9 +418,9 @@ We use **tiered LLMs** based on task complexity:
 
 | Tier | Default Model | Use Case | Examples |
 |------|--------------|----------|----------|
-| **Tier 1** | gemini-2.5-pro | Complex reasoning | World gen, style guide |
-| **Tier 2** | gemini-2.5-pro | Content generation | Characters, crime, clues |
-| **Tier 3** | gemini-2.5-flash | Validation, quick tasks | V1, V2, translation |
+| **Tier 1** | gemini-3.8-flash | Complex reasoning | World, crime, killer selection, V2 |
+| **Tier 2** | gemini-3.6-flash | Content generation | Style guide, characters, relationships, timeline, content, V1 |
+| **Tier 3** | gemini-3.5-flash-lite | Quick tasks | Packaging |
 
 ### Why Tiered?
 
@@ -472,21 +472,19 @@ if config.debug_model:
 
 ### Implementation
 
-Uses **Gemini 2.5 Flash Image** via LangChain:
+Uses **Gemini 3.1 Flash Image** via LangChain:
 
 ```python
 # utils/image_generation.py
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-image",
+    model="gemini-3.1-flash-image",
     temperature=0.6,
+    response_modalities=["IMAGE"],
 )
 
 message = HumanMessage(content=[{"type": "text", "text": prompt}])
 
-resp = llm.invoke(
-    [message],
-    generation_config={"response_modalities": ["IMAGE"]}
-)
+resp = llm.invoke([message])
 
 # Extract base64 image and save
 ```

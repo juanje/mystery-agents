@@ -65,9 +65,9 @@ GAME_TONE_SHORT = "Cluedo meets Knives Out"
 GAME_TONE_STYLE = "mystery_party"  # Internal identifier (legacy)
 
 # LLM model configuration
-LLM_MODEL_TIER1 = "gemini-3.5-flash"
-LLM_MODEL_TIER2 = "gemini-3.5-flash"
-LLM_MODEL_TIER3 = "gemini-3.5-flash"
+LLM_MODEL_TIER1 = "gemini-3.8-flash"
+LLM_MODEL_TIER2 = "gemini-3.6-flash"
+LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
 LLM_TEMPERATURE_TIER1 = 0.6
 LLM_TEMPERATURE_TIER2 = 0.7
 LLM_TEMPERATURE_TIER3 = 0.3
