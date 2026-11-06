@@ -15,6 +15,8 @@ from mystery_agents.models.state import (
     KillerSelection,
     MetaInfo,
     MurderMethod,
+    PersonalEvent,
+    PersonalTimeline,
     PlayerConfig,
     ValidationIssue,
     ValidationReport,
@@ -410,3 +412,26 @@ def test_a8_output_schema_has_no_const_fields() -> None:
     """Gemini's native structured output ignores JSON Schema `const`, so avoid it."""
     schema_text = str(A8Output.model_json_schema())
     assert "'const'" not in schema_text
+
+
+def test_red_herring_material_lists_innocents_hidden_moments(
+    complete_game_state: GameState,
+) -> None:
+    """Innocents' hidden moments are offered as red herring material; the killer is left out."""
+    lie = PersonalEvent(
+        time="22:10",
+        location="Cellar",
+        what_they_really_did="You hid a letter.",
+        what_they_will_tell_others="You stayed in the hall.",
+    )
+    complete_game_state.personal_timelines = {
+        char_id: PersonalTimeline(character_id=char_id, subjective_narrative=".", events=[lie])
+        for char_id in ("char-001", "char-002")
+    }
+
+    material = ContentGenerationAgent._red_herring_material(complete_game_state, "char-002")
+
+    innocent = complete_game_state.characters[0]
+    killer = complete_game_state.characters[1]
+    assert f"- {innocent.name}: 22:10 @ Cellar: really You hid a letter." in material
+    assert killer.name not in material

@@ -108,6 +108,8 @@ class ContentGenerationAgent(BaseAgent):
                 f"  Secrets: {secrets}"
             )
 
+        red_herring_material = self._red_herring_material(state, killer.id if killer else None)
+
         names = {char.id: char.name for char in state.characters}
         relationships_summary = [
             f"- {names.get(rel.from_character_id, rel.from_character_id)} / "
@@ -179,6 +181,11 @@ GLOBAL TIMELINE (times and places in every document must match it):
 PERSONAL TIMELINES (each player's sheet shows what they did, will claim and observed):
 {format_personal_timelines(state)}
 
+RED HERRING MATERIAL - base at least one clue on each innocent suspect's line below, so they look like they had
+OPPORTUNITY (their hidden moment) or MEANS, not just a motive. Their own story or another player's observation
+will clear them later:
+{red_herring_material}
+
 REQUIREMENTS:
 1. Create a "host_guide" HostGuide object with all required fields
 2. Create a "clues" array with at least {max(MIN_CLUES_PER_GAME, len(state.characters))} ClueSpec objects
@@ -218,6 +225,33 @@ Return the response in the exact JSON format specified in the system prompt.
         state.killer_brief_narrative = result.killer_brief_narrative
 
         return state
+
+    @staticmethod
+    def _red_herring_material(state: GameState, killer_id: str | None) -> str:
+        """
+        List each innocent suspect's hidden moments (where their claim differs from the truth).
+
+        A8 kept writing motive-only red herrings even with explicit rules. These moments
+        are ready-made opportunities to build red herrings on.
+        """
+        lines = []
+        for char in state.characters:
+            if char.id == killer_id:
+                continue
+            timeline = state.personal_timelines.get(char.id)
+            hidden = [
+                f"{event.time} @ {event.location}: really {event.what_they_really_did} "
+                f"(claims: {event.what_they_will_tell_others})"
+                for event in (timeline.events if timeline else [])
+                if event.what_they_will_tell_others != event.what_they_really_did
+            ]
+            if hidden:
+                lines.append(f"- {char.name}: " + " | ".join(hidden))
+            else:
+                lines.append(
+                    f"- {char.name}: no hidden moment; give them MEANS (access to the weapon or poison)"
+                )
+        return "\n".join(lines) if lines else "None"
 
     def _mock_output(self, state: GameState) -> GameState:
         """Generate mock data for dry run mode."""
