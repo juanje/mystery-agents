@@ -332,3 +332,23 @@ def test_get_character_image_output_dir_long_id() -> None:
     result = get_character_image_output_dir(game_id)
 
     assert f"game_{game_id}" in str(result)
+
+
+@pytest.mark.asyncio
+async def test_generate_image_with_gemini_logs_failures(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Failed attempts are logged with the underlying error instead of being swallowed."""
+    output_path = tmp_path / "test.png"
+
+    with patch(
+        "mystery_agents.utils.image_generation._call_gemini_image_api",
+        side_effect=RuntimeError("quota exceeded"),
+    ):
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await generate_image_with_gemini("prompt", output_path, max_retries=2)
+
+    assert result is False
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("attempt 1/2 failed" in m and "quota exceeded" in m for m in messages)
+    assert any("after 2 attempts: quota exceeded" in m for m in messages)

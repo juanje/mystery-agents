@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import os
 from io import BytesIO
 from pathlib import Path
@@ -18,6 +19,8 @@ from mystery_agents.utils.constants import (
     IMAGE_GENERATION_RETRY_DELAY_BASE,
     IMAGE_GENERATION_TEMPERATURE,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def generate_image_with_gemini(
@@ -45,11 +48,19 @@ async def generate_image_with_gemini(
         try:
             await _call_gemini_image_api(prompt, output_path)
             return True
-        except Exception:
+        except Exception as e:
             if attempt < max_retries - 1:
                 delay = retry_delay_base * (2**attempt)
+                logger.warning(
+                    f"Image generation attempt {attempt + 1}/{max_retries} failed for "
+                    f"{output_path.name}: {e}. Retrying in {delay:.0f}s"
+                )
                 await asyncio.sleep(delay)
-            # Continue to next iteration or return False after last attempt
+            else:
+                logger.error(
+                    f"Image generation failed for {output_path.name} after "
+                    f"{max_retries} attempts: {e}"
+                )
 
     return False  # All retries exhausted
 
