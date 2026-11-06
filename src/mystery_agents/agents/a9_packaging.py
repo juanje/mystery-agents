@@ -600,21 +600,27 @@ ZIP file: {zip_path}
         era, location_detail = self._get_game_context(state)
         gathering_reason = state.world.gathering_reason if state.world else "A special gathering"
 
-        content = f"""{labels["you_are_invited"]}
+        # The invitation is sent days before the party, before the host has decided
+        # the real venue and time, so those are left as lines to fill in by hand
+        blank = "_" * 30
+        content = f"""# {labels["you_are_invited"]}
+
+## {character.name}
+
+**{labels["role"]}**: {character.role}
 
 **{labels["era"]}**: {era}
 **{labels["location"]}**: {location_detail}
 **{labels["gathering_reason"]}**: {gathering_reason}
 
-{labels["role"]}: {character.name}
-
 {character.public_description}
 
-{labels["costume"]}: {character.costume_suggestion or labels["no_costume"]}
+**{labels["costume"]}**: {character.costume_suggestion or labels["no_costume"]}
 
-{labels["event_details"]}:
-- {labels["location"]}:
-- {labels["date_time"]}:
+## {labels["event_details"]}
+
+**{labels["location"]}**: {blank}
+**{labels["date_time"]}**: {blank}
 
 {labels["see_you_there"]}
 """

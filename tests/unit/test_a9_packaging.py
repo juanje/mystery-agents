@@ -486,3 +486,18 @@ def test_generate_all_pdfs_with_timeout(tmp_path: Path) -> None:
 
         # Should have logged the timeout
         assert mock_log.error.called
+
+
+def test_write_invitation(basic_game_state: GameState, tmp_path: Path) -> None:
+    """The invitation shows the character's role and leaves venue and time to fill in."""
+    agent = PackagingAgent()
+    path = tmp_path / "invitation.md"
+
+    agent._write_invitation(basic_game_state, basic_game_state.characters[0], path)
+
+    content = path.read_text(encoding="utf-8")
+    assert "## Elena Martinez" in content
+    assert "**Rol**: Detective" in content
+    assert "**Ubicación**: ______" in content
+    assert "**Fecha y hora**: ______" in content
+    assert "![" not in content  # Sent before the party: no portrait
