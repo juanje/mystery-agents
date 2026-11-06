@@ -104,6 +104,7 @@ WORLD CONTEXT:
 - Region: {state.config.region if state.config.region else "N/A"}
 - Theme: {state.config.theme}
 - Tone: {GAME_TONE_STYLE}
+- Victim (host's Act 1 character, created later): {state.config.host_gender}. If a description mentions the victim, use gendered terms that fit.
 
 CHARACTERS:
 {characters_info}

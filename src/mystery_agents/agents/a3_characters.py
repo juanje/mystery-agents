@@ -79,6 +79,7 @@ WORLD:
 - Summary: {state.world.summary if state.world else "Mystery party setting"}
 
 NOTE: The victim (host's Act 1 character) will be created later. Focus on creating interesting suspects who would naturally be at this location.
+The victim WILL BE {state.config.host_gender.upper()} (played by the host). Write every relation_to_victim, secret and motive accordingly, with gendered terms that fit a {state.config.host_gender} victim (e.g. a former fiancée of a male victim, a former fiancé of a female victim).
 
 CONSTRAINTS:
 - Tone: {GAME_TONE_STYLE}
