@@ -151,7 +151,7 @@ async def test_call_gemini_image_api_success(
     with patch(
         "mystery_agents.utils.image_generation.ChatGoogleGenerativeAI",
         return_value=mock_llm,
-    ):
+    ) as mock_llm_cls:
         # Mock asyncio.get_event_loop().run_in_executor to execute the function directly
         with patch("asyncio.get_event_loop") as mock_loop:
             loop_instance = MagicMock()
@@ -171,9 +171,8 @@ async def test_call_gemini_image_api_success(
 
             # Verify LLM was called correctly
             assert mock_llm.invoke.called
-            call_args = mock_llm.invoke.call_args
-            assert "generation_config" in call_args[1]
-            assert call_args[1]["generation_config"]["response_modalities"] == ["IMAGE"]
+            # langchain-google-genai v4 takes response_modalities on the constructor
+            assert mock_llm_cls.call_args.kwargs["response_modalities"] == ["IMAGE"]
 
 
 @pytest.mark.asyncio
