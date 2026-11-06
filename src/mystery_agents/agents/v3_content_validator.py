@@ -42,6 +42,19 @@ def _mentions(text: str, name: str, ignore: set[str] | None = None) -> bool:
     return any(re.search(rf"\b{re.escape(part)}\b", text, re.IGNORECASE) for part in parts)
 
 
+def _parts_shared_with_others(state: GameState, char_id: str) -> set[str]:
+    """
+    Lowercase name parts other people also have (a family surname, the victim's surname).
+
+    Those don't identify this particular character, e.g. "Monteverde Foundation" in a
+    title when the victim and two suspects are all Monteverdes.
+    """
+    names = [char.name for char in state.characters if char.id != char_id]
+    if state.crime:
+        names.append(state.crime.victim.name)
+    return {part.casefold() for name in names for part in _name_parts(name)}
+
+
 def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
     """
     Find clue titles that mention a suspect.
@@ -58,7 +71,7 @@ def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
     issues = []
     for clue in state.clues:
         for char in state.characters:
-            if _mentions(clue.title, char.name):
+            if _mentions(clue.title, char.name, ignore=_parts_shared_with_others(state, char.id)):
                 issues.append(
                     ValidationIssue(
                         type="spoiler",
@@ -89,12 +102,7 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     if not detective or not killer:
         return []
     # A surname shared with a relative would flag questions about that relative
-    shared = {
-        part.casefold()
-        for char in state.characters
-        if char.id != killer.id
-        for part in _name_parts(char.name)
-    }
+    shared = _parts_shared_with_others(state, killer.id)
     return [
         ValidationIssue(
             type="spoiler",

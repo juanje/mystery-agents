@@ -215,3 +215,15 @@ def test_killer_question_check_ignores_shared_surname() -> None:
     ]
 
     assert find_killer_in_guiding_questions(state) == []
+
+
+def test_title_check_ignores_family_surname(state: GameState) -> None:
+    """A title with a surname several characters share doesn't single out one suspect."""
+    state.characters.append(
+        state.characters[0].model_copy(update={"id": "char-2", "name": "Ana Castillo"})
+    )
+    state.clues = [
+        ClueSpec(id="clue-3", type="note", title="Castillo Foundation audit", description="...")
+    ]
+
+    assert find_suspect_names_in_titles(state) == []
