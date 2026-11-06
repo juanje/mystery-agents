@@ -100,24 +100,21 @@ async def _call_gemini_image_api(prompt: str, output_path: Path) -> None:
     message = HumanMessage(content=[{"type": "text", "text": prompt}])
     resp = await _get_image_model(api_key).ainvoke([message])
 
-    # Extract base64 image data from response
-    # resp.content is a list, first element should be a dict with image_url
-    content_item = resp.content[0]
-    if not isinstance(content_item, dict):
-        raise ValueError(
-            f"Unexpected response format: content[0] is {type(content_item)}, expected dict"
-        )
+    # Standard content blocks don't depend on the provider's raw layout, which may
+    # put text or thought-signature parts before the image
+    blocks = resp.content_blocks
+    img_b64 = next(
+        (
+            block.get("base64")
+            for block in blocks
+            if block["type"] == "image" and block.get("base64")
+        ),
+        None,
+    )
+    if not img_b64:
+        block_types = [block["type"] for block in blocks]
+        raise ValueError(f"No image in model response (content block types: {block_types})")
 
-    image_url_data = content_item.get("image_url")
-    if not image_url_data or not isinstance(image_url_data, dict):
-        raise ValueError(f"No image_url found in response: {content_item}")
-
-    url_str = image_url_data.get("url")
-    if not url_str or not isinstance(url_str, str):
-        raise ValueError(f"No valid URL string in image_url: {image_url_data}")
-
-    # Extract base64 data (format: data:image/png;base64,<data>)
-    img_b64 = url_str.split(",")[-1]
     img_data = base64.b64decode(img_b64)
 
     # Open and save image

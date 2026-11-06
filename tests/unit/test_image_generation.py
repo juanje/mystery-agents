@@ -128,26 +128,48 @@ async def test_generate_image_with_gemini_exponential_backoff(
             assert delays[2] == 0.4
 
 
-def _mock_image_model(content: Any) -> Any:
-    """Patch the shared image model so ainvoke returns a response with this content."""
+def _mock_image_model(content_blocks: list[dict[str, Any]]) -> Any:
+    """Patch the shared image model so ainvoke returns a response with these blocks."""
     mock_llm = MagicMock()
-    mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content=content))
+    mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content_blocks=content_blocks))
     return patch("mystery_agents.utils.image_generation._get_image_model", return_value=mock_llm)
 
 
 @pytest.mark.asyncio
 async def test_call_gemini_image_api_success(
-    tmp_path: Path, mock_google_api_key: None, sample_base64_image: str
+    tmp_path: Path, mock_google_api_key: None, sample_image_data: bytes
 ) -> None:
     """Test successful API call to Gemini."""
     output_path = tmp_path / "test_image.png"
+    image_block = {
+        "type": "image",
+        "base64": base64.b64encode(sample_image_data).decode(),
+        "mime_type": "image/png",
+    }
 
-    with _mock_image_model([{"image_url": {"url": sample_base64_image}}]) as mock_get_model:
+    with _mock_image_model([image_block]) as mock_get_model:
         await _call_gemini_image_api("Test prompt", output_path)
 
     assert output_path.exists()
     assert output_path.stat().st_size > 0
     mock_get_model.return_value.ainvoke.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_call_gemini_image_api_skips_non_image_blocks(
+    tmp_path: Path, mock_google_api_key: None, sample_image_data: bytes
+) -> None:
+    """The image is found even when other blocks (e.g. text) come first."""
+    output_path = tmp_path / "test_image.png"
+    blocks = [
+        {"type": "text", "text": "Here is your portrait"},
+        {"type": "image", "base64": base64.b64encode(sample_image_data).decode()},
+    ]
+
+    with _mock_image_model(blocks):
+        await _call_gemini_image_api("Test prompt", output_path)
+
+    assert output_path.exists()
 
 
 def test_get_image_model_is_shared(mock_google_api_key: None) -> None:
@@ -173,40 +195,22 @@ async def test_call_gemini_image_api_no_api_key(monkeypatch: pytest.MonkeyPatch)
 
 
 @pytest.mark.asyncio
-async def test_call_gemini_image_api_invalid_response_format(
+async def test_call_gemini_image_api_no_image_block(
     tmp_path: Path, mock_google_api_key: None
 ) -> None:
-    """Test that API call raises error for invalid response format."""
-    with _mock_image_model(["not a dict"]):
-        with pytest.raises(ValueError, match="Unexpected response format"):
+    """A response without an image block raises an error naming the block types."""
+    with _mock_image_model([{"type": "text", "text": "I can't draw that"}]):
+        with pytest.raises(ValueError, match=r"No image in model response.*'text'"):
             await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
 
 
 @pytest.mark.asyncio
-async def test_call_gemini_image_api_no_image_url(
+async def test_call_gemini_image_api_image_block_without_data(
     tmp_path: Path, mock_google_api_key: None
 ) -> None:
-    """Test that API call raises error when image_url is missing."""
-    with _mock_image_model([{"not_image_url": "value"}]):
-        with pytest.raises(ValueError, match="No image_url found"):
-            await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
-
-
-@pytest.mark.asyncio
-async def test_call_gemini_image_api_invalid_url_format(
-    tmp_path: Path, mock_google_api_key: None
-) -> None:
-    """Test that API call raises error for invalid URL format."""
-    with _mock_image_model([{"image_url": {"url": 12345}}]):
-        with pytest.raises(ValueError, match="No valid URL string"):
-            await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
-
-
-@pytest.mark.asyncio
-async def test_call_gemini_image_api_missing_url(tmp_path: Path, mock_google_api_key: None) -> None:
-    """Test that API call raises error when URL is missing."""
-    with _mock_image_model([{"image_url": {}}]):
-        with pytest.raises(ValueError, match="No image_url found"):
+    """An image block with no inline base64 data is not accepted."""
+    with _mock_image_model([{"type": "image", "url": "https://example.com/x.png"}]):
+        with pytest.raises(ValueError, match="No image in model response"):
             await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
 
 
