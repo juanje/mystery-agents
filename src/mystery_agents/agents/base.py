@@ -12,6 +12,7 @@ from mystery_agents.models.state import GameState
 from mystery_agents.utils.constants import LANG_CODE_ENGLISH
 from mystery_agents.utils.debug_output import log_model_response
 from mystery_agents.utils.i18n import get_language_name
+from mystery_agents.utils.prompts import FICTION_CONTEXT
 
 
 class StructuredOutputError(ValueError):
@@ -146,7 +147,7 @@ These requirements override any language assumptions in the instructions above.
         # Get base system prompt and inject language instructions if needed
         system_prompt = self.get_system_prompt(state)
         language_injection = self._get_language_injection(state)
-        full_system_prompt = system_prompt + language_injection
+        full_system_prompt = FICTION_CONTEXT + system_prompt + language_injection
 
         messages = [
             SystemMessage(content=full_system_prompt),

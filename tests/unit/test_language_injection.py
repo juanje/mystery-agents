@@ -8,6 +8,7 @@ import pytest
 from mystery_agents.agents.base import BaseAgent
 from mystery_agents.models.state import GameConfig, GameState, MetaInfo
 from mystery_agents.utils.constants import LANG_CODE_ENGLISH, TEST_DEFAULT_DURATION
+from mystery_agents.utils.prompts import FICTION_CONTEXT
 
 
 class MockAgent(BaseAgent):
@@ -169,7 +170,7 @@ class TestInvokeWithLanguageInjection:
         system_message = captured_messages[0]
         assert "Test system prompt" in system_message.content
         assert "CRITICAL LANGUAGE REQUIREMENTS" not in system_message.content
-        assert system_message.content == "Test system prompt"  # Exact match
+        assert system_message.content == FICTION_CONTEXT + "Test system prompt"  # Exact match
 
     def test_injection_is_appended_not_prepended(
         self, mock_llm: MagicMock, spanish_state: GameState

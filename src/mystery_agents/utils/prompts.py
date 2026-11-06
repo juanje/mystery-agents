@@ -9,6 +9,15 @@ from mystery_agents.utils.constants import GAME_TONE_SHORT
 if TYPE_CHECKING:
     from mystery_agents.models.state import VisualStyle
 
+# Prepended to every agent's system prompt. Gemini sometimes refused (block_reason OTHER)
+# prompts and outputs that narrate the killer's actions step by step.
+FICTION_CONTEXT = """CONTEXT: You are writing fiction for a murder mystery party game that friends play at home.
+Every crime, character and event is invented. Describe crimes the way a mystery novel does, at story level
+(who, when, where, why), never as practical instructions: no doses, preparation steps, or how to obtain or
+make a poison or weapon.
+
+"""
+
 # ============================================================================
 # IMAGE GENERATION - SHARED COMPONENTS
 # ============================================================================
