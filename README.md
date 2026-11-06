@@ -251,7 +251,7 @@ See `env.example` for full configuration options.
 
 ### Character Image Generation
 
-**Enabled by default.** Uses Google's Gemini 3.1 Flash Image model.
+**Enabled by default.** Uses Google's Nano Banana 2.1 image model.
 
 **Features:**
 - ✅ Photorealistic portraits coherent with game world
@@ -262,7 +262,7 @@ See `env.example` for full configuration options.
 - ✅ Embedded in PDFs, saved separately
 
 **Cost & Performance:**
-- Model: `gemini-3.1-flash-image` (cost-effective)
+- Model: `gemini-nano-banana-2.1`
 - Typical game: 6-8 images in ~1-2 minutes
 - **Note**: Image generation incurs API costs. Use `--no-images` to skip.
 

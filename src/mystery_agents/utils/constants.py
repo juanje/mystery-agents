@@ -71,7 +71,7 @@ LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
 DRY_RUN_DUMMY_API_KEY = "dry-run-dummy-key"
 
 # Image generation configuration
-IMAGE_GENERATION_MODEL = "models/gemini-3.1-flash-image"
+IMAGE_GENERATION_MODEL = "gemini-nano-banana-2.1"
 IMAGE_GENERATION_TEMPERATURE = 0.6
 IMAGE_GENERATION_MAX_RETRIES = 3
 IMAGE_GENERATION_RETRY_DELAY_BASE = 2.0  # seconds

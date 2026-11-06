@@ -267,7 +267,7 @@ players:
 ```python
 # Developer-defined system defaults
 DEFAULT_RECURSION_LIMIT = 50
-IMAGE_GENERATION_MODEL = "models/gemini-3.1-flash-image"
+IMAGE_GENERATION_MODEL = "gemini-nano-banana-2.1"
 LLM_MODEL_TIER1 = "gemini-3.8-flash"
 LLM_MODEL_TIER2 = "gemini-3.6-flash"
 LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
@@ -483,12 +483,12 @@ if state.config.debug_model:
 
 ### Implementation
 
-Uses **Gemini 3.1 Flash Image** via LangChain:
+Uses **Nano Banana 2.1** via LangChain:
 
 ```python
 # utils/image_generation.py (client shared via functools.cache)
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3.1-flash-image",
+    model="gemini-nano-banana-2.1",
     temperature=0.6,
     response_modalities=["IMAGE"],
 )
