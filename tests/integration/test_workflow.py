@@ -171,3 +171,57 @@ def test_workflow_structure() -> None:
     # but we can verify it compiled without errors
     assert hasattr(workflow, "stream")
     assert hasattr(workflow, "invoke")
+
+
+def test_node_retried_on_structured_output_error(tmp_path: Path) -> None:
+    """A node whose LLM output doesn't fit the schema is retried by the graph."""
+    import yaml
+
+    from mystery_agents.agents.a2_world import WorldAgent
+    from mystery_agents.agents.base import StructuredOutputError
+
+    config_file = tmp_path / "game.yml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "language": "en",
+                "country": "United States",
+                "epoch": "modern",
+                "theme": "family_mansion",
+                "players": {"male": 2, "female": 2},
+                "host_gender": "male",
+            }
+        )
+    )
+    state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_MIN_PLAYERS),
+            duration_minutes=TEST_MIN_DURATION,
+            dry_run=True,
+            generate_images=False,
+            config_file=str(config_file),
+            output_dir=str(tmp_path / "output"),
+        ),
+    )
+
+    original_run = WorldAgent.run
+    calls = 0
+
+    def flaky_run(self: WorldAgent, state: GameState) -> GameState:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise StructuredOutputError("bad sample")
+        return original_run(self, state)
+
+    with (
+        patch.object(WorldAgent, "run", flaky_run),
+        patch(
+            "mystery_agents.agents.a9_packaging.PackagingAgent.run", side_effect=lambda s, **_: s
+        ),
+    ):
+        final = create_workflow().invoke(state, config={"recursion_limit": DEFAULT_RECURSION_LIMIT})
+
+    assert calls == 2
+    assert final["world"] is not None

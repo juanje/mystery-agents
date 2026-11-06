@@ -14,6 +14,10 @@ from mystery_agents.utils.debug_output import log_model_response
 from mystery_agents.utils.i18n import get_language_name
 
 
+class StructuredOutputError(ValueError):
+    """The model response did not match the expected structured output schema."""
+
+
 class BaseAgent(ABC):
     """
     Base class for all agents in the mystery game generation system.
@@ -137,7 +141,7 @@ These requirements override any language assumptions in the instructions above.
             Parsed response_format instance if set, otherwise the raw message content
 
         Raises:
-            ValueError: If the structured output cannot be parsed
+            StructuredOutputError: If the structured output cannot be parsed
         """
         # Get base system prompt and inject language instructions if needed
         system_prompt = self.get_system_prompt(state)
@@ -164,7 +168,7 @@ These requirements override any language assumptions in the instructions above.
             log_model_response(result["raw"], parsed, parsing_error)
 
         if parsed is None:
-            raise ValueError(
+            raise StructuredOutputError(
                 f"The LLM did not return a valid {self.response_format.__name__}: {parsing_error}"
             )
         return parsed

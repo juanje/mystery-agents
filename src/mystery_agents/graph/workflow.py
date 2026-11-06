@@ -3,9 +3,12 @@
 from typing import Any, Literal, cast
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import RetryPolicy
 
+from mystery_agents.agents.base import StructuredOutputError
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import AgentFactory
+from mystery_agents.utils.constants import NODE_MAX_ATTEMPTS
 from mystery_agents.utils.logging_config import AgentLogger
 
 
@@ -294,6 +297,12 @@ def create_workflow() -> Any:
     """
     # Initialize the graph
     graph = StateGraph(GameState)
+
+    # The Gemini client already retries transient HTTP errors. Retry a whole node only
+    # when the model's output doesn't fit the schema: a new sample usually does.
+    graph.set_node_defaults(
+        retry_policy=RetryPolicy(max_attempts=NODE_MAX_ATTEMPTS, retry_on=StructuredOutputError)
+    )
 
     # Add all agent nodes
     graph.add_node("a1_config", a1_config_node)

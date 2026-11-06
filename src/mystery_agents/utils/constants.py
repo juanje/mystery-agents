@@ -29,6 +29,7 @@ ZIP_FILE_PREFIX = "mystery_game_"
 
 # LangGraph configuration
 DEFAULT_RECURSION_LIMIT = 50
+NODE_MAX_ATTEMPTS = 3  # Attempts per node when the LLM output doesn't fit the schema
 
 # Default output directory
 DEFAULT_OUTPUT_DIR = "./output"
