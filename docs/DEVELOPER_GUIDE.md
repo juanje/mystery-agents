@@ -425,8 +425,8 @@ We use **tiered LLMs** based on task complexity:
 
 | Tier | Default Model | Use Case | Examples |
 |------|--------------|----------|----------|
-| **Tier 1** | gemini-3.8-flash | Complex reasoning | World, crime, killer selection, V2 |
-| **Tier 2** | gemini-3.6-flash | Content generation | Style guide, characters, relationships, timeline, content, V1 |
+| **Tier 1** | gemini-3.8-flash | Complex reasoning | World, crime, killer selection, personal timelines, clues and guides (A8), V2, V3 |
+| **Tier 2** | gemini-3.6-flash | Content generation | Style guide, characters, relationships, timeline, V1 |
 | **Tier 3** | gemini-3.5-flash-lite | Quick tasks | Packaging |
 
 ### Why Tiered?

@@ -59,7 +59,7 @@ class ContentGenerationAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the content generation agent."""
-        super().__init__(llm=LLMCache.get_model("tier2"), response_format=A8Output)
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=A8Output)
 
     def get_system_prompt(self, state: GameState) -> str:
         """
