@@ -23,6 +23,7 @@ from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_P
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
     format_personal_timelines,
+    format_retry_feedback,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_scene_room_id,
@@ -347,3 +348,14 @@ def test_format_personal_timelines_shows_claims_only_when_different() -> None:
     assert text.count("claims:") == 1
     assert "claims: Stayed in the kitchen." in text
     assert "observed: Saw Bob." in text
+
+
+def test_format_retry_feedback() -> None:
+    """Rejected attempts get the issues and fixes; nothing is added without issues."""
+    assert format_retry_feedback([], ["ignored"]) == ""
+
+    text = format_retry_feedback(["contradiction: times differ"], ["Use 22:30 everywhere"])
+
+    assert "PREVIOUS ATTEMPT WAS REJECTED" in text
+    assert "- contradiction: times differ" in text
+    assert "- Use 22:30 everywhere" in text

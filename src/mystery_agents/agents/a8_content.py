@@ -18,6 +18,7 @@ from mystery_agents.utils.prompts import A8_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
     format_personal_timelines,
+    format_retry_feedback,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_time_of_death,
@@ -114,6 +115,16 @@ class ContentGenerationAgent(BaseAgent):
             for rel in state.relationships
         ]
 
+        # A retry after V3 must know what was wrong with the previous content
+        report = state.content_validation
+        retry_feedback = (
+            format_retry_feedback(
+                [f"{i.type}: {i.description}" for i in report.issues], report.suggested_fixes
+            )
+            if report and not report.is_consistent
+            else ""
+        )
+
         user_message = f"""Generate ALL written content for this mystery party game:
 
 GAME INFO:
@@ -187,6 +198,7 @@ REQUIREMENTS:
 - Use only evidence that appears in your clues or in the players' observations (personal timelines)
 - Explain every red herring: why that suspect looked guilty and what clears them
 
+{retry_feedback}
 Return the response in the exact JSON format specified in the system prompt.
 """
 

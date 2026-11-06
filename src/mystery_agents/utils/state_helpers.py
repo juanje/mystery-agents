@@ -130,3 +130,27 @@ def format_personal_timelines(state: GameState) -> str:
             lines.extend(f"  observed: {seen}" for seen in event.info_they_observed)
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)
+
+
+def format_retry_feedback(issues: list[str], fixes: list[str]) -> str:
+    """
+    Explain to a retried agent why its previous attempt was rejected.
+
+    Without this, a validation loop just regenerates blindly and tends to repeat
+    the same mistakes.
+
+    Args:
+        issues: Problems found by the validator
+        fixes: Fixes the validator suggested
+
+    Returns:
+        A prompt section, or an empty string when there is nothing to report
+    """
+    if not issues:
+        return ""
+    lines = ["", "PREVIOUS ATTEMPT WAS REJECTED. Fix these problems in this new version:"]
+    lines.extend(f"- {issue}" for issue in issues)
+    if fixes:
+        lines.append("Suggested fixes:")
+        lines.extend(f"- {fix}" for fix in fixes)
+    return "\n".join(lines) + "\n"

@@ -6,6 +6,7 @@ from mystery_agents.models.state import GameState, WorldBible
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import GAME_TONE_STYLE, MOCK_WORLD_NAME
 from mystery_agents.utils.prompts import A2_WORLD_SYSTEM_PROMPT
+from mystery_agents.utils.state_helpers import format_retry_feedback
 
 from .base import BaseAgent
 
@@ -69,6 +70,14 @@ class WorldAgent(BaseAgent):
             else state.config.epoch
         )
 
+        # A retry after V1 must know what was wrong with the previous world
+        report = state.world_validation
+        retry_feedback = (
+            format_retry_feedback(report.issues, report.suggestions)
+            if report and not report.is_coherent
+            else ""
+        )
+
         user_message = f"""Generate a rich, detailed mystery party game world based on these preferences:
 
 CONFIGURATION:
@@ -104,6 +113,7 @@ REQUIREMENTS:
 7. All string fields must have values - do not leave any empty
 8. Visual keywords should reflect the cultural and historical atmosphere
 
+{retry_feedback}
 Return the response in the exact JSON format specified in the system prompt.
 """
 

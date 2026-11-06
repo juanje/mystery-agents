@@ -4,6 +4,7 @@ from mystery_agents.models.state import GameState, GlobalTimeline
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A6_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_retry_feedback,
     safe_get_crime_time_of_death,
     safe_get_crime_victim_name,
     safe_get_world_location_name,
@@ -61,6 +62,16 @@ class TimelineAgent(BaseAgent):
                     rooms_list.append(f"- {room.name} (ID: {room.id})")
 
         time_of_death = safe_get_crime_time_of_death(state)
+        # A retry after V2 must know what was wrong with the previous timeline
+        report = state.validation
+        retry_feedback = (
+            format_retry_feedback(
+                [f"{i.type}: {i.description}" for i in report.issues], report.suggested_fixes
+            )
+            if report and not report.is_consistent
+            else ""
+        )
+
         user_message = f"""Generate a timeline of events for the mystery party game:
 
 SETTING:
@@ -93,6 +104,7 @@ REQUIREMENTS:
 
 The killer will be selected later, so the timeline should work for MULTIPLE possible killers, not just one.
 
+{retry_feedback}
 Return the response in the exact JSON format specified in the system prompt.
 """
 

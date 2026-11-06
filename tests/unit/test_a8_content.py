@@ -11,10 +11,13 @@ from mystery_agents.models.state import (
     CrimeSpec,
     GameConfig,
     GameState,
+    HostGuide,
     KillerSelection,
     MetaInfo,
     MurderMethod,
     PlayerConfig,
+    ValidationIssue,
+    ValidationReport,
     VictimSpec,
     WorldBible,
 )
@@ -379,6 +382,27 @@ def test_user_message_includes_all_context(complete_game_state: GameState) -> No
         assert f"Difficulty: {complete_game_state.config.difficulty}" in user_message
         character = complete_game_state.characters[0]
         assert f"Relation to victim: {character.relation_to_victim}" in user_message
+        assert "PREVIOUS ATTEMPT WAS REJECTED" not in user_message
+
+
+def test_user_message_includes_review_issues_on_retry(complete_game_state: GameState) -> None:
+    """After a failed content review, A8 is told what to fix."""
+    complete_game_state.config.dry_run = False
+    complete_game_state.content_validation = ValidationReport(
+        is_consistent=False,
+        issues=[ValidationIssue(type="spoiler", description="Clue 2 names the killer")],
+        suggested_fixes=["Rename clue 2"],
+    )
+    agent = ContentGenerationAgent()
+    output = A8Output(host_guide=HostGuide(spoiler_free_intro="Intro"), clues=[])
+
+    with patch.object(agent, "invoke", return_value=output) as mock_invoke:
+        agent.run(complete_game_state)
+
+    user_message = mock_invoke.call_args[0][1]
+    assert "PREVIOUS ATTEMPT WAS REJECTED" in user_message
+    assert "- spoiler: Clue 2 names the killer" in user_message
+    assert "- Rename clue 2" in user_message
 
 
 def test_a8_output_schema_has_no_const_fields() -> None:
