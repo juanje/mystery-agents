@@ -8,6 +8,7 @@ import pytest
 from mystery_agents.agents.a9_packaging import PackagingAgent, PdfTask
 from mystery_agents.models.state import (
     CharacterSpec,
+    ClueSpec,
     CrimeScene,
     CrimeSpec,
     DetectiveRole,
@@ -650,3 +651,24 @@ def test_detective_sheet_lists_suspects_accounts(
     assert "Study" not in content
     assert "*Vio*: You saw the butler in the hall." in content
     assert "poison" not in content
+
+
+def test_detective_sheet_numbers_clue_ids(basic_game_state: GameState, tmp_path: Path) -> None:
+    """Internal clue IDs in LLM scripts are replaced with the printed clue number."""
+    basic_game_state.clues = [
+        ClueSpec(id="clue-00105", type="note", title="Letter", description="..."),
+        ClueSpec(id="clue-00106", type="object", title="Bag", description="..."),
+    ]
+    assert basic_game_state.host_guide is not None
+    basic_game_state.host_guide.host_act2_detective_role = DetectiveRole(
+        public_description="Sharp",
+        clues_to_reveal=[],
+        final_solution_script="As (Clue-00106) shows, the bag was moved.",
+    )
+    path = tmp_path / "detective.md"
+
+    PackagingAgent()._write_detective_sheet(basic_game_state, path)
+
+    content = path.read_text(encoding="utf-8")
+    assert "(Pista 2) shows" in content
+    assert "00106" not in content

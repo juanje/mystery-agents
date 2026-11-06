@@ -1,6 +1,7 @@
 """A9: Packaging Agent - Organizes final deliverables."""
 
 import os
+import re
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -427,6 +428,17 @@ ZIP file: {zip_path}
         state.packaging = packaging
         return state
 
+    def _number_clue_references(self, state: GameState, text: str) -> str:
+        """
+        Replace internal clue IDs (e.g. 'clue-00106') with the printed clue number.
+
+        LLM-written scripts sometimes cite clues by ID, which players never see.
+        """
+        clue_word = get_clue_labels(state.config.language)["clue_singular"]
+        for number, clue in enumerate(state.clues, 1):
+            text = re.sub(re.escape(clue.id), f"{clue_word} {number}", text, flags=re.IGNORECASE)
+        return text
+
     def _write_host_guide(self, state: GameState, path: Path) -> None:
         """Write the host guide to a file."""
         if not state.host_guide:
@@ -508,6 +520,7 @@ ZIP file: {zip_path}
 {labels["dramatic_reveal_desc"]}
 """
 
+        content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
 
     def _write_solution(self, state: GameState, path: Path) -> None:
@@ -539,6 +552,7 @@ ZIP file: {zip_path}
 {self._format_timeline(state, labels) if state.timeline_global else labels["no_timeline"]}
 """
 
+        content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
 
     def _format_timeline(self, state: GameState, labels: dict[str, str]) -> str:
@@ -940,6 +954,7 @@ ZIP file: {zip_path}
 - {labels["follow_timing"]}
 """
 
+        content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
 
     def _build_suspects_accounts_section(self, state: GameState, labels: dict[str, str]) -> str:
@@ -1055,6 +1070,7 @@ ZIP file: {zip_path}
 **{labels["see_host_guide"]}**
 """
 
+        content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
 
     def _write_clue_clean(self, state: GameState, clue: Any, path: Path, clue_number: int) -> None:
