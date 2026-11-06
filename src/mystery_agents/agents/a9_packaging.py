@@ -753,6 +753,8 @@ Tu objetivo es **evitar ser descubierto** durante la investigación:
 
 ## {labels["role"]}: {character.role}
 
+**{labels["age"]}**: {character.age_range}
+
 ## {labels["public_description"]}
 
 {character.public_description}

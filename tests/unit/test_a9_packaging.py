@@ -512,3 +512,12 @@ def test_get_game_context_skips_parts_already_in_location(basic_game_state: Game
     _, location_detail = PackagingAgent()._get_game_context(basic_game_state)
 
     assert location_detail == "Hotel Metropole, Las Palmas de Gran Canaria, España"
+
+
+def test_write_character_sheet_shows_age(basic_game_state: GameState, tmp_path: Path) -> None:
+    """The character sheet includes the character's age range."""
+    path = tmp_path / "sheet.md"
+
+    PackagingAgent()._write_character_sheet(basic_game_state, basic_game_state.characters[0], path)
+
+    assert "**Edad**: 30-35" in path.read_text(encoding="utf-8")
