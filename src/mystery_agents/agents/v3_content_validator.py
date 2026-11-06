@@ -2,7 +2,12 @@
 
 import re
 
-from mystery_agents.models.state import GameState, ValidationIssue, ValidationReport
+from mystery_agents.models.state import (
+    CharacterSpec,
+    GameState,
+    ValidationIssue,
+    ValidationReport,
+)
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import V3_CONTENT_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
@@ -17,6 +22,18 @@ from .base import BaseAgent
 
 # Name parts too short or too common to flag on their own (titles, particles)
 MIN_NAME_PART_LENGTH = 4
+
+
+def _name_parts(name: str) -> list[str]:
+    """Distinctive parts of a character name (skips particles and titles like 'de' or 'Dr.')."""
+    return [part for part in re.split(r"[\s.]+", name) if len(part) >= MIN_NAME_PART_LENGTH]
+
+
+def _mentions(text: str, name: str) -> bool:
+    """Whether the text mentions any distinctive part of the name."""
+    return any(
+        re.search(rf"\b{re.escape(part)}\b", text, re.IGNORECASE) for part in _name_parts(name)
+    )
 
 
 def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
@@ -35,10 +52,7 @@ def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
     issues = []
     for clue in state.clues:
         for char in state.characters:
-            parts = [p for p in re.split(r"[\s.]+", char.name) if len(p) >= MIN_NAME_PART_LENGTH]
-            if any(
-                re.search(rf"\b{re.escape(part)}\b", clue.title, re.IGNORECASE) for part in parts
-            ):
+            if _mentions(clue.title, char.name):
                 issues.append(
                     ValidationIssue(
                         type="spoiler",
@@ -48,6 +62,94 @@ def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
                 )
                 break
     return issues
+
+
+def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
+    """
+    Find detective guiding questions that name the killer.
+
+    The host reads these aloud when players are stuck; naming the culprit there
+    hands them the answer.
+
+    Args:
+        state: Current game state with killer selection and host guide
+
+    Returns:
+        One spoiler issue per offending question
+    """
+    guide = state.host_guide
+    detective = guide.host_act2_detective_role if guide else None
+    killer = _killer(state)
+    if not detective or not killer:
+        return []
+    return [
+        ValidationIssue(
+            type="spoiler",
+            description=f"Guiding question names the killer ({killer.name}): '{question}'. Ask about times, places or testimonies instead.",
+            related_ids=[killer.id],
+        )
+        for question in detective.guiding_questions
+        if _mentions(question, killer.name)
+    ]
+
+
+def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
+    """
+    Find clue setups that give the killer away without any deduction.
+
+    Flags a clue that points only at the killer while clearing most other suspects,
+    and a game where more than half the clues point at the killer.
+
+    Args:
+        state: Current game state with killer selection and clues
+
+    Returns:
+        over_obvious issues found
+    """
+    killer = _killer(state)
+    if not killer or not state.clues:
+        return []
+
+    issues = []
+    others = len(state.characters) - 1
+    for number, clue in enumerate(state.clues, 1):
+        clears_most = others > 0 and len(set(clue.exonerates) - {killer.id}) * 2 > others
+        if clue.incriminates == [killer.id] and clears_most:
+            issues.append(
+                ValidationIssue(
+                    type="over_obvious",
+                    description=f"Clue {number} '{clue.title}' points only at the killer and clears most other suspects, so it solves the case alone.",
+                    related_ids=[clue.id, killer.id],
+                )
+            )
+
+    against_killer = sum(1 for clue in state.clues if killer.id in clue.incriminates)
+    if against_killer * 2 > len(state.clues):
+        issues.append(
+            ValidationIssue(
+                type="over_obvious",
+                description=f"{against_killer} of {len(state.clues)} clues point at the killer. Most clues should support red herrings or context.",
+                related_ids=[killer.id],
+            )
+        )
+    return issues
+
+
+def _killer(state: GameState) -> CharacterSpec | None:
+    """The selected killer, if any."""
+    if not state.killer_selection:
+        return None
+    killer_id = state.killer_selection.killer_id
+    return next((char for char in state.characters if char.id == killer_id), None)
+
+
+def find_rule_violations(state: GameState) -> list[ValidationIssue]:
+    """Run every deterministic content check."""
+    return [
+        *find_suspect_names_in_titles(state),
+        *find_killer_in_guiding_questions(state),
+        *find_over_obvious_clues(state),
+    ]
 
 
 class ContentValidatorAgent(BaseAgent):
@@ -166,10 +268,11 @@ Return the response in the exact JSON format specified in the system prompt.
 
         report: ValidationReport = self.invoke(state, user_message)
 
-        title_issues = find_suspect_names_in_titles(state)
-        if title_issues:
+        # Measurable rules are checked in code: the LLM review missed them in real runs
+        rule_issues = find_rule_violations(state)
+        if rule_issues:
             report = report.model_copy(
-                update={"is_consistent": False, "issues": [*report.issues, *title_issues]}
+                update={"is_consistent": False, "issues": [*report.issues, *rule_issues]}
             )
 
         state.content_validation = report

@@ -6,14 +6,20 @@ import pytest
 
 from mystery_agents.agents.v3_content_validator import (
     ContentValidatorAgent,
+    find_killer_in_guiding_questions,
+    find_over_obvious_clues,
+    find_rule_violations,
     find_suspect_names_in_titles,
 )
 from mystery_agents.graph.workflow import should_retry_content_validation
 from mystery_agents.models.state import (
     CharacterSpec,
     ClueSpec,
+    DetectiveRole,
     GameConfig,
     GameState,
+    HostGuide,
+    KillerSelection,
     MetaInfo,
     PlayerConfig,
     ValidationReport,
@@ -94,3 +100,106 @@ def test_should_retry_content_validation(
     state.content_retry_count = retry_count
 
     assert should_retry_content_validation(state) == expected
+
+
+def _game_with_killer() -> GameState:
+    """Four suspects, killer 'Dr. Álvaro Manrique', with a host guide and three clues."""
+    names = ["Dr. Álvaro Manrique", "Elena Ojeda", "Mateo Suárez", "Beatriz Castillo"]
+    return GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_DEFAULT_PLAYERS),
+            duration_minutes=TEST_DEFAULT_DURATION,
+        ),
+        characters=[
+            CharacterSpec(
+                id=f"char-{n}",
+                name=name,
+                gender="male",
+                age_range="40-50",
+                role="Guest",
+                public_description="A guest",
+                relation_to_victim="Friend",
+            )
+            for n, name in enumerate(names)
+        ],
+        killer_selection=KillerSelection(killer_id="char-0", rationale="R", truth_narrative="T"),
+        clues=[
+            ClueSpec(id="c1", type="object", title="Wine glass", description="..."),
+            ClueSpec(
+                id="c2", type="note", title="Deeds", description="...", incriminates=["char-1"]
+            ),
+            ClueSpec(
+                id="c3",
+                type="note",
+                title="Customs log",
+                description="...",
+                incriminates=["char-2"],
+            ),
+        ],
+        host_guide=HostGuide(
+            spoiler_free_intro="Intro",
+            host_act2_detective_role=DetectiveRole(
+                public_description="Sharp",
+                clues_to_reveal=[],
+                final_solution_script="It was him.",
+                guiding_questions=[
+                    "Who was near the library between 22:08 and 22:15?",
+                    "What was the doctor Álvaro doing in the gallery at 22:16?",
+                ],
+            ),
+        ),
+    )
+
+
+def test_find_killer_in_guiding_questions() -> None:
+    """Questions naming the killer are spoilers; neutral ones are fine."""
+    issues = find_killer_in_guiding_questions(_game_with_killer())
+
+    assert len(issues) == 1
+    assert issues[0].type == "spoiler"
+    assert "Álvaro" in issues[0].description
+
+
+def test_find_over_obvious_clue_that_clears_everyone_else() -> None:
+    """A clue pointing only at the killer while clearing the rest solves the case alone."""
+    state = _game_with_killer()
+    state.clues.append(
+        ClueSpec(
+            id="c4",
+            type="object",
+            title="Prescription bottle",
+            description="Found next to the doctor's bag.",
+            incriminates=["char-0"],
+            exonerates=["char-1", "char-2", "char-3"],
+        )
+    )
+
+    issues = find_over_obvious_clues(state)
+
+    assert [issue.type for issue in issues] == ["over_obvious"]
+    assert "Clue 4" in issues[0].description
+
+
+def test_find_over_obvious_when_most_clues_point_at_killer() -> None:
+    """More than half the clues against the killer is too easy."""
+    state = _game_with_killer()
+    state.clues = [
+        ClueSpec(
+            id=f"k{n}", type="note", title=f"Note {n}", description="...", incriminates=["char-0"]
+        )
+        for n in range(3)
+    ] + state.clues[:2]
+
+    issues = find_over_obvious_clues(state)
+
+    assert any("3 of 5 clues point at the killer" in issue.description for issue in issues)
+
+
+def test_balanced_game_has_no_rule_violations() -> None:
+    """A game with neutral titles and questions and balanced clues passes the checks."""
+    state = _game_with_killer()
+    assert state.host_guide is not None and state.host_guide.host_act2_detective_role is not None
+    state.host_guide.host_act2_detective_role.guiding_questions = ["Who was in the corridor?"]
+
+    assert find_rule_violations(state) == []
