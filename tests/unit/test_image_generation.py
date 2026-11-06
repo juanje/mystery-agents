@@ -1,7 +1,6 @@
 """Tests for image generation utilities."""
 
 import base64
-from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -12,6 +11,7 @@ from PIL import Image as PILImage
 
 from mystery_agents.utils.image_generation import (
     _call_gemini_image_api,
+    _get_image_model,
     generate_image_with_gemini,
     get_character_image_output_dir,
 )
@@ -128,6 +128,13 @@ async def test_generate_image_with_gemini_exponential_backoff(
             assert delays[2] == 0.4
 
 
+def _mock_image_model(content: Any) -> Any:
+    """Patch the shared image model so ainvoke returns a response with this content."""
+    mock_llm = MagicMock()
+    mock_llm.ainvoke = AsyncMock(return_value=MagicMock(content=content))
+    return patch("mystery_agents.utils.image_generation._get_image_model", return_value=mock_llm)
+
+
 @pytest.mark.asyncio
 async def test_call_gemini_image_api_success(
     tmp_path: Path, mock_google_api_key: None, sample_base64_image: str
@@ -135,44 +142,26 @@ async def test_call_gemini_image_api_success(
     """Test successful API call to Gemini."""
     output_path = tmp_path / "test_image.png"
 
-    # Create mock response
-    mock_response = MagicMock()
-    mock_response.content = [
-        {
-            "image_url": {
-                "url": sample_base64_image,
-            },
-        },
-    ]
+    with _mock_image_model([{"image_url": {"url": sample_base64_image}}]) as mock_get_model:
+        await _call_gemini_image_api("Test prompt", output_path)
 
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_response
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+    mock_get_model.return_value.ainvoke.assert_awaited_once()
 
-    with patch(
-        "mystery_agents.utils.image_generation.ChatGoogleGenerativeAI",
-        return_value=mock_llm,
-    ) as mock_llm_cls:
-        # Mock asyncio.get_event_loop().run_in_executor to execute the function directly
-        with patch("asyncio.get_event_loop") as mock_loop:
-            loop_instance = MagicMock()
 
-            def mock_run_in_executor(executor: Any, func: Callable[[], Any], *args: Any) -> Any:
-                # Execute the function immediately (synchronously for testing)
-                return func()
+def test_get_image_model_is_shared(mock_google_api_key: None) -> None:
+    """The image client is built once and configured for image output."""
+    _get_image_model.cache_clear()
+    with patch("mystery_agents.utils.image_generation.ChatGoogleGenerativeAI") as mock_cls:
+        first = _get_image_model("key")
+        second = _get_image_model("key")
+    _get_image_model.cache_clear()
 
-            loop_instance.run_in_executor = AsyncMock(side_effect=mock_run_in_executor)
-            mock_loop.return_value = loop_instance
-
-            await _call_gemini_image_api("Test prompt", output_path)
-
-            # Image should be saved
-            assert output_path.exists()
-            assert output_path.stat().st_size > 0
-
-            # Verify LLM was called correctly
-            assert mock_llm.invoke.called
-            # langchain-google-genai v4 takes response_modalities on the constructor
-            assert mock_llm_cls.call_args.kwargs["response_modalities"] == ["IMAGE"]
+    assert first is second
+    mock_cls.assert_called_once()
+    # langchain-google-genai v4 takes response_modalities on the constructor
+    assert mock_cls.call_args.kwargs["response_modalities"] == ["IMAGE"]
 
 
 @pytest.mark.asyncio
@@ -188,30 +177,9 @@ async def test_call_gemini_image_api_invalid_response_format(
     tmp_path: Path, mock_google_api_key: None
 ) -> None:
     """Test that API call raises error for invalid response format."""
-    output_path = tmp_path / "test_image.png"
-
-    # Create mock response with invalid format (not a dict)
-    mock_response = MagicMock()
-    mock_response.content = ["not a dict"]
-
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_response
-
-    with patch(
-        "mystery_agents.utils.image_generation.ChatGoogleGenerativeAI",
-        return_value=mock_llm,
-    ):
-        with patch("asyncio.get_event_loop") as mock_loop:
-            loop_instance = MagicMock()
-
-            def mock_run_in_executor(executor: Any, func: Callable[[], Any], *args: Any) -> Any:
-                return func()
-
-            loop_instance.run_in_executor = AsyncMock(side_effect=mock_run_in_executor)
-            mock_loop.return_value = loop_instance
-
-            with pytest.raises(ValueError, match="Unexpected response format"):
-                await _call_gemini_image_api("Test prompt", output_path)
+    with _mock_image_model(["not a dict"]):
+        with pytest.raises(ValueError, match="Unexpected response format"):
+            await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
 
 
 @pytest.mark.asyncio
@@ -219,30 +187,9 @@ async def test_call_gemini_image_api_no_image_url(
     tmp_path: Path, mock_google_api_key: None
 ) -> None:
     """Test that API call raises error when image_url is missing."""
-    output_path = tmp_path / "test_image.png"
-
-    # Create mock response without image_url
-    mock_response = MagicMock()
-    mock_response.content = [{"not_image_url": "value"}]
-
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_response
-
-    with patch(
-        "mystery_agents.utils.image_generation.ChatGoogleGenerativeAI",
-        return_value=mock_llm,
-    ):
-        with patch("asyncio.get_event_loop") as mock_loop:
-            loop_instance = MagicMock()
-
-            def mock_run_in_executor(executor: Any, func: Callable[[], Any], *args: Any) -> Any:
-                return func()
-
-            loop_instance.run_in_executor = AsyncMock(side_effect=mock_run_in_executor)
-            mock_loop.return_value = loop_instance
-
-            with pytest.raises(ValueError, match="No image_url found"):
-                await _call_gemini_image_api("Test prompt", output_path)
+    with _mock_image_model([{"not_image_url": "value"}]):
+        with pytest.raises(ValueError, match="No image_url found"):
+            await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
 
 
 @pytest.mark.asyncio
@@ -250,59 +197,17 @@ async def test_call_gemini_image_api_invalid_url_format(
     tmp_path: Path, mock_google_api_key: None
 ) -> None:
     """Test that API call raises error for invalid URL format."""
-    output_path = tmp_path / "test_image.png"
-
-    # Create mock response with invalid URL (not a string)
-    mock_response = MagicMock()
-    mock_response.content = [{"image_url": {"url": 12345}}]  # Not a string
-
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_response
-
-    with patch(
-        "mystery_agents.utils.image_generation.ChatGoogleGenerativeAI",
-        return_value=mock_llm,
-    ):
-        with patch("asyncio.get_event_loop") as mock_loop:
-            loop_instance = MagicMock()
-
-            def mock_run_in_executor(executor: Any, func: Callable[[], Any], *args: Any) -> Any:
-                return func()
-
-            loop_instance.run_in_executor = AsyncMock(side_effect=mock_run_in_executor)
-            mock_loop.return_value = loop_instance
-
-            with pytest.raises(ValueError, match="No valid URL string"):
-                await _call_gemini_image_api("Test prompt", output_path)
+    with _mock_image_model([{"image_url": {"url": 12345}}]):
+        with pytest.raises(ValueError, match="No valid URL string"):
+            await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
 
 
 @pytest.mark.asyncio
 async def test_call_gemini_image_api_missing_url(tmp_path: Path, mock_google_api_key: None) -> None:
     """Test that API call raises error when URL is missing."""
-    output_path = tmp_path / "test_image.png"
-
-    # Create mock response with image_url but no url key
-    mock_response = MagicMock()
-    mock_response.content = [{"image_url": {}}]  # Empty dict, no url
-
-    mock_llm = MagicMock()
-    mock_llm.invoke.return_value = mock_response
-
-    with patch(
-        "mystery_agents.utils.image_generation.ChatGoogleGenerativeAI",
-        return_value=mock_llm,
-    ):
-        with patch("asyncio.get_event_loop") as mock_loop:
-            loop_instance = MagicMock()
-
-            def mock_run_in_executor(executor: Any, func: Callable[[], Any], *args: Any) -> Any:
-                return func()
-
-            loop_instance.run_in_executor = AsyncMock(side_effect=mock_run_in_executor)
-            mock_loop.return_value = loop_instance
-
-            with pytest.raises(ValueError, match="No image_url found"):
-                await _call_gemini_image_api("Test prompt", output_path)
+    with _mock_image_model([{"image_url": {}}]):
+        with pytest.raises(ValueError, match="No image_url found"):
+            await _call_gemini_image_api("Test prompt", tmp_path / "test_image.png")
 
 
 def test_get_character_image_output_dir() -> None:

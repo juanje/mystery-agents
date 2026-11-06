@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import functools
 import logging
 import os
 from io import BytesIO
@@ -21,6 +22,17 @@ from mystery_agents.utils.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@functools.cache
+def _get_image_model(api_key: str) -> ChatGoogleGenerativeAI:
+    """Return a shared image generation client (one per API key)."""
+    return ChatGoogleGenerativeAI(
+        model=IMAGE_GENERATION_MODEL,
+        temperature=IMAGE_GENERATION_TEMPERATURE,
+        google_api_key=api_key,
+        response_modalities=["IMAGE"],
+    )
 
 
 async def generate_image_with_gemini(
@@ -67,7 +79,7 @@ async def generate_image_with_gemini(
 
 async def _call_gemini_image_api(prompt: str, output_path: Path) -> None:
     """
-    Call Gemini Image Generation API using Gemini 2.5 Flash Image model.
+    Call the Gemini image generation model configured in IMAGE_GENERATION_MODEL.
 
     Uses LangChain's ChatGoogleGenerativeAI with response_modalities=["IMAGE"]
     to generate images from text prompts.
@@ -85,20 +97,8 @@ async def _call_gemini_image_api(prompt: str, output_path: Path) -> None:
     if not api_key:
         raise ValueError("GOOGLE_API_KEY environment variable not set")
 
-    llm = ChatGoogleGenerativeAI(
-        model=IMAGE_GENERATION_MODEL,
-        temperature=IMAGE_GENERATION_TEMPERATURE,
-        google_api_key=api_key,
-        response_modalities=["IMAGE"],
-    )
-
     message = HumanMessage(content=[{"type": "text", "text": prompt}])
-
-    loop = asyncio.get_event_loop()
-    resp = await loop.run_in_executor(
-        None,
-        lambda: llm.invoke([message]),
-    )
+    resp = await _get_image_model(api_key).ainvoke([message])
 
     # Extract base64 image data from response
     # resp.content is a list, first element should be a dict with image_url
