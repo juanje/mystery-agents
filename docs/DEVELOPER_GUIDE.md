@@ -431,7 +431,10 @@ We use **tiered LLMs** based on task complexity:
 
 ### Structured Output
 
-All agents use Pydantic models for LLM responses:
+All agents use Pydantic models for LLM responses. `BaseAgent` calls
+`llm.with_structured_output(response_format, method="json_schema", include_raw=True)`,
+so Gemini returns JSON constrained by the model's schema (native structured output,
+no function calling):
 
 ```python
 class WorldOutput(BaseModel):
@@ -448,17 +451,25 @@ result = self.invoke(user_message, state.config)
 **Benefits**:
 - Type safety
 - Automatic validation
-- No parsing errors
 - Self-documenting API
 
-### Debug Middleware
+**Schema caveat**: Gemini does not enforce every JSON Schema keyword. In particular
+it ignores `const`, which Pydantic emits for single-value `Literal` fields. Use a
+plain default (not an LLM-facing field) for fixed values; multi-value `Literal`
+enums work fine.
 
-The `--debug` flag logs LLM responses:
+If the response can't be parsed, `BaseAgent.invoke()` raises `ValueError` with the
+parsing error.
+
+### Debug Output
+
+The `--debug` flag prints each raw model response and the parsed output
+(`utils/debug_output.py`):
 
 ```python
 # In BaseAgent.invoke()
-if config.debug_model:
-    logger.info(f"[DEBUG] LLM Response: {response.content}")
+if state.config.debug_model:
+    log_model_response(result["raw"], parsed, parsing_error)
 ```
 
 **Use cases**:
@@ -475,7 +486,7 @@ if config.debug_model:
 Uses **Gemini 3.1 Flash Image** via LangChain:
 
 ```python
-# utils/image_generation.py
+# utils/image_generation.py (client shared via functools.cache)
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.1-flash-image",
     temperature=0.6,
@@ -484,9 +495,10 @@ llm = ChatGoogleGenerativeAI(
 
 message = HumanMessage(content=[{"type": "text", "text": prompt}])
 
-resp = llm.invoke([message])
+resp = await llm.ainvoke([message])
 
-# Extract base64 image and save
+# Pick the first standard image block and save it
+img_b64 = next(b.get("base64") for b in resp.content_blocks if b["type"] == "image")
 ```
 
 ### Async + Retry Logic
@@ -502,10 +514,13 @@ async def generate_image_with_gemini(
         try:
             await _call_gemini_image_api(prompt, output_path)
             return True
-        except Exception:
+        except Exception as e:
             if attempt < max_retries - 1:
                 delay = retry_delay_base * (2**attempt)
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
                 await asyncio.sleep(delay)
+            else:
+                logger.error(f"Failed after {max_retries} attempts: {e}")
     return False
 ```
 
