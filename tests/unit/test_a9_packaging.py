@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mystery_agents.agents.a9_packaging import PackagingAgent
+from mystery_agents.agents.a9_packaging import PackagingAgent, PdfTask
 from mystery_agents.models.state import (
     CharacterSpec,
     CrimeScene,
@@ -405,7 +405,7 @@ def test_generate_all_pdfs_with_tasks(tmp_path: Path) -> None:
     md2.write_text("# Test 2")
     pdf2 = tmp_path / "test2.pdf"
 
-    pdf_tasks = [(md1, pdf1), (md2, pdf2)]
+    pdf_tasks = [PdfTask(md1, pdf1), PdfTask(md2, pdf2, "A6")]
 
     # Mock ProcessPoolExecutor to avoid actual parallel execution in tests
     with patch("mystery_agents.agents.a9_packaging.ProcessPoolExecutor") as mock_executor:
@@ -439,7 +439,7 @@ def test_generate_all_pdfs_with_failures(tmp_path: Path) -> None:
     md1.write_text("# Test 1")
     pdf1 = tmp_path / "test1.pdf"
 
-    pdf_tasks = [(md1, pdf1)]
+    pdf_tasks = [PdfTask(md1, pdf1)]
 
     # Mock ProcessPoolExecutor
     with patch("mystery_agents.agents.a9_packaging.ProcessPoolExecutor") as mock_executor:
@@ -471,7 +471,7 @@ def test_generate_all_pdfs_with_timeout(tmp_path: Path) -> None:
     md1.write_text("# Test 1")
     pdf1 = tmp_path / "test1.pdf"
 
-    pdf_tasks = [(md1, pdf1)]
+    pdf_tasks = [PdfTask(md1, pdf1)]
 
     # Mock ProcessPoolExecutor
     with patch("mystery_agents.agents.a9_packaging.ProcessPoolExecutor") as mock_executor:

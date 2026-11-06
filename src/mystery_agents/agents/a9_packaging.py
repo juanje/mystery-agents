@@ -5,7 +5,7 @@ import zipfile
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, NamedTuple
 
 from mystery_agents.models.state import FileDescriptor, GameState, PackagingInfo
 from mystery_agents.utils.cache import LLMCache
@@ -38,7 +38,21 @@ from mystery_agents.utils.state_helpers import safe_get_world_location_name
 from .base import BaseAgent
 
 
-def _generate_pdf_worker(args: tuple[Path, Path, int, str]) -> tuple[bool, str]:
+class PdfTask(NamedTuple):
+    """A markdown file to render as PDF."""
+
+    md_path: Path
+    pdf_path: Path
+    page_size: Literal["A4", "A6"] = "A4"
+
+
+# Clues are handed to players one by one, so they are printed as cards
+CLUE_CARD_PAGE_SIZE: Literal["A6"] = "A6"
+
+
+def _generate_pdf_worker(
+    args: tuple[Path, Path, int, str, Literal["A4", "A6"]],
+) -> tuple[bool, str]:
     """
     Worker function for parallel PDF generation.
 
@@ -47,7 +61,7 @@ def _generate_pdf_worker(args: tuple[Path, Path, int, str]) -> tuple[bool, str]:
     ProcessPoolExecutor doesn't inherit parent process configuration.
 
     Args:
-        args: Tuple of (markdown_path, pdf_path, verbosity, language)
+        args: Tuple of (markdown_path, pdf_path, verbosity, language, page_size)
 
     Returns:
         Tuple of (success, error_message)
@@ -55,7 +69,7 @@ def _generate_pdf_worker(args: tuple[Path, Path, int, str]) -> tuple[bool, str]:
     import logging
     import warnings
 
-    md_path, pdf_path, verbosity, language = args
+    md_path, pdf_path, verbosity, language, page_size = args
 
     # Configure logging and warnings in worker process
     # Only silence in non-debug modes (verbosity < 2)
@@ -75,7 +89,7 @@ def _generate_pdf_worker(args: tuple[Path, Path, int, str]) -> tuple[bool, str]:
     from mystery_agents.utils.pdf_generator import markdown_to_pdf
 
     try:
-        markdown_to_pdf(md_path, pdf_path, language=language)
+        markdown_to_pdf(md_path, pdf_path, language=language, page_size=page_size)
         return True, ""
     except Exception as e:
         return False, str(e)
@@ -136,7 +150,7 @@ class PackagingAgent(BaseAgent):
 
     def _generate_all_pdfs(
         self,
-        pdf_tasks: list[tuple[Path, Path]],
+        pdf_tasks: list[PdfTask],
         log: AgentLogger,
         language: str = "en",
         max_workers: int = 12,
@@ -145,7 +159,7 @@ class PackagingAgent(BaseAgent):
         Generate all PDFs in parallel using process pool.
 
         Args:
-            pdf_tasks: List of (markdown_path, pdf_path) tuples
+            pdf_tasks: Markdown files to render
             log: Logger instance
             language: Language code for RTL support
             max_workers: Maximum parallel workers (optimized for 16 CPUs)
@@ -161,7 +175,9 @@ class PackagingAgent(BaseAgent):
         # Prepare tasks with verbosity and language setting for workers
         # Each worker process needs to configure its own logging/warnings
         verbosity = log.state.config.verbosity
-        tasks_with_settings = [(md, pdf, verbosity, language) for md, pdf in pdf_tasks]
+        tasks_with_settings = [
+            (task.md_path, task.pdf_path, verbosity, language, task.page_size) for task in pdf_tasks
+        ]
 
         # Use ProcessPoolExecutor directly without asyncio
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -245,7 +261,7 @@ class PackagingAgent(BaseAgent):
         clues_dir.mkdir(exist_ok=True)
 
         # Collect all PDF generation tasks
-        pdf_tasks: list[tuple[Path, Path]] = []
+        pdf_tasks: list[PdfTask] = []
 
         # 1. Host guide (markdown + PDF task)
         if state.host_guide:
@@ -260,7 +276,7 @@ class PackagingAgent(BaseAgent):
             packaging.host_package.append(packaging.host_guide_file)
 
             host_guide_pdf_path = host_dir / f"{host_guide_filename}{PDF_EXT}"
-            pdf_tasks.append((host_guide_md_path, host_guide_pdf_path))
+            pdf_tasks.append(PdfTask(host_guide_md_path, host_guide_pdf_path))
             packaging.host_package.append(
                 FileDescriptor(
                     type="pdf",
@@ -276,7 +292,7 @@ class PackagingAgent(BaseAgent):
             self._write_victim_sheet(state, victim_sheet_md_path)
 
             victim_sheet_pdf_path = players_dir / f"{victim_sheet_filename}{PDF_EXT}"
-            pdf_tasks.append((victim_sheet_md_path, victim_sheet_pdf_path))
+            pdf_tasks.append(PdfTask(victim_sheet_md_path, victim_sheet_pdf_path))
 
         # 2.6. Detective character sheet - goes to /characters/ (markdown + PDF task)
         if state.host_guide and state.host_guide.host_act2_detective_role:
@@ -287,7 +303,7 @@ class PackagingAgent(BaseAgent):
             self._write_detective_sheet(state, detective_sheet_md_path)
 
             detective_sheet_pdf_path = players_dir / f"{detective_sheet_filename}{PDF_EXT}"
-            pdf_tasks.append((detective_sheet_md_path, detective_sheet_pdf_path))
+            pdf_tasks.append(PdfTask(detective_sheet_md_path, detective_sheet_pdf_path))
 
         # 3. Solution (markdown + PDF task)
         solution_filename = get_filename("solution", state.config.language)
@@ -299,7 +315,7 @@ class PackagingAgent(BaseAgent):
         packaging.host_package.append(solution_file)
 
         solution_pdf_path = host_dir / f"{solution_filename}{PDF_EXT}"
-        pdf_tasks.append((solution_path, solution_pdf_path))
+        pdf_tasks.append(PdfTask(solution_path, solution_pdf_path))
         packaging.host_package.append(
             FileDescriptor(
                 type="pdf", name=f"{solution_filename}{PDF_EXT}", path=str(solution_pdf_path)
@@ -318,7 +334,7 @@ class PackagingAgent(BaseAgent):
             self._write_invitation(state, character, invitation_md_path)
 
             invitation_pdf_path = players_dir / f"{char_name_clean}_{invitation_filename}{PDF_EXT}"
-            pdf_tasks.append((invitation_md_path, invitation_pdf_path))
+            pdf_tasks.append(PdfTask(invitation_md_path, invitation_pdf_path))
 
             # Character sheet
             character_sheet_filename = get_filename("character_sheet", state.config.language)
@@ -330,7 +346,7 @@ class PackagingAgent(BaseAgent):
             char_sheet_pdf_path = (
                 players_dir / f"{char_name_clean}_{character_sheet_filename}{PDF_EXT}"
             )
-            pdf_tasks.append((char_sheet_md_path, char_sheet_pdf_path))
+            pdf_tasks.append(PdfTask(char_sheet_md_path, char_sheet_pdf_path))
 
             player_package = FileDescriptor(
                 type="pdf",
@@ -349,7 +365,7 @@ class PackagingAgent(BaseAgent):
             self._write_clue_clean(state, clue, clue_md_path, idx)
 
             clue_pdf_path = clues_dir / f"{clue_word}_{clue_num}{PDF_EXT}"
-            pdf_tasks.append((clue_md_path, clue_pdf_path))
+            pdf_tasks.append(PdfTask(clue_md_path, clue_pdf_path, CLUE_CARD_PAGE_SIZE))
 
         # 6. Clue reference for host (markdown + PDF task)
         clue_ref_filename = get_filename("clue_reference", state.config.language)
@@ -362,7 +378,7 @@ class PackagingAgent(BaseAgent):
         )
 
         clue_ref_pdf_path = host_dir / f"{clue_ref_filename}{PDF_EXT}"
-        pdf_tasks.append((clue_ref_path, clue_ref_pdf_path))
+        pdf_tasks.append(PdfTask(clue_ref_path, clue_ref_pdf_path))
         packaging.host_package.append(
             FileDescriptor(
                 type="pdf", name=f"{clue_ref_filename}{PDF_EXT}", path=str(clue_ref_pdf_path)

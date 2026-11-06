@@ -5,6 +5,7 @@ They are slower than unit tests but ensure the PDF generation works correctly.
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -186,3 +187,27 @@ def test_markdown_to_pdf_with_blockquote(tmp_path: Path) -> None:
     markdown_to_pdf(md_file, output_pdf)
 
     assert output_pdf.exists()
+
+
+def _rendered_html(tmp_path: Path, **kwargs: object) -> str:
+    md_path = tmp_path / "doc.md"
+    md_path.write_text("# Title\n\nText", encoding="utf-8")
+    with patch("mystery_agents.utils.pdf_generator.HTML") as mock_html:
+        markdown_to_pdf(md_path, tmp_path / "doc.pdf", **kwargs)  # type: ignore[arg-type]
+    return str(mock_html.call_args.kwargs["string"])
+
+
+def test_documents_use_a4(tmp_path: Path) -> None:
+    """Regular documents are A4 and keep headings with their content."""
+    html = _rendered_html(tmp_path)
+
+    assert "size: A4" in html
+    assert "size: A6" not in html
+    assert "break-after: avoid" in html
+
+
+def test_cards_use_a6(tmp_path: Path) -> None:
+    """Clue cards get an A6 page on top of the default styles."""
+    html = _rendered_html(tmp_path, page_size="A6")
+
+    assert "size: A6" in html

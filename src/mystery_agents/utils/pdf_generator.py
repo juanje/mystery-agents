@@ -4,6 +4,7 @@ Note: Logging configuration for weasyprint is handled in logging_config.py
 """
 
 from pathlib import Path
+from typing import Literal
 
 import markdown
 from weasyprint import HTML
@@ -14,6 +15,7 @@ def markdown_to_pdf(
     pdf_path: Path,
     css: str | None = None,
     language: str = "en",
+    page_size: Literal["A4", "A6"] = "A4",
 ) -> None:
     """
     Convert a markdown file to a professional PDF.
@@ -23,6 +25,7 @@ def markdown_to_pdf(
         pdf_path: Path where to save the PDF
         css: Optional CSS string for styling
         language: Language code for RTL support (e.g., "he" for Hebrew)
+        page_size: "A4" for documents, "A6" for small cards handed out one by one (clues)
     """
     # Read markdown
     md_content = markdown_path.read_text(encoding="utf-8")
@@ -148,6 +151,22 @@ def markdown_to_pdf(
         }
     """
 
+    # Cards are handed to players one at a time, so they use a small page and compact type
+    card_css = """
+        @page {
+            size: A6;
+            margin: 1cm;
+        }
+        body {
+            font-size: 10pt;
+            line-height: 1.45;
+        }
+        h1 {
+            font-size: 13pt;
+            margin-top: 0;
+        }
+    """
+
     # Determine if RTL language
     is_rtl = language in ["he", "ar"]
 
@@ -155,7 +174,9 @@ def markdown_to_pdf(
     if css:
         final_css = css
     else:
-        final_css = default_css + (rtl_css if is_rtl else "")
+        final_css = (
+            default_css + (card_css if page_size == "A6" else "") + (rtl_css if is_rtl else "")
+        )
 
     # Wrap HTML with styling
     full_html = f"""
