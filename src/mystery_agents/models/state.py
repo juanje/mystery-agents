@@ -599,8 +599,11 @@ class ValidationIssue(BaseModel):
         "over_obvious",
         "too_ambiguous",
         "character_unused",
+        "contradiction",
+        "unsupported_evidence",
+        "spoiler",
     ] = Field(
-        description="Type of validation issue: 'timeline_conflict', 'logic_gap', 'over_obvious', 'too_ambiguous', or 'character_unused'."
+        description="Type of validation issue: 'timeline_conflict', 'logic_gap', 'over_obvious', 'too_ambiguous', 'character_unused', 'contradiction' (documents disagree on a fact), 'unsupported_evidence' (the solution relies on evidence players never get) or 'spoiler' (a text gives the killer away)."
     )
     description: str = Field(
         description="Detailed description of the validation issue (e.g., 'Timeline shows character in two places at once')."
@@ -690,3 +693,6 @@ class GameState(BaseModel):
     max_retries: int = 3
     world_retry_count: int = 0
     max_world_retries: int = 2
+    content_validation: ValidationReport | None = None
+    content_retry_count: int = 0
+    max_content_retries: int = 2

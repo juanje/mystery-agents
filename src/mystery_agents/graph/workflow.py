@@ -217,6 +217,37 @@ def a8_content_node(state: GameState) -> GameState:
     return cast(GameState, result)
 
 
+def v3_content_validator_node(state: GameState) -> GameState:
+    """V3: Content validation node (clues, guide and solution against the story)."""
+    from mystery_agents.agents.v3_content_validator import ContentValidatorAgent
+
+    log = AgentLogger("v3_content_validator", state)
+    current_attempt = state.content_retry_count + 1
+    log.info(
+        f"Reviewing clues and texts (attempt {current_attempt}/{state.max_content_retries + 1})..."
+    )
+
+    agent = AgentFactory.get_agent(ContentValidatorAgent)
+    result = agent.run(state)
+
+    result.content_retry_count = state.content_retry_count + 1
+
+    report = result.content_validation
+    if report and report.is_consistent:
+        log.info("✓ Content review passed")
+        result.content_retry_count = 0
+    elif report:
+        for issue in report.issues:
+            log.warning(f"  {issue.type}: {issue.description}")
+        if result.content_retry_count <= result.max_content_retries:
+            log.warning("⚠ Content review failed - rewriting content")
+        else:
+            # The plot is valid, so a game with imperfect texts beats no game at all
+            log.warning("⚠ Content review still failing - packaging the last version anyway")
+
+    return cast(GameState, result)
+
+
 def a8_5_host_images_node(state: GameState) -> GameState:
     """A8.5: Host character image generation node (victim + detective)."""
     from mystery_agents.agents.a8_5_host_images import HostImageAgent
@@ -314,6 +345,28 @@ def should_retry_validation(state: GameState) -> Literal["pass", "retry", "fail"
     return "fail"
 
 
+def should_retry_content_validation(state: GameState) -> Literal["pass", "retry", "fail"]:
+    """
+    Determine if content validation passed, should retry, or ran out of retries.
+
+    Args:
+        state: Current game state
+
+    Returns:
+        "pass" if validation passed (or there is no report)
+        "retry" if validation failed but retries remain
+        "fail" if max retries exceeded
+    """
+    report = state.content_validation
+    if not report or report.is_consistent:
+        return "pass"
+
+    if state.content_retry_count <= state.max_content_retries:
+        return "retry"
+
+    return "fail"
+
+
 def route_after_game_validation(state: GameState) -> list[str]:
     """
     Route after game logic validation.
@@ -363,6 +416,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_node("a7_5_personal_timelines", a7_5_personal_timelines_node)
     graph.add_node("v2_game_logic_validator", v2_game_logic_validator_node)
     graph.add_node("a8_content", a8_content_node)
+    graph.add_node("v3_content_validator", v3_content_validator_node)
     graph.add_node("a8_5_host_images", a8_5_host_images_node)
     graph.add_node("a9_packaging", a9_packaging_node)
 
@@ -400,7 +454,18 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
         ["a8_content", "a3_5_character_images", "a6_timeline", END],
     )
 
-    graph.add_edge("a8_content", "a8_5_host_images")
+    graph.add_edge("a8_content", "v3_content_validator")
+
+    # Content review loop; after the last retry the game is packaged anyway
+    graph.add_conditional_edges(
+        "v3_content_validator",
+        should_retry_content_validation,
+        {
+            "pass": "a8_5_host_images",
+            "retry": "a8_content",
+            "fail": "a8_5_host_images",
+        },
+    )
     # Packaging waits for both branches
     graph.add_edge(["a8_5_host_images", "a3_5_character_images"], "a9_packaging")
     graph.add_edge("a9_packaging", END)

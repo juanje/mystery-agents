@@ -72,8 +72,10 @@ Config (YAML)
 │ PHASE 4: Content & Packaging                          │
 ├───────────────────────────────────────────────────────┤
 │  A8: Content Generation  ║ A3.5: Character Images     │
-│  A8.5: Host Images       ║   (optional, same step     │
-│                          ║    as A8)                  │
+│  V3: Content Validator   ║   (optional, same step     │
+│    └─ fail → retry A8    ║    as A8)                  │
+│       (max 2 retries)    ║                            │
+│  A8.5: Host Images       ║                            │
 │  A9: Packaging (waits for both branches; PDF + ZIP)   │
 └───────────────────────────────────────────────────────┘
     ↓
@@ -103,7 +105,9 @@ graph TD
     V2 -->|pass| A3_5[A3.5: Character Images]
     V2 -->|retry| A6
     V2 -->|fail| END
-    A8 --> A8_5[A8.5: Host Images]
+    A8 --> V3[V3: Content Validator]
+    V3 -->|pass / out of retries| A8_5[A8.5: Host Images]
+    V3 -->|retry| A8
     A8_5 --> A9[A9: Packaging]
     A3_5 --> A9
     A9 --> END

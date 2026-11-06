@@ -270,3 +270,72 @@ def test_character_images_reach_packaging(tmp_path: Path) -> None:
     characters = packaged[0].characters
     assert characters
     assert all(char.image_path for char in characters)
+
+
+def test_content_rewritten_when_review_fails(tmp_path: Path) -> None:
+    """A failed content review sends the game back to A8 before packaging."""
+    import yaml
+
+    from mystery_agents.agents.a8_content import ContentGenerationAgent
+    from mystery_agents.agents.v3_content_validator import ContentValidatorAgent
+    from mystery_agents.models.state import ValidationIssue, ValidationReport
+
+    config_file = tmp_path / "game.yml"
+    config_file.write_text(
+        yaml.dump(
+            {
+                "language": "en",
+                "country": "United States",
+                "epoch": "modern",
+                "theme": "family_mansion",
+                "players": {"male": 2, "female": 2},
+                "host_gender": "male",
+            }
+        )
+    )
+    state = GameState(
+        meta=MetaInfo(),
+        config=GameConfig(
+            players=PlayerConfig(total=TEST_MIN_PLAYERS),
+            duration_minutes=TEST_MIN_DURATION,
+            dry_run=True,
+            generate_images=False,
+            config_file=str(config_file),
+            output_dir=str(tmp_path / "output"),
+        ),
+    )
+
+    original_content_run = ContentGenerationAgent.run
+    content_calls = 0
+    reviews = 0
+
+    def counting_content_run(self: ContentGenerationAgent, s: GameState) -> GameState:
+        nonlocal content_calls
+        content_calls += 1
+        return original_content_run(self, s)
+
+    def review_failing_once(self: ContentValidatorAgent, s: GameState) -> GameState:
+        nonlocal reviews
+        reviews += 1
+        failed = reviews == 1
+        s.content_validation = ValidationReport(
+            is_consistent=not failed,
+            issues=[ValidationIssue(type="contradiction", description="Times differ")]
+            if failed
+            else [],
+            suggested_fixes=[],
+        )
+        return s
+
+    with (
+        patch.object(ContentGenerationAgent, "run", counting_content_run),
+        patch.object(ContentValidatorAgent, "run", review_failing_once),
+        patch(
+            "mystery_agents.agents.a9_packaging.PackagingAgent.run", side_effect=lambda s, **_: s
+        ),
+    ):
+        final = create_workflow().invoke(state, config={"recursion_limit": DEFAULT_RECURSION_LIMIT})
+
+    assert content_calls == 2
+    assert reviews == 2
+    assert final["content_validation"].is_consistent
