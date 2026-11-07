@@ -380,7 +380,7 @@ class Observation(BaseModel):
         description="ID of the suspect who was seen. Empty when it concerns the victim or nobody in particular.",
     )
     location: str = Field(
-        description="Where the observed person was at that time, with the same place name their own timeline uses for it."
+        description="Where the observed person was at that time, as a readable place name in the game's language, the same one their own timeline uses for it."
     )
     text: str = Field(
         description="What the player reads, in second person: a concrete fact, not a conclusion (e.g., 'You saw Dr. Ross leave the conservatory carrying his bag')."
@@ -393,7 +393,9 @@ class PersonalEvent(BaseModel):
     time: str = Field(
         description="Time or time range in HH:MM format (e.g., '21:30' or '21:30-21:45')."
     )
-    location: str = Field(description="Where the character was (e.g., 'Library', 'Garden').")
+    location: str = Field(
+        description="Where the character was, as a readable place name in the game's language that players will see (e.g., 'Biblioteca'), never an ID like 'main_hall'."
+    )
     claimed_location: str = Field(
         default="",
         description="Where the character says they were. Empty if it's the same as location; required when what_they_will_tell_others places them somewhere else.",
@@ -414,8 +416,9 @@ class PersonalTimeline(BaseModel):
     """A suspect's evening, used for alibis and interrogations."""
 
     character_id: str = Field(description="ID of the suspect. Must match a character ID.")
+    # Required on purpose: Gemini writes required fields first, and when the summary
+    # came before the evening it summarizes, it rambled until it ran out of tokens
     events: list[PersonalEvent] = Field(
-        default_factory=list,
         description="The character's evening in chronological order, covering the whole Act 1 timeline.",
     )
     subjective_narrative: str = Field(
