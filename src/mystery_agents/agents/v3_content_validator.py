@@ -115,6 +115,27 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     ]
 
 
+def drop_questions_naming_killer(state: GameState) -> list[str]:
+    """
+    Remove the detective's guiding questions that name the killer.
+
+    A8 kept writing them in its revisions even after the review flagged them.
+    The questions are only prompts for a stuck table, so losing one is harmless.
+
+    Returns:
+        The removed questions
+    """
+    guide = state.host_guide
+    detective = guide.host_act2_detective_role if guide else None
+    killer = _killer(state)
+    if not detective or not killer:
+        return []
+    shared = _parts_shared_with_others(state, killer.id)
+    removed = [q for q in detective.guiding_questions if _mentions(q, killer.name, ignore=shared)]
+    detective.guiding_questions = [q for q in detective.guiding_questions if q not in removed]
+    return removed
+
+
 def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
     """
     Find clue setups that give the killer away without any deduction.

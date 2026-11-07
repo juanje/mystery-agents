@@ -234,6 +234,11 @@ def a8_content_node(state: GameState) -> GameState:
     agent = AgentFactory.get_agent(ContentGenerationAgent)
     result = agent.run(state)
     log.info(f"✓ Content generated ({len(result.clues)} clues)")
+
+    from mystery_agents.agents.v3_content_validator import drop_questions_naming_killer
+
+    for question in drop_questions_naming_killer(result):
+        log.info(f"Removed a guiding question that names the killer: {question}")
     return cast(GameState, result)
 
 

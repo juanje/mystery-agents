@@ -6,6 +6,7 @@ import pytest
 
 from mystery_agents.agents.v3_content_validator import (
     ContentValidatorAgent,
+    drop_questions_naming_killer,
     find_killer_in_guiding_questions,
     find_over_obvious_clues,
     find_rule_violations,
@@ -259,3 +260,20 @@ def test_title_check_ignores_family_surname(state: GameState) -> None:
     ]
 
     assert find_suspect_names_in_titles(state) == []
+
+
+def test_questions_naming_the_killer_are_dropped() -> None:
+    """Questions that name the killer are removed; the others stay."""
+    state = _game_with_killer()
+    detective = state.host_guide.host_act2_detective_role
+    detective.guiding_questions = [
+        "¿Dónde estaba Manrique a las 22:10?",
+        "¿Quién pasó por el pasillo entre las 22:10 y las 22:20?",
+    ]
+
+    removed = drop_questions_naming_killer(state)
+
+    assert removed == ["¿Dónde estaba Manrique a las 22:10?"]
+    assert detective.guiding_questions == [
+        "¿Quién pasó por el pasillo entre las 22:10 y las 22:20?"
+    ]
