@@ -561,6 +561,25 @@ def find_route_not_followed(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def planned_observation(state: GameState, piece: EvidencePiece) -> Observation | None:
+    """The observation on the holder's sheet that carries a planned piece, if written."""
+    timeline = state.personal_timelines.get(piece.holder_id)
+    planned_at = minutes_in(piece.time)
+    if piece.kind != "observation" or not timeline or not planned_at:
+        return None
+    return next(
+        (
+            seen
+            for event in timeline.events
+            for seen in event.info_they_observed
+            if seen.observed_character_id == piece.about_id
+            and (times := minutes_in(seen.time))
+            and abs(times[0] - planned_at[0]) <= PLANNED_TIME_SLACK_MINUTES
+        ),
+        None,
+    )
+
+
 def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]:
     """
     Find observations the deduction plan assigns that aren't on their holder's sheet.
@@ -579,13 +598,7 @@ def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]
         planned_at = minutes_in(piece.time)
         if piece.kind != "observation" or not timeline or not planned_at:
             continue
-        found = any(
-            seen.observed_character_id == piece.about_id
-            and (times := minutes_in(seen.time))
-            and abs(times[0] - planned_at[0]) <= PLANNED_TIME_SLACK_MINUTES
-            for event in timeline.events
-            for seen in event.info_they_observed
-        )
+        found = planned_observation(state, piece) is not None
         places = _place_at(timeline.events, planned_at[0])
         if found and piece.from_room and places and piece.from_room not in places:
             issues.append(

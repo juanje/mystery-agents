@@ -670,7 +670,8 @@ DETECTIVE AND HOST GUIDE
   finds the body) and add no sound, light or broken object it doesn't have.
 - The solution answers who, why, when, where and how, how the killer built their alibi, and why each red
   herring suspect looked guilty and what clears them. It only cites clues and observations players had,
-  so they recognize every piece, and introduces nothing new. For example: "Elena reached the study by the
+  so they recognize every piece, and introduces nothing new: an observation is one from the TESTIMONY list,
+  credited to its holder at the time written there. For example: "Elena reached the study by the
   service stairs during the eight minutes she left the dining room 'to make a call' at 22:10 (Mateo saw her
   on the stairs, clue 4 shows the call lasted one minute)..."
 

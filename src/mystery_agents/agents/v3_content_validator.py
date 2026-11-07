@@ -20,7 +20,11 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_time_of_death,
     safe_get_crime_victim_name,
 )
-from mystery_agents.utils.timeline_checks import find_timeline_violations, minutes_in
+from mystery_agents.utils.timeline_checks import (
+    TIME_TOLERANCE_MINUTES,
+    find_timeline_violations,
+    minutes_in,
+)
 
 from .base import BaseAgent
 
@@ -384,6 +388,55 @@ def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def _known_minutes(state: GameState) -> list[int]:
+    """Every minute the game's facts give: sheets, observations, shared events, route, clues."""
+    texts = [clue.description for clue in state.clues]
+    for timeline in state.personal_timelines.values():
+        for event in timeline.events:
+            texts.append(event.time)
+            texts.extend(seen.time for seen in event.info_they_observed)
+    if state.timeline_global:
+        murder = state.timeline_global.murder_event
+        texts.extend([murder.time, murder.discovered_at])
+        for block in state.timeline_global.time_blocks:
+            texts.extend([block.start, block.end, *(e.time_approx for e in block.events)])
+    if state.killer_selection:
+        texts.extend(step.time for step in state.killer_selection.route)
+    return [minute for text in texts for minute in minutes_in(text)]
+
+
+def find_solution_times_without_evidence(state: GameState) -> list[ValidationIssue]:
+    """
+    Find times in the reveal that no sheet, clue or shared event has.
+
+    Measured solutions placed the killer back in the salon "at 22:24" or an apron
+    "found at 22:20" that nothing players hold says; the table can't follow those.
+    """
+    guide = state.host_guide
+    detective = guide.host_act2_detective_role if guide else None
+    if not detective or not detective.final_solution_script:
+        return []
+    known = _known_minutes(state)
+    unknown = [
+        minute
+        for minute in dict.fromkeys(minutes_in(detective.final_solution_script))
+        if not any(abs(minute - k) <= TIME_TOLERANCE_MINUTES for k in known)
+    ]
+    if not unknown:
+        return []
+    times = ", ".join(f"{m // 60:02d}:{m % 60:02d}" for m in unknown)
+    return [
+        ValidationIssue(
+            type="logic_gap",
+            description=(
+                f"The final solution cites {times}, which no sheet, clue or shared event has. "
+                "Use the times players hold, from the testimony list and the clues."
+            ),
+            related_ids=[],
+        )
+    ]
+
+
 def _killer(state: GameState) -> CharacterSpec | None:
     """The selected killer, if any."""
     if not state.killer_selection:
@@ -401,6 +454,7 @@ def find_rule_violations(state: GameState) -> list[ValidationIssue]:
         *find_over_obvious_clues(state),
         *find_clues_naming_killer(state),
         *find_clue_objects_worn_by_one(state),
+        *find_solution_times_without_evidence(state),
         *find_timeline_violations(state),
     ]
 

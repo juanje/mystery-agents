@@ -20,6 +20,7 @@ from mystery_agents.utils.state_helpers import (
     format_deduction_plan,
     format_global_timeline,
     format_personal_timelines,
+    format_testimony,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_time_of_death,
@@ -188,6 +189,10 @@ GLOBAL TIMELINE (times and places in every document must match it):
 
 PERSONAL TIMELINES (each player's sheet shows what they did, will claim and observed):
 {format_personal_timelines(state)}
+
+TESTIMONY PLAYERS HOLD (the only observations the solution, the notes and the questions may cite, credited
+to this holder at this time):
+{format_testimony(state)}
 
 RED HERRING MATERIAL - base at least one clue on each innocent suspect's line below, so they look like they had
 OPPORTUNITY (their hidden moment) or MEANS, not just a motive. Their own story or another player's observation

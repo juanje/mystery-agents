@@ -13,6 +13,7 @@ from mystery_agents.agents.v3_content_validator import (
     find_killer_in_guiding_questions,
     find_over_obvious_clues,
     find_rule_violations,
+    find_solution_times_without_evidence,
     find_suspect_names_in_titles,
 )
 from mystery_agents.graph.workflow import (
@@ -399,3 +400,37 @@ def test_incriminating_clue_with_an_object_only_the_victim_wears_is_flagged() ->
     issues = find_clue_objects_worn_by_one(state)
 
     assert len(issues) == 1 and "victim" in issues[0].description
+
+
+def test_solution_times_nothing_players_hold_has_are_flagged() -> None:
+    """22:24 comes from nowhere; 22:10 is on a sheet."""
+    from mystery_agents.models.state import Observation, PersonalEvent, PersonalTimeline
+
+    state = _game_with_killer()
+    state.personal_timelines = {
+        "char-1": PersonalTimeline(
+            character_id="char-1",
+            subjective_narrative="",
+            events=[
+                PersonalEvent(
+                    time="22:00-22:15",
+                    location="Hall",
+                    what_they_really_did="x",
+                    what_they_will_tell_others="x",
+                    info_they_observed=[
+                        Observation(time="22:10", location="Hall", text="You saw him.")
+                    ],
+                )
+            ],
+        )
+    }
+    detective = state.host_guide.host_act2_detective_role
+    detective.final_solution_script = "Elena le vio a las 22:10 y volvió al salón a las 22:24."
+
+    issues = find_solution_times_without_evidence(state)
+
+    assert (
+        len(issues) == 1
+        and "22:24" in issues[0].description
+        and "22:10" not in issues[0].description
+    )

@@ -34,7 +34,7 @@ from mystery_agents.utils.i18n import (
 from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import safe_get_world_location_name
-from mystery_agents.utils.timeline_checks import event_ranges
+from mystery_agents.utils.timeline_checks import event_ranges, planned_observation
 
 from .base import BaseAgent
 
@@ -601,7 +601,7 @@ ZIP file: {zip_path}
 
 ## {labels["truth_narrative"]}
 
-{state.killer_selection.truth_narrative if state.killer_selection else labels["no_truth_narrative"]}
+{self._solution_narrative(state) or labels["no_truth_narrative"]}
 {self._build_deduction_keys(state, labels)}
 ## {labels["timeline_events"]}
 
@@ -610,6 +610,20 @@ ZIP file: {zip_path}
 
         content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
+
+    @staticmethod
+    def _solution_narrative(state: GameState) -> str:
+        """
+        The solution as told at the reveal, written from the finished sheets and clues.
+
+        A7's truth narrative was written before any sheet existed, so it cited sightings
+        nobody ended up holding; it is only the fallback.
+        """
+        guide = state.host_guide
+        detective = guide.host_act2_detective_role if guide else None
+        if detective and detective.final_solution_script:
+            return detective.final_solution_script
+        return state.killer_selection.truth_narrative if state.killer_selection else ""
 
     @staticmethod
     def _build_deduction_keys(state: GameState, labels: dict[str, str]) -> str:
@@ -625,6 +639,13 @@ ZIP file: {zip_path}
         names = {char.id: char.name for char in state.characters}
 
         def piece(p: Any) -> str:
+            # Quote the sheet as players hold it: the plan's wording and minute can differ
+            seen = planned_observation(state, p)
+            if seen:
+                holder = names.get(p.holder_id, p.holder_id)
+                return (
+                    f"“{seen.text}” *({labels['deduction_observation_of']} {holder}, {seen.time})*"
+                )
             source = (
                 f"{labels['deduction_observation_of']} {names.get(p.holder_id, p.holder_id)}"
                 if p.kind == "observation"

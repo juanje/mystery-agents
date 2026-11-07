@@ -181,6 +181,26 @@ def format_killer_route(state: GameState) -> str:
     return "\n".join(f"- {step.time} @ {step.room}: {step.action}" for step in selection.route)
 
 
+def format_testimony(state: GameState) -> str:
+    """
+    Every observation players hold, as their sheets print it, by holder.
+
+    The solution kept crediting sightings to the wrong suspect or minute; this is
+    the list it may cite from.
+    """
+    lines: list[str] = []
+    for char in state.characters:
+        timeline = state.personal_timelines.get(char.id)
+        if not timeline:
+            continue
+        lines.extend(
+            f"- {char.name}, {seen.time}: {seen.text}"
+            for event in timeline.events
+            for seen in event.info_they_observed
+        )
+    return "\n".join(lines) or "No observations"
+
+
 def format_deduction_plan(state: GameState) -> str:
     """
     Render the deduction plan with names: who holds which piece and what it shows.

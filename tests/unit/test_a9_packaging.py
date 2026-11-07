@@ -860,3 +860,39 @@ def test_character_sheet_costume_includes_added_accessories(
     content = _sheet(basic_game_state, tmp_path)
 
     assert "Traje azul, gemelos de oro" in content
+
+
+def test_solution_quotes_the_sheet_and_uses_the_reveal_script(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """The keys quote the observation as printed, and the narrative is the reveal script."""
+    from mystery_agents.models.state import DeductionPlan, EvidencePiece
+
+    _add_evening(basic_game_state, killer=False)
+    basic_game_state.personal_timelines["char-001"].events[0].info_they_observed[
+        0
+    ].observed_character_id = "someone-else"
+    assert basic_game_state.killer_selection is not None
+    piece = EvidencePiece(
+        kind="observation",
+        holder_id="char-001",
+        about_id="someone-else",
+        time="22:05",
+        description="Plan wording",
+    )
+    basic_game_state.killer_selection.deduction_plan = DeductionPlan(
+        breaking_pieces=[piece], means_piece=piece, red_herrings=[]
+    )
+    assert basic_game_state.host_guide is not None
+    basic_game_state.host_guide.host_act2_detective_role = DetectiveRole(
+        public_description="Sharp", clues_to_reveal=[], final_solution_script="Reveal script."
+    )
+    path = tmp_path / "solution.md"
+
+    PackagingAgent()._write_solution(basic_game_state, path)
+
+    content = path.read_text(encoding="utf-8")
+    assert "Reveal script." in content
+    assert "Truth" not in content
+    assert "“You saw the butler in the hall.”" in content
+    assert "Plan wording" not in content
