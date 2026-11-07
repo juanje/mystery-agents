@@ -431,13 +431,18 @@ def drop_excess_killer_sightings(state: GameState) -> list[str]:
     """
     sightings = _killer_sightings(state)
     extra = _witnesses_planned_first(state, list(sightings))[_witness_limit(state) :]
+    trimmed = []
     for char_id in extra:
-        removed = {id(seen) for seen in sightings[char_id]}
+        # A planned means or clearing sighting stays: the solution cites it
+        removed = {id(seen) for seen in sightings[char_id] if not _is_planned(state, char_id, seen)}
+        if not removed:
+            continue
+        trimmed.append(char_id)
         for event in state.personal_timelines[char_id].events:
             event.info_they_observed = [
                 seen for seen in event.info_they_observed if id(seen) not in removed
             ]
-    return extra
+    return trimmed
 
 
 def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:

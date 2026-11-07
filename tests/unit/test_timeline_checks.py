@@ -501,6 +501,23 @@ def test_planned_witnesses_keep_their_sightings(state: GameState) -> None:
     assert drop_excess_killer_sightings(state) == []
 
 
+def test_planned_means_sighting_survives_the_witness_limit(state: GameState) -> None:
+    """A witness beyond the limit keeps the sighting the plan uses as the means piece."""
+    assert state.killer_selection is not None
+    plan = _plan(["ana", "berta"])
+    plan.means_piece = EvidencePiece(
+        kind="observation", holder_id="carla", about_id="killer", time="22:00", description="x"
+    )
+    state.killer_selection.deduction_plan = plan
+    for witness in ("ana", "berta", "carla"):
+        state.personal_timelines[witness].events[1].info_they_observed = [
+            _seen("22:00", "killer", "Study")
+        ]
+
+    assert drop_excess_killer_sightings(state) == []
+    assert state.personal_timelines["carla"].events[1].info_they_observed
+
+
 def test_plans_with_sightings_through_walls_are_rejected(state: GameState) -> None:
     """A planned sighting of the killer must come from a room with a view of their route."""
     from mystery_agents.models.state import HostCharacter, Room, RouteStep, WorldBible
