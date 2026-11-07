@@ -63,9 +63,11 @@ Config (YAML)
 │  A6: Timeline                                         │
 │  A7: Killer Selection                                 │
 │  A7.5: Personal Timelines (alibis, observations)      │
+│    └─ code checks → rewrite flagged suspects once     │
 │  V2: Game Logic Validator ──┐                         │
 │    ├─ pass → continue        │  (Logic Retry Loop)    │
-│    └─ fail → retry A6 ───────┘  (max 3 retries)      │
+│    ├─ sheet issues → A7.5 ───┤  (max 3 retries)      │
+│    └─ other issues → A6 ─────┘                        │
 └───────────────────────────────────────────────────────┘
     ↓
 ┌───────────────────────────────────────────────────────┐
@@ -73,7 +75,10 @@ Config (YAML)
 ├───────────────────────────────────────────────────────┤
 │  A8: Content Generation  ║ A3.5: Character Images     │
 │  V3: Content Validator   ║   (optional, same step     │
-│    └─ fail → retry A8    ║    as A8)                  │
+│    ├─ sheet issues →     ║    as A8)                  │
+│    │  A7.5, then A8      ║                            │
+│    └─ fail → A8 edits    ║                            │
+│       its last version   ║                            │
 │       (max 2 retries)    ║                            │
 │  A8.5: Host Images       ║                            │
 │  A9: Packaging (waits for both branches; PDF + ZIP)   │
@@ -104,10 +109,14 @@ graph TD
     V2 -->|pass| A8[A8: Content Generation]
     V2 -->|pass| A3_5[A3.5: Character Images]
     V2 -->|retry| A6
+    V2 -->|retry, sheet issues| R1[A7.5: Revise Timelines]
+    R1 --> V2
     V2 -->|fail| END
     A8 --> V3[V3: Content Validator]
     V3 -->|pass / out of retries| A8_5[A8.5: Host Images]
     V3 -->|retry| A8
+    V3 -->|retry, sheet issues| R2[A7.5: Revise Timelines]
+    R2 --> A8
     A8_5 --> A9[A9: Packaging]
     A3_5 --> A9
     A9 --> END
