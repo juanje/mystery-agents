@@ -73,18 +73,23 @@ cd mystery-agents
 uv sync
 ```
 
-### 3. Configure API Key
+### 3. Configure API Keys
 
-Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey), then:
+Text is generated with OpenAI by default (GPT-6 Luna) and portraits with Gemini. Get an
+[OpenAI API key](https://platform.openai.com/api-keys), and a [Google AI Studio key](https://aistudio.google.com/apikey)
+if you want images (not needed with `--no-images`). Then:
 
 ```bash
 # Option 1: Create .env file (recommended)
 cp env.example .env
-nano .env  # Add: GOOGLE_API_KEY=your-key-here
+nano .env  # Add: OPENAI_API_KEY=... and GOOGLE_API_KEY=...
 
-# Option 2: Environment variable
-export GOOGLE_API_KEY='your-key-here'
+# Option 2: Environment variables
+export OPENAI_API_KEY='your-openai-key'
+export GOOGLE_API_KEY='your-google-key'
 ```
+
+To generate text with Gemini instead, set `LLM_PROVIDER=google` (then only `GOOGLE_API_KEY` is needed).
 
 ### 4. Generate Your First Game
 
@@ -127,7 +132,7 @@ uv run mystery-agents game.example.yml --dry-run
 - 🖼️ **Character Portraits** - AI-generated images with consistent visual style
 - 🎯 **Visual Style Guide** - Unified aesthetic (color palette, lighting, no text overlays)
 - 🔄 **Parallel Generation** - Fast image creation with rate limiting
-- 🤖 **Google Gemini Integration** - gemini-3.6-flash for logic and content, Nano Banana 2.1 for portraits
+- 🤖 **OpenAI or Gemini for text** - GPT-6 Luna by default (`LLM_PROVIDER=google` for gemini-3.6-flash); Nano Banana 2.1 for portraits
 
 ---
 
@@ -246,16 +251,20 @@ mystery-agents game.yml -vv --debug
 
 Create a `.env` file (or set environment variables):
 ```bash
-# Required
-GOOGLE_API_KEY=your-api-key-here
+# Text provider: openai (default) or google
+LLM_PROVIDER=openai
+OPENAI_API_KEY=your-openai-key   # Text, when LLM_PROVIDER=openai
+GOOGLE_API_KEY=your-google-key   # Portraits, and text when LLM_PROVIDER=google
 
-# Optional: Override LLM models per tier
-LLM_MODEL_TIER1=gemini-3.6-flash       # Plot logic, sheets, written content, reviews
-LLM_MODEL_TIER2=gemini-3.6-flash       # Characters, relationships, timeline
-LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Placeholder: no text agent calls it
+# Optional: Override the provider's model per tier
+LLM_MODEL_TIER1=gpt-6-luna   # Plot logic, sheets, written content, reviews
+LLM_MODEL_TIER2=gpt-6-luna   # Characters, relationships, timeline
+LLM_MODEL_TIER3=gpt-6-luna   # Placeholder: no text agent calls it
+# With LLM_PROVIDER=google the defaults are gemini-3.6-flash (tiers 1-2) and
+# gemini-3.5-flash-lite (tier 3)
 
-# Optional: Override temperatures (unset by default; Gemini 3.6+ models
-# use fixed sampling and ignore them)
+# Optional: Override temperatures (unset by default, so each model keeps its own;
+# Gemini 3.6+ models use fixed sampling and ignore them)
 LLM_TEMPERATURE_TIER1=0.6
 LLM_TEMPERATURE_TIER2=0.7
 LLM_TEMPERATURE_TIER3=0.3
@@ -385,7 +394,7 @@ have issues is packaged anyway.
 ### Tech Stack
 
 - **LangGraph** - Multi-agent workflow orchestration
-- **Google Gemini** - Text and image generation
+- **OpenAI / Google Gemini** - Text (OpenAI by default) and image generation (Gemini)
 - **Pydantic** - Data validation
 - **WeasyPrint** - PDF generation
 - **Python 3.12+** with full type annotations
@@ -420,7 +429,7 @@ uv run ruff check . --fix && uv run ruff format . && uv run mypy src/ && uv run 
 - **Python 3.12+** with type annotations
 - **LangGraph** - Multi-agent workflow orchestration
 - **LangChain** - LLM abstraction and tools
-- **Google Gemini** - Text and image generation
+- **OpenAI / Google Gemini** - Text (OpenAI by default) and image generation (Gemini)
 - **Pydantic v2** - Data validation and modeling
 - **WeasyPrint** - PDF generation from HTML/Markdown
 - **Click** - CLI framework

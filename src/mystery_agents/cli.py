@@ -278,22 +278,34 @@ def generate(
             click.echo("   No game was generated.", err=True)
             sys.exit(130)
         except Exception as e:
-            # Check if it's an API key error (common with Google Gemini)
+            # A missing or wrong key is the most common first-run error, so explain it
             error_message = str(e).lower()
-            if "api key" in error_message or "api_key_invalid" in error_message:
+            if (
+                "api key" in error_message
+                or "api_key" in error_message
+                or "incorrect api key" in error_message
+            ):
+                from mystery_agents.config import api_key_var, get_provider
+
+                key_var = api_key_var()
+                key_url = {
+                    "openai": "https://platform.openai.com/api-keys",
+                    "google": "https://aistudio.google.com/apikey",
+                }[get_provider()]
                 click.echo("\n\n❌ API Key Error", err=True)
                 click.echo("=" * 60, err=True)
-                click.echo("\nThe Google Gemini API key is missing or invalid.", err=True)
+                click.echo(f"\n{key_var} is missing or invalid.", err=True)
                 click.echo("\nTo fix this, choose one of these options:", err=True)
                 click.echo("\n  Option 1: Create a .env file (recommended)", err=True)
                 click.echo("    1. Copy env.example to .env", err=True)
-                click.echo("    2. Edit .env and add your API key", err=True)
+                click.echo(f"    2. Edit .env and set {key_var}", err=True)
                 click.echo("\n  Option 2: Set environment variable", err=True)
-                click.echo("    export GOOGLE_API_KEY='your-api-key-here'", err=True)
-                click.echo("\nTo get an API key:", err=True)
-                click.echo("  1. Visit: https://aistudio.google.com/apikey", err=True)
-                click.echo("  2. Create a new API key", err=True)
-                click.echo("  3. Configure it using one of the options above", err=True)
+                click.echo(f"    export {key_var}='your-api-key-here'", err=True)
+                click.echo(f"\nGet a key at: {key_url}", err=True)
+                click.echo(
+                    "Images always use Gemini: set GOOGLE_API_KEY too unless you pass --no-images.",
+                    err=True,
+                )
                 click.echo("\n💡 Tip: Use --dry-run flag to test without API calls:", err=True)
                 click.echo("  mystery-agents game.yml --dry-run", err=True)
                 click.echo("\n" + "=" * 60, err=True)

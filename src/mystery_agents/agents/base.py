@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel
 
+from mystery_agents.config import structured_output
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.constants import LANG_CODE_ENGLISH
 from mystery_agents.utils.debug_output import log_model_response
@@ -37,13 +38,8 @@ class BaseAgent(ABC):
         self.llm = llm
         self.response_format = response_format
 
-        # Agents call no tools, so a plain structured-output call is enough. Native JSON
-        # schema output avoids function calling; include_raw keeps the raw message for
-        # debugging and for reporting parsing failures.
         self.runnable: Runnable[Any, Any] = (
-            llm.with_structured_output(response_format, method="json_schema", include_raw=True)
-            if response_format
-            else llm
+            structured_output(llm, response_format) if response_format else llm
         )
 
     @abstractmethod
@@ -177,9 +173,7 @@ These requirements override any language assumptions in the instructions above.
         runnable: Runnable[Any, Any] = (
             self.runnable
             if response_format is self.response_format or response_format is None
-            else self.llm.with_structured_output(
-                response_format, method="json_schema", include_raw=True
-            )
+            else structured_output(self.llm, response_format)
         )
         result = runnable.invoke(messages)
 

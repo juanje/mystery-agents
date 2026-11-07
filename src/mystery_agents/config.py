@@ -1,26 +1,25 @@
 """LLM configuration for multi-tier agent system."""
 
 import os
-from typing import Literal
+from typing import Any, Literal
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.runnables import Runnable
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
 
 from mystery_agents.utils.constants import (
     DRY_RUN_DUMMY_API_KEY,
-    LLM_MODEL_TIER1,
-    LLM_MODEL_TIER2,
-    LLM_MODEL_TIER3,
+    LLM_API_KEY_VARS,
+    LLM_MODELS,
+    LLM_PROVIDER_DEFAULT,
     LLM_REQUEST_TIMEOUT,
 )
 
 Tier = Literal["tier1", "tier2", "tier3"]
-
-DEFAULT_MODELS: dict[Tier, str] = {
-    "tier1": LLM_MODEL_TIER1,
-    "tier2": LLM_MODEL_TIER2,
-    "tier3": LLM_MODEL_TIER3,
-}
+Provider = Literal["openai", "google"]
+PROVIDERS: tuple[Provider, ...] = ("openai", "google")
 
 
 def _optional_temperature(env_var: str) -> float | None:
@@ -29,17 +28,46 @@ def _optional_temperature(env_var: str) -> float | None:
     return float(value) if value else None
 
 
+def get_provider() -> Provider:
+    """
+    The text provider chosen with LLM_PROVIDER ("openai" or "google").
+
+    Raises:
+        ValueError: If LLM_PROVIDER names another provider
+    """
+    provider = os.getenv("LLM_PROVIDER", LLM_PROVIDER_DEFAULT).strip().lower()
+    if provider not in PROVIDERS:
+        raise ValueError(f"LLM_PROVIDER must be one of {', '.join(PROVIDERS)}, not {provider!r}")
+    return provider
+
+
+def api_key_var() -> str:
+    """Name of the environment variable with the active text provider's API key."""
+    return LLM_API_KEY_VARS[get_provider()]
+
+
+def structured_output(llm: BaseChatModel, schema: type[BaseModel]) -> Runnable[Any, Any]:
+    """
+    Wrap a model so it answers with the given schema, keeping the raw message.
+
+    Native JSON schema output avoids function calling (agents call no tools), and
+    include_raw keeps the raw message for debugging and for reporting parsing
+    failures. OpenAI runs it in strict mode, which guarantees the answer follows the
+    schema; every game schema was checked to work that way.
+    """
+    if isinstance(llm, ChatOpenAI):
+        return llm.with_structured_output(
+            schema, method="json_schema", include_raw=True, strict=True
+        )
+    return llm.with_structured_output(schema, method="json_schema", include_raw=True)
+
+
 class LLMConfig:
     """
     Abstracts LLM configuration for multi-tier agent system.
 
-    Provides a clean abstraction layer that allows switching between different
-    LLM providers without changing agent code.
-
-    Currently uses Google Gemini models. To switch to other providers:
-    - OpenAI: from langchain_openai import ChatOpenAI
-    - Anthropic: from langchain_anthropic import ChatAnthropic
-    - Ollama: from langchain_ollama import ChatOllama
+    Agents get a provider-agnostic BaseChatModel; LLM_PROVIDER chooses OpenAI (the
+    default) or Google Gemini for every text tier. Image generation always uses Gemini.
     """
 
     @staticmethod
@@ -65,21 +93,28 @@ class LLMConfig:
             Model names and temperatures can be overridden via environment variables:
             - LLM_MODEL_TIER1, LLM_MODEL_TIER2, LLM_MODEL_TIER3
             - LLM_TEMPERATURE_TIER1, LLM_TEMPERATURE_TIER2, LLM_TEMPERATURE_TIER3
-            Default model names are configured in constants.py. Temperature is not
-            sent unless overridden: Gemini 3.6+ models use fixed sampling defaults
-            and ignore custom sampling parameters.
+            Default model names per provider are configured in constants.py. Temperature
+            is not sent unless overridden: Gemini 3.6+ models use fixed sampling
+            defaults and ignore custom sampling parameters.
         """
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            # In dry_run mode, agents use mocks, so API key not needed
-            # Use a dummy key that will fail gracefully if actually used
-            api_key = DRY_RUN_DUMMY_API_KEY
-
+        provider = get_provider()
+        # In dry_run mode agents use mocks, so a dummy key is enough; it fails if used
+        api_key = os.getenv(LLM_API_KEY_VARS[provider]) or DRY_RUN_DUMMY_API_KEY
         number = tier.removeprefix("tier")
+        model = os.getenv(f"LLM_MODEL_TIER{number}", LLM_MODELS[provider][tier])
+        # None keeps the model's own default
+        temperature = _optional_temperature(f"LLM_TEMPERATURE_TIER{number}")
+
+        if provider == "openai":
+            return ChatOpenAI(
+                model=model,
+                api_key=api_key,  # type: ignore[arg-type]
+                temperature=temperature,
+                timeout=LLM_REQUEST_TIMEOUT,
+            )
         return ChatGoogleGenerativeAI(
-            model=os.getenv(f"LLM_MODEL_TIER{number}", DEFAULT_MODELS[tier]),
+            model=model,
             google_api_key=api_key,
-            # None keeps the model's own default
-            temperature=_optional_temperature(f"LLM_TEMPERATURE_TIER{number}"),
+            temperature=temperature,
             timeout=LLM_REQUEST_TIMEOUT,
         )

@@ -39,12 +39,23 @@ GAME_TONE_DESCRIPTION = (
 )
 GAME_TONE_STYLE = "mystery_party"  # Short tone label for prompts
 
-# LLM model configuration
-# gemini-3.8-flash was tried for tier 1, but in real runs it took minutes per call and
-# often refused prompts (block_reason OTHER); 3.6-flash is stable and fast for the same work.
-LLM_MODEL_TIER1 = "gemini-3.6-flash"
-LLM_MODEL_TIER2 = "gemini-3.6-flash"
-LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
+# LLM model configuration: text models per provider and tier (LLM_PROVIDER picks the
+# provider, LLM_MODEL_TIER1..3 override a tier). Images always use Gemini (see below).
+LLM_PROVIDER_DEFAULT = "openai"
+LLM_MODELS = {
+    # Fast and cheap enough to iterate on the generator; a tier can move to gpt-6-sol
+    # if a measured batch shows it needs more
+    "openai": {"tier1": "gpt-6-luna", "tier2": "gpt-6-luna", "tier3": "gpt-6-luna"},
+    # gemini-3.8-flash was tried for tier 1, but in real runs it took minutes per call and
+    # often refused prompts (block_reason OTHER); 3.6-flash is stable and fast for the same work.
+    "google": {
+        "tier1": "gemini-3.6-flash",
+        "tier2": "gemini-3.6-flash",
+        "tier3": "gemini-3.5-flash-lite",
+    },
+}
+# Environment variable holding each provider's API key
+LLM_API_KEY_VARS = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
 # Seconds per request. Without a timeout a dropped connection (e.g. the laptop
 # going to sleep) hangs the run forever; failing lets the user --resume it.
 # google-genai also sends it as the server deadline (X-Server-Timeout), so it must

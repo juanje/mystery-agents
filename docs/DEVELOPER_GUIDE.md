@@ -295,9 +295,8 @@ players:
 # Developer-defined system defaults
 DEFAULT_RECURSION_LIMIT = 50
 IMAGE_GENERATION_MODEL = "gemini-nano-banana-2.1"
-LLM_MODEL_TIER1 = "gemini-3.6-flash"
-LLM_MODEL_TIER2 = "gemini-3.6-flash"
-LLM_MODEL_TIER3 = "gemini-3.5-flash-lite"
+LLM_PROVIDER_DEFAULT = "openai"
+LLM_MODELS = {"openai": {"tier1": "gpt-6-luna", ...}, "google": {"tier1": "gemini-3.6-flash", ...}}
 IMAGE_GENERATION_MAX_CONCURRENT = 5
 ```
 
@@ -312,10 +311,12 @@ IMAGE_GENERATION_MAX_CONCURRENT = 5
 
 ```bash
 # .env file
-GOOGLE_API_KEY=xxx           # Required
-LLM_MODEL_TIER1=gemini-3.6-flash    # Optional override
-LLM_MODEL_TIER2=gemini-3.6-flash
-LLM_MODEL_TIER3=gemini-3.5-flash-lite
+LLM_PROVIDER=openai          # Text provider: openai (default) or google
+OPENAI_API_KEY=xxx           # Text with openai
+GOOGLE_API_KEY=xxx           # Portraits (always Gemini), and text with google
+LLM_MODEL_TIER1=gpt-6-luna   # Optional override of the provider's default
+LLM_MODEL_TIER2=gpt-6-luna
+LLM_MODEL_TIER3=gpt-6-luna
 ```
 
 Loaded via `python-dotenv` in `cli.py`, accessed via `os.getenv()` in `config.py`.
@@ -433,13 +434,14 @@ def my_node(state: GameState) -> GameState:
 
 ### Three-Tier System
 
-We use **tiered LLMs** based on task complexity:
+We use **tiered LLMs** based on task complexity. `LLM_PROVIDER` picks the provider for every
+text tier (`config.py`); images always use Gemini (`utils/image_generation.py`).
 
-| Tier | Default Model | Use Case | Examples |
-|------|--------------|----------|----------|
-| **Tier 1** | gemini-3.6-flash | Complex reasoning | World, crime, killer selection, presence grid, personal timelines, clues, guide and solution (A8), V2, V3 |
-| **Tier 2** | gemini-3.6-flash | Content generation | Visual style, characters, relationships, timeline, V1 |
-| **Tier 3** | gemini-3.5-flash-lite | Never called | Placeholder for the image agents and packaging, which don't call a text model |
+| Tier | OpenAI (default) | Google | Use Case | Examples |
+|------|------------------|--------|----------|----------|
+| **Tier 1** | gpt-6-luna | gemini-3.6-flash | Complex reasoning | World, crime, killer selection, presence grid, personal timelines, clues, guide and solution (A8), V2, V3 |
+| **Tier 2** | gpt-6-luna | gemini-3.6-flash | Content generation | Visual style, characters, relationships, timeline, V1 |
+| **Tier 3** | gpt-6-luna | gemini-3.5-flash-lite | Never called | Placeholder for the image agents and packaging, which don't call a text model |
 
 ### Why Tiered?
 
@@ -449,10 +451,11 @@ We use **tiered LLMs** based on task complexity:
 
 ### Structured Output
 
-All agents use Pydantic models for LLM responses. `BaseAgent` calls
-`llm.with_structured_output(response_format, method="json_schema", include_raw=True)`,
-so Gemini returns JSON constrained by the model's schema (native structured output,
-no function calling):
+All agents use Pydantic models for LLM responses. `BaseAgent` wraps the model with
+`config.structured_output()`, which calls `with_structured_output(..., method="json_schema",
+include_raw=True)`, in strict mode for OpenAI, so the model returns JSON constrained by the
+schema (native structured output, no function calling). `tests/unit/test_llm_config.py`
+checks that every response schema converts to OpenAI's strict format:
 
 ```python
 class WorldOutput(BaseModel):
