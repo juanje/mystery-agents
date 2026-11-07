@@ -470,7 +470,7 @@ ZIP file: {zip_path}
 ## {labels["setup_instructions"]}
 
 {chr(10).join(f"- {instruction}" for instruction in hg.setup_instructions)}
-
+{self._build_house_section(state, labels)}
 ## {labels["your_role_act1"]}
 
 **{labels["see_victim_sheet"]}**
@@ -886,7 +886,7 @@ ZIP file: {zip_path}
 ## {labels["relationships"]}
 
 {relationships_content}
-{self._build_evening_section(state, character, labels)}{killer_section}
+{self._build_house_section(state, labels)}{self._build_evening_section(state, character, labels)}{killer_section}
 ---
 
 {labels["remember_secrets"]}
@@ -968,6 +968,32 @@ ZIP file: {zip_path}
 
         content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
+
+    @staticmethod
+    def _build_house_section(state: GameState, labels: dict[str, str]) -> str:
+        """
+        Build 'The house' section from the floor plan.
+
+        Players compare sightings in Act 2, and that only works if they all know
+        which rooms connect and what can be seen from where.
+        """
+        if not state.world or not state.world.rooms:
+            return ""
+        lines = []
+        for room in state.world.rooms:
+            line = f"- **{room.name}** ({room.floor}): {room.description}"
+            if room.connects_to:
+                line += f" *{labels['house_connects_to']}*: {', '.join(room.connects_to)}."
+            if room.can_see:
+                line += f" *{labels['house_can_see']}*: {', '.join(room.can_see)}."
+            lines.append(line)
+        return f"""
+## {labels["house_title"]}
+
+*{labels["house_hint"]}*
+
+{chr(10).join(lines)}
+"""
 
     def _build_suspects_accounts_section(self, state: GameState, labels: dict[str, str]) -> str:
         """
@@ -1055,7 +1081,7 @@ ZIP file: {zip_path}
 ### {labels["intro_script"]}
 
 {state.host_guide.act_2_intro_script or labels["no_act2_intro"]}
-{self._build_suspects_accounts_section(state, labels)}
+{self._build_house_section(state, labels)}{self._build_suspects_accounts_section(state, labels)}
 ## {labels["guiding_questions"]}
 
 {chr(10).join(f"- {question}" for question in detective.guiding_questions) if detective.guiding_questions else f"- {labels['no_description']}"}

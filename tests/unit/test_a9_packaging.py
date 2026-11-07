@@ -701,3 +701,27 @@ def test_evening_section_shows_claimed_location_for_unaware_killer(
 
     assert "**22:00** · Cloakroom: You went to fetch your shawl." in content
     assert "Study" not in content
+
+
+def test_character_sheet_shows_the_house(basic_game_state: GameState, tmp_path: Path) -> None:
+    """Players get the floor plan so they can check who could have seen what."""
+    from mystery_agents.models.state import Room
+
+    state = basic_game_state
+    assert state.world is not None
+    state.world.rooms = [
+        Room(
+            name="Biblioteca",
+            floor="Planta baja",
+            description="Estanterías y un escritorio.",
+            connects_to=["Despacho"],
+            can_see=["Jardín"],
+        )
+    ]
+
+    sheet = _sheet(state, tmp_path)
+
+    assert "## La casa" in sheet
+    assert "**Biblioteca** (Planta baja)" in sheet
+    assert "*Comunica con*: Despacho." in sheet
+    assert "*Desde aquí se ve*: Jardín." in sheet
