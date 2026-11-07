@@ -17,6 +17,7 @@ from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_P
 from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
     event_ranges,
+    find_absent_from_shared_events,
     find_impossible_sightings,
     find_killer_sheet_stands_out,
     find_misplaced_observations,
@@ -296,3 +297,63 @@ def test_unaware_killer_looks_from_the_place_their_sheet_shows(state: GameState)
     issues = find_impossible_sightings(state)
 
     assert [issue.related_ids for issue in issues] == [["killer"]]
+
+
+def test_suspects_must_be_where_shared_events_put_them(state: GameState) -> None:
+    """Dinner at 21:30 with Ana: her sheet can't have her elsewhere; the finder must be there too."""
+    from mystery_agents.models.state import (
+        GlobalEvent,
+        GlobalTimeline,
+        HostCharacter,
+        MurderEvent,
+        Room,
+        TimeBlock,
+        WorldBible,
+    )
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name=n, floor="0", description="x", connects_to=[])
+            for n in ("Dining room", "Library", "Study")
+        ],
+    )
+    state.timeline_global = GlobalTimeline(
+        time_blocks=[
+            TimeBlock(
+                start="21:00",
+                end="22:00",
+                events=[
+                    GlobalEvent(
+                        time_approx="21:30",
+                        description="Dinner",
+                        character_ids_involved=["ana", "berta"],
+                        room_id="Dining room",
+                    )
+                ],
+            )
+        ],
+        murder_event=MurderEvent(
+            time="22:10",
+            room="Study",
+            what_happens="x",
+            heard_elsewhere="",
+            heard_in=[],
+            scene_when_found="x",
+            discovered_at="22:15",
+            discovered_by=["killer"],
+        ),
+    )
+
+    issues = find_absent_from_shared_events(state)
+
+    # Ana and Berta are in the dining room at 21:30; the killer is in the study at 22:15
+    assert issues == []
+
+    state.timeline_global.murder_event.discovered_by = ["ana"]
+    assert [issue.related_ids for issue in find_absent_from_shared_events(state)] == [["ana"]]

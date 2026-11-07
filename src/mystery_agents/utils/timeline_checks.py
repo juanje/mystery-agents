@@ -195,6 +195,61 @@ def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def _place_at(events: list[PersonalEvent], minute: int) -> list[str]:
+    """Where someone really is at a time, by their own timeline."""
+    return [
+        event.location
+        for event, span in zip(events, event_ranges(events), strict=True)
+        if span and _covers(span, minute)
+    ]
+
+
+def find_absent_from_shared_events(state: GameState) -> list[ValidationIssue]:
+    """
+    Find suspects whose sheet puts them elsewhere during a shared event they're part of.
+
+    The global timeline's events and the discovery of the body are what every sheet
+    is built around; a sheet that misses one contradicts everyone else's.
+    """
+    if not state.timeline_global or not state.world or not state.world.rooms:
+        return []
+    names = {char.id: char.name for char in state.characters}
+    murder = state.timeline_global.murder_event
+    shared = [
+        (event.time_approx, event.room_id, event.character_ids_involved, event.description)
+        for block in state.timeline_global.time_blocks
+        for event in block.events
+        if event.room_id
+    ]
+    shared.append((murder.discovered_at, murder.room, murder.discovered_by, "the body is found"))
+    rooms = {room.name for room in state.world.rooms}
+    issues = []
+    for time, room, char_ids, description in shared:
+        times = _minutes(time)
+        if not times or room not in rooms:
+            continue
+        for char_id in char_ids:
+            timeline = state.personal_timelines.get(char_id)
+            if not timeline:
+                continue
+            places = _place_at(timeline.events, times[0])
+            if places and room not in places:
+                issues.append(
+                    ValidationIssue(
+                        type="timeline_conflict",
+                        description=(
+                            f"The shared timeline has {names.get(char_id, char_id)} in {room} at "
+                            f"{time} ({description}), but their sheet puts them in "
+                            f"{' / '.join(dict.fromkeys(places))}. Put them in {room} then, "
+                            "remembering that moment as everyone else does."
+                        ),
+                        related_ids=[char_id],
+                        fix_in="timelines",
+                    )
+                )
+    return issues
+
+
 def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
     """
     Observations of the killer during the moments they hide, by innocent witness.
@@ -332,6 +387,7 @@ def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
         *find_observation_time_errors(state),
         *find_misplaced_observations(state),
         *find_impossible_sightings(state),
+        *find_absent_from_shared_events(state),
         *find_too_many_killer_witnesses(state),
         *find_killer_sheet_stands_out(state),
     ]
