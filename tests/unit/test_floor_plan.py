@@ -63,6 +63,16 @@ def test_connections_work_both_ways_and_unknown_rooms_are_dropped() -> None:
     assert rooms["Salón"].can_see == ["Jardín"]
 
 
+def test_html_entities_in_room_names_are_decoded() -> None:
+    """Room names reach every sheet, so escaped accents must be turned back into letters."""
+    state = _state([_room("Sal&oacute;n", ["Despacho"]), _room("Despacho", ["Sal&oacute;n"])])
+
+    world = normalize_floor_plan(state.world)
+
+    assert [room.name for room in world.rooms] == ["Salón", "Despacho"]
+    assert world.rooms[1].connects_to == ["Salón"]
+
+
 def test_rooms_are_found_ignoring_case_and_accents() -> None:
     """Agents can write 'despacho' or 'Despacho'; both are the plan's room."""
     state = _state([_room("Despacho", [])])

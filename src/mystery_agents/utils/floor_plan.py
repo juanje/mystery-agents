@@ -4,6 +4,7 @@ Without it, each agent invented its own corridors and sight lines, and the
 suspects' sheets disagreed on who could see whom from where.
 """
 
+import html
 import unicodedata
 
 from mystery_agents.models.state import GameState, Room, WorldBible
@@ -24,6 +25,14 @@ def normalize_floor_plan(world: WorldBible) -> WorldBible:
     """
     rooms: dict[str, Room] = {}
     for room in world.rooms:
+        # Gemini sometimes escapes accents as HTML entities ("Sal&oacute;n")
+        room = room.model_copy(
+            update={
+                "name": html.unescape(room.name).strip(),
+                "connects_to": [html.unescape(link) for link in room.connects_to],
+                "can_see": [html.unescape(link) for link in room.can_see],
+            }
+        )
         rooms.setdefault(_key(room.name), room)
     names = {key: room.name for key, room in rooms.items()}
 
