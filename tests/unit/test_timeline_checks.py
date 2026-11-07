@@ -25,6 +25,7 @@ from mystery_agents.utils.timeline_checks import (
     find_impossible_planned_sightings,
     find_impossible_sightings,
     find_killer_sheet_stands_out,
+    find_killer_sheet_thin,
     find_misplaced_observations,
     find_missing_planned_observations,
     find_murder_heard_out_of_range,
@@ -631,3 +632,19 @@ def test_unaware_killer_must_hold_an_observation(state: GameState) -> None:
         )
     ]
     assert find_plan_problems(state) == []
+
+
+def test_unaware_killer_with_fewer_observations_than_anyone_is_flagged(state: GameState) -> None:
+    """Every innocent sees someone; a killer who sees nobody stands out."""
+    state.config.killer_knows_identity = False
+    for char_id in ("ana", "berta", "carla"):
+        state.personal_timelines[char_id].events[0].info_they_observed = [
+            _seen("21:10", "killer", "Dining room")
+        ]
+
+    assert [issue.related_ids for issue in find_killer_sheet_thin(state)] == [["killer"]]
+
+    state.personal_timelines["killer"].events[0].info_they_observed = [
+        _seen("21:10", "ana", "Dining room")
+    ]
+    assert find_killer_sheet_thin(state) == []

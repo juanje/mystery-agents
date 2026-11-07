@@ -769,6 +769,44 @@ def find_killer_sheet_stands_out(state: GameState) -> list[ValidationIssue]:
     ]
 
 
+def find_killer_sheet_thin(state: GameState) -> list[ValidationIssue]:
+    """
+    Find an unaware killer's sheet with fewer observations than every other sheet.
+
+    It was the tell reviewers named most: every sheet has sightings near the crime
+    except the one whose owner spent that time hiding. The killer can observe from
+    the moments they really are where they say, before and after.
+    """
+    if not state.killer_selection or state.config.killer_knows_identity:
+        return []
+    killer_id = state.killer_selection.killer_id
+
+    def count(char_id: str) -> int:
+        timeline = state.personal_timelines.get(char_id)
+        return sum(len(e.info_they_observed) for e in timeline.events) if timeline else 0
+
+    innocents = [char_id for char_id in state.personal_timelines if char_id != killer_id]
+    if killer_id not in state.personal_timelines or not innocents:
+        return []
+    fewest = min(count(char_id) for char_id in innocents)
+    if count(killer_id) >= fewest:
+        return []
+    names = {char.id: char.name for char in state.characters}
+    return [
+        ValidationIssue(
+            type="spoiler",
+            description=(
+                f"{names.get(killer_id, killer_id)}'s sheet has {count(killer_id)} observations and "
+                f"every other sheet at least {fewest}, so the killer's player can tell. Add "
+                "observations of other suspects from the moments they really are where they say, "
+                "before or after the ones they hide."
+            ),
+            related_ids=[killer_id],
+            fix_in="timelines",
+        )
+    ]
+
+
 def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
     """Run every deterministic personal timeline check."""
     return [
@@ -781,4 +819,5 @@ def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
         *find_missing_planned_observations(state),
         *find_too_many_killer_witnesses(state),
         *find_killer_sheet_stands_out(state),
+        *find_killer_sheet_thin(state),
     ]
