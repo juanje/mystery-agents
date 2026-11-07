@@ -512,7 +512,8 @@ Be lenient with claims and strict with facts:
 
 CHECKS (each issue quotes the conflicting texts)
 - timeline_conflict: facts that contradict each other or are impossible in time and space, including a
-  suspect observing something from a place or at a time their own facts rule out.
+  suspect observing something from a place or at a time their own facts rule out. People take a few minutes
+  to move between rooms, so times within 5 minutes of each other are the same moment, not a conflict.
 - logic_gap: the killer lacks means or opportunity in the facts, or the solution can't be deduced.
 - over_obvious: the solution is evident at once (for example, several suspects watch the killer act).
 - too_ambiguous: nothing tells the killer apart from another suspect.
@@ -546,7 +547,7 @@ games may be fairly direct, hard ones need several pieces combined.
 WHAT YOU LOOK FOR
 - contradiction: two documents (or one sheet with itself) disagree on a fact players can compare: a time, a
   place, an object or substance, who did what, a relationship, the victim's gender. Different wording of
-  the same fact is not a contradiction.
+  the same fact is not a contradiction, and neither are times within 5 minutes of each other.
 - unsupported_evidence: the solution or the detective relies on something players never get. What a suspect
   really did but hides only reaches the others if someone observed it, so clearing or accusing someone with
   it is unsupported; so are interpretations that add details the clue's text lacks, and sensory details of
