@@ -415,15 +415,31 @@ ClueType = Literal["note", "object", "forensic_report", "map_snippet", "photo", 
 class ClueSpec(BaseModel):
     """Clue specification."""
 
-    id: str = Field(default_factory=lambda: f"clue-{uuid4().hex[:8]}")
+    id: str = Field(
+        default_factory=lambda: f"clue-{uuid4().hex[:8]}",
+        description="Clue ID, format 'clue-xxxxx'. Keep it unchanged when revising a clue.",
+    )
     type: ClueType
-    title: str
-    description: str
-    incriminates: list[str] = []
-    exonerates: list[str] = []
+    title: str = Field(
+        description="Neutral name of the object or document, e.g. 'Torn letter' or 'Pharmacy receipt'. Players see it before reading the clue, so it never names a suspect or states a conclusion."
+    )
+    description: str = Field(
+        description="What players read on the clue card: only what the object shows, never its interpretation."
+    )
+    incriminates: list[str] = Field(
+        default_factory=list,
+        description="IDs of the suspects this clue points at on its own.",
+    )
+    exonerates: list[str] = Field(
+        default_factory=list,
+        description="IDs of the suspects this clue clears on its own.",
+    )
     relates_to_events: list[str] = []
     assigned_to_character_id: str | None = None
-    is_red_herring: bool = False
+    is_red_herring: bool = Field(
+        default=False,
+        description="True when the clue points at an innocent suspect.",
+    )
 
 
 class RoomSpec(BaseModel):
@@ -448,22 +464,36 @@ class MapSpec(BaseModel):
 class ClueSolutionEntry(BaseModel):
     """Clue solution entry for host guide."""
 
-    clue_id: str
-    how_to_interpret: str
+    clue_id: str = Field(description="ID of the clue this entry explains.")
+    how_to_interpret: str = Field(
+        description="For the host only: what the clue suggests and what it combines with, using only what the clue's text says and what players observed."
+    )
 
 
 class DetectiveRole(BaseModel):
     """Detective role for the host in Act 2."""
 
-    character_name: str = "Detective"
-    public_description: str
+    character_name: str = Field(
+        default="Detective",
+        description="A new character (not a suspect) of the host's gender, with a name that fits the culture and epoch.",
+    )
+    public_description: str = Field(
+        description="Who the investigator is and why they have the authority or credibility to investigate in this epoch and setting."
+    )
     personality_traits: list[str] = Field(
         default_factory=list,
         description="List of personality traits (e.g., ['analytical', 'observant', 'methodical']).",
     )
-    clues_to_reveal: list[ClueSolutionEntry]
-    guiding_questions: list[str] = []
-    final_solution_script: str
+    clues_to_reveal: list[ClueSolutionEntry] = Field(
+        description="One entry per clue, in the same order as the clues."
+    )
+    guiding_questions: list[str] = Field(
+        default_factory=list,
+        description="Questions the host asks when players are stuck. Each one concerns a place, time or object several suspects are linked to, so it makes players compare testimonies without singling anyone out.",
+    )
+    final_solution_script: str = Field(
+        description="Read at the reveal: who, why, when, where and how, how the killer built their alibi, and why each red herring suspect looked guilty and what clears them. It only cites clues and observations players had."
+    )
     costume_suggestion: str | None = Field(
         default=None,
         description="Suggestion for the host's costume when playing the detective in Act 2 (e.g., 'Classic detective coat and hat', 'Modern investigator look').",
@@ -477,12 +507,27 @@ class DetectiveRole(BaseModel):
 class HostGuide(BaseModel):
     """Complete host guide."""
 
-    spoiler_free_intro: str
-    host_act1_role_description: str | None = None
-    setup_instructions: list[str] = []
-    runtime_tips: list[str] = []
-    live_action_murder_event_guide: str | None = None
-    act_2_intro_script: str | None = None
+    spoiler_free_intro: str = Field(
+        description="Introduction to the game for the host, without spoilers."
+    )
+    host_act1_role_description: str | None = Field(
+        default=None,
+        description="How the host plays the victim in Act 1, with the exact times from the global timeline (when to retire, drink, leave the room).",
+    )
+    setup_instructions: list[str] = Field(
+        default_factory=list, description="Steps to prepare the evening."
+    )
+    runtime_tips: list[str] = Field(
+        default_factory=list, description="Tips for running the evening."
+    )
+    live_action_murder_event_guide: str | None = Field(
+        default=None,
+        description="How to stage the murder at the end of Act 1, using only sensory details (sounds, lights) that the timelines include and the solution explains.",
+    )
+    act_2_intro_script: str | None = Field(
+        default=None,
+        description="Read by the detective to open Act 2: the discovery of the body and the cause of death (the method, e.g. poisoning or a blow to the head). Any time window it gives must not match exactly one suspect's absence.",
+    )
     host_act2_detective_role: DetectiveRole | None = None
     solution_timeline: GlobalTimeline | None = None
 
