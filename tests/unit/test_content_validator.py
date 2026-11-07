@@ -140,20 +140,18 @@ def test_logic_issues_in_sheets_rewrite_only_the_sheets(state: GameState) -> Non
     assert route_after_game_validation(state) == ["a6_timeline"]
 
 
-def test_out_of_retries_with_only_sheet_issues_keeps_the_game(state: GameState) -> None:
-    """The plot holds when only the sheets still disagree, so the game isn't thrown away."""
-    from langgraph.graph import END
-
+def test_out_of_retries_keeps_the_game(state: GameState) -> None:
+    """Out of retries the game goes on with its last version, whatever is left."""
     state.validation = ValidationReport(
         is_consistent=False,
-        issues=[ValidationIssue(type="timeline_conflict", description="x", fix_in="timelines")],
+        issues=[
+            ValidationIssue(type="timeline_conflict", description="x", fix_in="timelines"),
+            ValidationIssue(type="logic_gap", description="y"),
+        ],
     )
     state.retry_count = state.max_retries
 
     assert route_after_game_validation(state) == ["a8_content", "a3_5_character_images"]
-
-    state.validation.issues.append(ValidationIssue(type="logic_gap", description="y"))
-    assert route_after_game_validation(state) == [END]
 
 
 def _game_with_killer() -> GameState:

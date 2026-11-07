@@ -103,7 +103,7 @@ graph TD
     A2 --> V1[V1: World Validator]
     V1 -->|pass| A2_5[A2.5: Visual Style]
     V1 -->|retry| A2
-    V1 -->|fail| END
+    V1 -->|out of retries| A2_5
     A2_5 --> A3[A3: Characters]
     A3 --> A4[A4: Relationships]
     A4 --> A5[A5: Crime]
@@ -112,12 +112,11 @@ graph TD
     A7 --> A7_4[A7.4: Presence]
     A7_4 --> A7_5[A7.5: Personal Timelines]
     A7_5 --> V2[V2: Game Logic Validator]
-    V2 -->|pass| A8[A8: Content - clues, guide, solution]
+    V2 -->|pass / out of retries| A8[A8: Content - clues, guide, solution]
     V2 -->|pass| A3_5[A3.5: Character Images]
     V2 -->|retry| A6
     V2 -->|retry, sheet issues| R1[A7.5: Revise Timelines]
     R1 --> V2
-    V2 -->|fail| END
     A8 --> V3[V3: Content Validator]
     V3 -->|pass / out of retries| A8_5[A8.5: Host Images]
     V3 -->|retry| A8
@@ -331,11 +330,12 @@ Loaded via `python-dotenv` in `cli.py`, accessed via `os.getenv()` in `config.py
 Routing lives in `graph/workflow.py`:
 
 - **V1: World validation (after A2)** - `should_retry_world_validation()` sends an
-  incoherent world back to A2, at most `max_world_retries` (2) times, then ends the run.
+  incoherent world back to A2, at most `max_world_retries` (2) times; after that the last
+  world is used and its issues are reported as warnings.
 - **V2: Game logic validation (after A7.5)** - `route_after_game_validation()` sends
   issues inside the suspects' sheets (`fix_in="timelines"`) back to A7.5's revision and
-  anything else back to A6, at most `max_retries` (3) times. When retries run out and
-  only the sheets still have issues, the game continues; otherwise the run ends.
+  anything else back to A6, at most `max_retries` (3) times. When retries run out the
+  game continues with its last version and the CLI reports the remaining issues.
 - **V3: Content validation (after A8)** - `should_retry_content_validation()` sends
   sheet issues to A7.5's revision and then A8, and other issues back to A8, which
   rewrites from the first flagged part on, at most `max_content_retries` (2) times.

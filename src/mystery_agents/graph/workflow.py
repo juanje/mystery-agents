@@ -60,10 +60,13 @@ def v1_world_validator_node(state: GameState) -> GameState:
         log.info("✓ World validation passed")
         result.world_retry_count = 0
     else:
-        log.warning("⚠ World validation failed - will retry")
         if result.world_validation:
             for issue in result.world_validation.issues:
-                log.debug(f"  Issue: {issue}")
+                log.warning(f"  Issue: {issue}")
+        if result.world_retry_count <= result.max_world_retries:
+            log.warning("⚠ World validation failed - will retry")
+        else:
+            log.warning("⚠ World still has issues - continuing with the last version")
 
     return cast(GameState, result)
 
@@ -256,7 +259,7 @@ def v2_game_logic_validator_node(state: GameState) -> GameState:
         if result.retry_count < result.max_retries:
             log.warning("⚠ Validation failed - will retry")
         else:
-            log.warning("⚠ Validation still failing - continuing if only the sheets have issues")
+            log.warning("⚠ Validation still failing - continuing with the last version")
 
     return cast(GameState, result)
 
@@ -467,8 +470,9 @@ def route_after_game_validation(state: GameState) -> list[str]:
     Once the game is valid, written content and character portraits are independent,
     so both run in the same step. Portraits are only generated for valid games.
 
-    When retries run out and only the suspects' sheets still have problems, the plot
-    itself holds: the game continues (V3 checks the sheets again) instead of being lost.
+    When retries run out the game continues with its last version, as after V3:
+    losing a whole game over a three-minute gap between the plan and a sheet cost more
+    than shipping it with the issues logged, and V3 still reviews what players read.
     """
     decision = should_retry_validation(state)
     if decision == "pass":
@@ -478,10 +482,7 @@ def route_after_game_validation(state: GameState) -> list[str]:
         if timeline_issues(state.validation):
             return ["a7_5_revise_for_logic"]
         return ["a6_timeline"]
-    report = state.validation
-    if report and report.issues and len(timeline_issues(report)) == len(report.issues):
-        return ["a8_content", "a3_5_character_images"]
-    return [END]
+    return ["a8_content", "a3_5_character_images"]
 
 
 def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any:
@@ -537,7 +538,9 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
         {
             "pass": "a2_5_visual_style",
             "retry": "a2_world",
-            "fail": END,
+            # Out of retries the last world is used: V1 rejected whole games over a
+            # wording ("nevada de calima") or one missing stair link
+            "fail": "a2_5_visual_style",
         },
     )
 

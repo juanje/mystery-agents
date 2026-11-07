@@ -223,7 +223,15 @@ def generate(
 
             # Check world validation first (V1)
             world_validation = final_state.get("world_validation")
-            if world_validation and not world_validation.is_coherent:
+            if (
+                world_validation
+                and not world_validation.is_coherent
+                and final_state.get("packaging")
+            ):
+                click.echo("\n⚠ Packaged with unresolved world issues:")
+                for issue in world_validation.issues:
+                    click.echo(f"  - {issue}")
+            elif world_validation and not world_validation.is_coherent:
                 click.echo(
                     "\n❌ Game generation failed: World validation failed after max retries",
                     err=True,
@@ -237,11 +245,11 @@ def generate(
                         click.echo(f"  - {suggestion}")
                 sys.exit(1)
 
-            # Check full game validation. With only sheet issues left the workflow goes on
-            # and packages the game, so that's a warning, not a failure.
+            # Out of retries the workflow goes on and packages the game, so remaining
+            # validation issues are a warning, not a failure.
             validation = final_state.get("validation")
             if validation and not validation.is_consistent and final_state.get("packaging"):
-                click.echo("\n⚠ Packaged with unresolved logic issues in the sheets:")
+                click.echo("\n⚠ Packaged with unresolved logic issues:")
                 for issue in validation.issues:
                     click.echo(f"  - {issue.type}: {issue.description}")
             elif validation and not validation.is_consistent:

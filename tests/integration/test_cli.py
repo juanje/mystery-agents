@@ -171,7 +171,8 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
         mock_a2.side_effect = pass_through
         mock_v1_world.side_effect = pass_through
         mock_a3.side_effect = pass_through
-        mock_a3_5.side_effect = pass_through
+        # Like the real node, which runs beside A8 and only returns its image paths
+        mock_a3_5.return_value = {}
         mock_a4.side_effect = pass_through
         mock_a5.side_effect = pass_through
         mock_a6.side_effect = pass_through
@@ -261,7 +262,8 @@ def test_cli_handles_validation_failure_correctly() -> None:
         mock_a2.side_effect = pass_through
         mock_v1_world.side_effect = pass_through
         mock_a3.side_effect = pass_through
-        mock_a3_5.side_effect = pass_through
+        # Like the real node, which runs beside A8 and only returns its image paths
+        mock_a3_5.return_value = {}
         mock_a4.side_effect = pass_through
         mock_a5.side_effect = pass_through
         mock_a6.side_effect = pass_through
@@ -401,7 +403,8 @@ def test_cli_accesses_nested_objects_correctly() -> None:
         mock_a2.side_effect = pass_through
         mock_v1_world.side_effect = pass_through
         mock_a3.side_effect = pass_through
-        mock_a3_5.side_effect = pass_through
+        # Like the real node, which runs beside A8 and only returns its image paths
+        mock_a3_5.return_value = {}
         mock_a4.side_effect = pass_through
         mock_a5.side_effect = pass_through
         mock_a6.side_effect = pass_through
