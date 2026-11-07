@@ -661,9 +661,14 @@ ZIP file: {zip_path}
         Place to print next to an account of a personal event.
 
         The real location would give away a cover story, so a false account shows the
-        claimed location, or none if the timeline doesn't have it.
+        claimed location. An empty claimed location means they claim the same place,
+        so it shows the real one: leaving it out marked the killer's sheet.
         """
-        place = event.location if account == event.what_they_really_did else event.claimed_location
+        place = (
+            event.location
+            if account == event.what_they_really_did
+            else event.claimed_location or event.location
+        )
         return f" · {place}" if place else ""
 
     def _build_evening_section(

@@ -565,6 +565,7 @@ def _add_evening(state: GameState, killer: bool) -> None:
                     location="Study",
                     what_they_really_did="You poured the poison.",
                     what_they_will_tell_others="You went to fetch your shawl.",
+                    claimed_location="Cloakroom",
                     info_they_observed=[
                         Observation(
                             time="22:00", location="Hall", text="You saw the butler in the hall."
@@ -598,7 +599,7 @@ def test_evening_section_for_innocent_with_secret(
     assert "## Tu noche" in content
     assert "**22:00** · Study: You poured the poison." in content
     assert "### Lo que contarás si te preguntan" in content
-    assert "**22:00**: You went to fetch your shawl." in content
+    assert "**22:00** · Cloakroom: You went to fetch your shawl." in content
     assert "**22:00**: You saw the butler in the hall." in content
 
 
@@ -611,7 +612,7 @@ def test_evening_section_hides_crime_from_unaware_killer(
 
     content = _sheet(basic_game_state, tmp_path)
 
-    assert "**22:00**: You went to fetch your shawl." in content
+    assert "**22:00** · Cloakroom: You went to fetch your shawl." in content
     assert "Study" not in content
     assert "poison" not in content
     assert "Lo que contarás" not in content
@@ -627,7 +628,7 @@ def test_evening_section_gives_aware_killer_the_cover_story(
     content = _sheet(basic_game_state, tmp_path)
 
     assert "You poured the poison." in content
-    assert "**22:00**: You went to fetch your shawl." in content
+    assert "**22:00** · Cloakroom: You went to fetch your shawl." in content
 
 
 def test_killer_instructions_follow_game_language(
@@ -662,7 +663,7 @@ def test_detective_sheet_lists_suspects_accounts(
     assert "Act 2 intro" in content
     assert "## Versiones de los sospechosos" in content
     assert "### Elena Martinez" in content
-    assert "**22:00**: You went to fetch your shawl." in content
+    assert "**22:00** · Cloakroom: You went to fetch your shawl." in content
     assert "Study" not in content
     assert "*Vio* (22:00): You saw the butler in the hall." in content
     assert "poison" not in content
@@ -752,3 +753,16 @@ def test_solution_timeline_shows_the_full_murder_event(basic_game_state: GameSta
     assert "Un golpe seco (Biblioteca)" in text
     assert "La copa sigue intacta sobre el escritorio." in text
     assert "22:20" in text
+
+
+def test_unaware_killer_events_always_show_a_place(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """An empty claimed place means 'the same place', so the killer's lines keep a room tag."""
+    _add_evening(basic_game_state, killer=True)
+    basic_game_state.config.killer_knows_identity = False
+    basic_game_state.personal_timelines["char-001"].events[0].claimed_location = ""
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "**22:00** · Study: You went to fetch your shawl." in content
