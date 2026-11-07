@@ -496,7 +496,7 @@ HOW YOU WRITE THE EVENINGS
 - The global timeline and the murder event are shared facts, and the other sheets are written from them too.
   Everyone listed in a shared event is in that room at that time on their sheet and remembers it the same
   way. Who finds the body, when, and what could be heard from which rooms come from the murder event: those
-  in its rooms hear it, the others don't. Code checks that people are where the shared events put them.
+  in its rooms hear it, the others don't. Mark that observation of_the_murder; code sets its time. Code checks that people are where the shared events put them.
 - Each sheet is one person's view from where they really were. An observation happens during the moment
   it is listed under, seen from that place, and the person observed really was where it says (check their
   location and what_they_really_did), in the observer's own room or one listed in the plan as visible from it.

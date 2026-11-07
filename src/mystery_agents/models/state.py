@@ -573,6 +573,10 @@ class Observation(BaseModel):
         default="sight",
         description="'sound' when it was heard rather than seen (a scream, a door slamming); a sound can come from a room the observer can't see.",
     )
+    of_the_murder: bool = Field(
+        default=False,
+        description="True when this is the murder itself as it reaches the observer (the thud, the scream, the shot).",
+    )
 
 
 class PersonalEvent(BaseModel):

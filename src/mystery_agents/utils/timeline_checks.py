@@ -360,6 +360,61 @@ def find_murder_heard_out_of_range(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def place_murder_sounds(state: GameState) -> list[str]:
+    """
+    Put every observation of the murder itself at the murder's minute, where it reaches.
+
+    Sheets heard the same thud at 22:35 when it happened at 22:30, which turned the
+    sighting that broke the killer's alibi into one from before the crime. The murder
+    event fixes when and where it is heard, so code applies it: the observation moves
+    to the moment covering that minute, and is removed from rooms it doesn't reach.
+
+    Returns:
+        IDs of the suspects whose sheets have an observation of the murder
+    """
+    if not state.timeline_global:
+        return []
+    murder = state.timeline_global.murder_event
+    times = minutes_in(murder.time)
+    if not times:
+        return []
+    audible = {murder.room, *murder.heard_in}
+    unaware_killer = (
+        state.killer_selection.killer_id
+        if state.killer_selection and not state.config.killer_knows_identity
+        else None
+    )
+    changed = []
+    for char_id, timeline in state.personal_timelines.items():
+        found = [
+            seen
+            for event in timeline.events
+            for seen in event.info_they_observed
+            if seen.of_the_murder
+        ]
+        if not found:
+            continue
+        for event in timeline.events:
+            event.info_they_observed = [s for s in event.info_they_observed if not s.of_the_murder]
+        then = next(
+            (
+                event
+                for event, span in zip(timeline.events, event_ranges(timeline.events), strict=True)
+                if span and span[0] <= times[0] <= span[1]
+            ),
+            None,
+        )
+        if then:
+            # An unaware killer's sheet shows where they claim to be, so they hear it from there
+            shown = then.location
+            if char_id == unaware_killer and then.claimed_location:
+                shown = then.claimed_location
+            if shown in audible:
+                then.info_they_observed.append(found[0].model_copy(update={"time": murder.time}))
+        changed.append(char_id)
+    return changed
+
+
 def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
     """
     Observations of the killer during the moments they hide, by innocent witness.

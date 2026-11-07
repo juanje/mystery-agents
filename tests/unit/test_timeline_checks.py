@@ -33,6 +33,7 @@ from mystery_agents.utils.timeline_checks import (
     find_route_not_followed,
     find_timeline_violations,
     find_too_many_killer_witnesses,
+    place_murder_sounds,
     same_place,
 )
 
@@ -438,6 +439,34 @@ def test_the_murder_is_only_heard_where_it_reaches(state: GameState) -> None:
     issues = find_murder_heard_out_of_range(state)
 
     assert [issue.related_ids for issue in issues] == [["berta"]]
+
+
+def test_the_murder_sound_takes_the_murder_minute_and_reach(state: GameState) -> None:
+    """Ana in the library hears it at 22:00 whatever she wrote; Berta in the cellar doesn't."""
+    from mystery_agents.models.state import GlobalTimeline, MurderEvent
+
+    state.timeline_global = GlobalTimeline(
+        time_blocks=[],
+        murder_event=MurderEvent(
+            time="22:00",
+            room="Study",
+            what_happens="x",
+            heard_elsewhere="A thud",
+            heard_in=["Library"],
+            scene_when_found="x",
+            discovered_at="22:10",
+            discovered_by=[],
+        ),
+    )
+    thud = _seen("22:05", "", "Study").model_copy(update={"sense": "sound", "of_the_murder": True})
+    state.personal_timelines["ana"].events[1].info_they_observed = [thud]
+    state.personal_timelines["berta"].events[1].info_they_observed = [thud.model_copy()]
+
+    assert place_murder_sounds(state) == ["ana", "berta"]
+    assert [seen.time for seen in state.personal_timelines["ana"].events[1].info_they_observed] == [
+        "22:00"
+    ]
+    assert state.personal_timelines["berta"].events[1].info_they_observed == []
 
 
 def _plan(holders: list[str]) -> DeductionPlan:

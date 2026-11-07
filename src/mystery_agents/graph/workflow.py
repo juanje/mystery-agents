@@ -15,6 +15,7 @@ from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
     drop_impossible_sightings,
     find_timeline_violations,
+    place_murder_sounds,
 )
 
 
@@ -217,6 +218,9 @@ def _prune_sheets(state: GameState, log: AgentLogger) -> GameState:
     unplaced = align_observations(state)
     if unplaced:
         log.info(f"Removed sightings the presence grid rules out from: {', '.join(unplaced)}")
+    moved = place_murder_sounds(state)
+    if moved:
+        log.info(f"Placed the murder's sound where and when it is heard for: {', '.join(moved)}")
     unseen = drop_impossible_sightings(state)
     if unseen:
         log.info(f"Removed sightings the floor plan rules out from: {', '.join(unseen)}")
