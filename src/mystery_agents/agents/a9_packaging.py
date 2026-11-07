@@ -116,7 +116,9 @@ def told_slots(events: list[Any]) -> list[ToldSlot]:
     The unaware killer's account is a single claim ("I stayed in the kitchen") that
     the writer cut into filler slots at the exact minutes of the sightings against
     them ("You kept resting", "You were still resting"), which no innocent sheet has.
-    Printing one slot per place hides that seam.
+    Printing one slot per place hides that seam. The merged slot keeps the first
+    moment's text: joining them all printed a block of near-identical filler
+    sentences that stood out just as much.
     """
     slots: list[ToldSlot] = []
     spans: list[tuple[int, int] | None] = []
@@ -130,12 +132,11 @@ def told_slots(events: list[Any]) -> list[ToldSlot]:
         previous = spans[-1] if spans else None
         if slots and span and previous and slots[-1].place == place:
             last = slots[-1]
-            text = last.text if told in last.text else f"{last.text} {told}"
             merged = (previous[0], span[1])
             slots[-1] = ToldSlot(
                 f"{_clock(merged[0])}-{_clock(merged[1])}",
                 place,
-                text,
+                last.text,
                 [*last.observed, *event.info_they_observed],
             )
             spans[-1] = merged

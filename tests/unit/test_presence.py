@@ -305,3 +305,25 @@ def test_sheet_events_take_the_grid_times_and_places(state: GameState) -> None:
 
     timeline.events.pop()
     assert not apply_presence(timeline, slots)
+
+
+def test_unaware_killer_observes_only_where_their_account_puts_them(state: GameState) -> None:
+    """A planned observation inside the killer's hidden slot would be removed from their sheet."""
+    assert state.killer_selection is not None
+    piece = EvidencePiece(
+        kind="observation",
+        holder_id="killer",
+        about_id="ana",
+        time="21:40",
+        from_room="Study",
+        description="x",
+    )
+    state.killer_selection.deduction_plan = DeductionPlan(
+        breaking_pieces=[], means_piece=piece, red_herrings=[]
+    )
+
+    assert any("while they hide" in problem for problem in presence_problems(state))
+
+    piece.time = "21:52"
+    piece.from_room = "Library"
+    assert not any("while they hide" in problem for problem in presence_problems(state))

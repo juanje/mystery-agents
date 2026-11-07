@@ -507,7 +507,10 @@ HOW YOU WRITE THE EVENINGS
   moments that fits anything others may have seen, and claimed_location is filled wherever it differs.
   When the killer doesn't know their identity, the player only reads that account: it must read as a
   normal, complete evening, with no gap around the time of the crime, written as an innocent person lives it.
-  Words like "pretending", "faking" or "waiting for it to be discovered" tell the player they are the killer.
+  Words like "pretending", "faking" or "waiting for it to be discovered" tell the player they are the killer,
+  and so does an account written as claims ("You maintained you were in the patio", "You insisted"): write
+  what they did ("You strolled round the patio"), with something to do and someone to notice, never the
+  same idea repeated to fill a long stretch.
 - Two or three innocent suspects hide something unrelated to the murder (an affair, a debt, a secret
   meeting), so their account differs from what they really did. The others tell the truth. That way the
   killer's sheet looks like any truthful sheet, and the hidden moments become red herrings.

@@ -724,8 +724,9 @@ def test_unaware_killer_account_is_one_slot_per_claimed_place(
 
     content = _sheet(basic_game_state, tmp_path)
 
-    assert "**22:05-22:16** · Cloakroom: You went to fetch your shawl. You kept resting." in content
+    assert "**22:05-22:16** · Cloakroom: You went to fetch your shawl." in content
     assert "22:12-22:16" not in content
+    assert "You kept resting." not in content
 
 
 def test_character_sheet_shows_the_house(basic_game_state: GameState, tmp_path: Path) -> None:

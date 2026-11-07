@@ -266,6 +266,23 @@ def presence_problems(state: GameState) -> list[str]:
                 f"The plan has {holder_name} seeing something from {piece.from_room} at "
                 f"{piece.time}, but the grid has them in {' / '.join(holder)}."
             )
+        if piece.holder_id == _unaware_killer(state) and times:
+            # Their sheet only shows the account, so they can only see from where it says
+            hiding = [
+                slot
+                for slot, span in zip(
+                    grid.get(piece.holder_id, []),
+                    slot_spans(grid.get(piece.holder_id, [])),
+                    strict=True,
+                )
+                if span and span[0] <= times[0] <= span[1] and _hides(slot)
+            ]
+            if hiding:
+                problems.append(
+                    f"The plan gives the killer an observation at {piece.time}, while they hide "
+                    f"where they are ({hiding[0].time}). Move it to a moment they really are where "
+                    "they say, or end that slot earlier."
+                )
         view = {room for here in holder for room in _visible_from(rooms, here)}
         if holder and observed and not view & set(observed):
             problems.append(
