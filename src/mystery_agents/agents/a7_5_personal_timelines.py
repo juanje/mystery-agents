@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from mystery_agents.models.state import (
     GameState,
+    Observation,
     PersonalEvent,
     PersonalTimeline,
     ValidationIssue,
@@ -258,7 +259,14 @@ Return the response in the exact JSON format specified in the system prompt.
                         location="Drawing room",
                         what_they_really_did="You chatted with the other guests over drinks.",
                         what_they_will_tell_others="You chatted with the other guests over drinks.",
-                        info_they_observed=[f"You saw {other.name} looking nervous."],
+                        info_they_observed=[
+                            Observation(
+                                time="21:15",
+                                observed_character_id=other.id,
+                                location="Drawing room",
+                                text=f"You saw {other.name} looking nervous.",
+                            )
+                        ],
                     ),
                     PersonalEvent(
                         time="21:30-21:45",
@@ -270,7 +278,14 @@ Return the response in the exact JSON format specified in the system prompt.
                             else "You went out to the garden for some fresh air."
                         ),
                         what_they_will_tell_others="You went out to the garden for some fresh air.",
-                        info_they_observed=[f"You noticed {other.name} was not in the room."],
+                        info_they_observed=[
+                            Observation(
+                                time="21:35",
+                                observed_character_id=other.id,
+                                location="Study" if other.id == killer_id else "Garden",
+                                text=f"You noticed {other.name} was not in the room.",
+                            )
+                        ],
                     ),
                 ],
                 subjective_narrative="A pleasant evening of drinks and conversation, with a short walk in the garden.",

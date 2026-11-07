@@ -701,7 +701,7 @@ ZIP file: {zip_path}
             told = event.what_they_will_tell_others
             if not hide_truth and told != event.what_they_really_did:
                 will_say_lines.append(f"- **{event.time}**{self._event_place(event, told)}: {told}")
-            saw_lines.extend(f"- **{event.time}**: {seen}" for seen in event.info_they_observed)
+            saw_lines.extend(f"- **{seen.time}**: {seen.text}" for seen in event.info_they_observed)
 
         section = f"""
 ## {labels["evening_title"]}
@@ -989,7 +989,8 @@ ZIP file: {zip_path}
                 told = event.what_they_will_tell_others
                 lines.append(f"- **{event.time}**{self._event_place(event, told)}: {told}")
                 lines.extend(
-                    f"  - *{labels['observed']}*: {seen}" for seen in event.info_they_observed
+                    f"  - *{labels['observed']}* ({seen.time}): {seen.text}"
+                    for seen in event.info_they_observed
                 )
             blocks.append(f"### {character.name}\n\n" + "\n".join(lines))
 

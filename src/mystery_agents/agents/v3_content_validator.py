@@ -17,6 +17,7 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_time_of_death,
     safe_get_crime_victim_name,
 )
+from mystery_agents.utils.timeline_checks import find_timeline_violations
 
 from .base import BaseAgent
 
@@ -170,6 +171,7 @@ def find_rule_violations(state: GameState) -> list[ValidationIssue]:
         *find_suspect_names_in_titles(state),
         *find_killer_in_guiding_questions(state),
         *find_over_obvious_clues(state),
+        *find_timeline_violations(state),
     ]
 
 

@@ -18,6 +18,7 @@ from mystery_agents.models.state import (
     KillerSelection,
     MetaInfo,
     MurderMethod,
+    Observation,
     PackagingInfo,
     PersonalEvent,
     PersonalTimeline,
@@ -555,7 +556,11 @@ def _add_evening(state: GameState, killer: bool) -> None:
                     location="Study",
                     what_they_really_did="You poured the poison.",
                     what_they_will_tell_others="You went to fetch your shawl.",
-                    info_they_observed=["You saw the butler in the hall."],
+                    info_they_observed=[
+                        Observation(
+                            time="22:00", location="Hall", text="You saw the butler in the hall."
+                        )
+                    ],
                 )
             ],
         )
@@ -650,7 +655,7 @@ def test_detective_sheet_lists_suspects_accounts(
     assert "### Elena Martinez" in content
     assert "**22:00**: You went to fetch your shawl." in content
     assert "Study" not in content
-    assert "*Vio*: You saw the butler in the hall." in content
+    assert "*Vio* (22:00): You saw the butler in the hall." in content
     assert "poison" not in content
 
 

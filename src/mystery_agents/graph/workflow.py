@@ -11,6 +11,7 @@ from mystery_agents.models.state import GameState, ValidationIssue
 from mystery_agents.utils.cache import AgentFactory
 from mystery_agents.utils.constants import NODE_MAX_ATTEMPTS
 from mystery_agents.utils.logging_config import AgentLogger
+from mystery_agents.utils.timeline_checks import find_timeline_violations
 
 
 # Node functions for the graph (using cached agents for better performance)
@@ -177,6 +178,14 @@ def a7_5_personal_timelines_node(state: GameState) -> GameState:
     agent = AgentFactory.get_agent(PersonalTimelinesAgent)
     result = agent.run(state)
     log.info(f"✓ Personal timelines for {len(result.personal_timelines)} suspects")
+
+    # Fix what code can measure before the validators and A8 build on these sheets
+    issues = find_timeline_violations(result)
+    if issues:
+        for issue in issues:
+            log.warning(f"  {issue.type}: {issue.description}")
+        log.warning("⚠ Personal timelines need fixes - rewriting the flagged suspects")
+        result = agent.revise(result, issues)
     return cast(GameState, result)
 
 

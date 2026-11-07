@@ -369,6 +369,24 @@ class KillerSelection(BaseModel):
 
 
 # --- Personal Timelines ---
+class Observation(BaseModel):
+    """Something a suspect saw or heard about another person."""
+
+    time: str = Field(
+        description="HH:MM when it was seen. It falls within the time of the event it is listed under, when the observer was there."
+    )
+    observed_character_id: str = Field(
+        default="",
+        description="ID of the suspect who was seen. Empty when it concerns the victim or nobody in particular.",
+    )
+    location: str = Field(
+        description="Where the observed person was at that time, with the same place name their own timeline uses for it."
+    )
+    text: str = Field(
+        description="What the player reads, in second person: a concrete fact, not a conclusion (e.g., 'You saw Dr. Ross leave the conservatory carrying his bag')."
+    )
+
+
 class PersonalEvent(BaseModel):
     """One moment of a suspect's evening, as it really happened and as they will tell it."""
 
@@ -386,9 +404,9 @@ class PersonalEvent(BaseModel):
     what_they_will_tell_others: str = Field(
         description="The character's own account of this moment, in second person. Equal to what_they_really_did unless they hide something (a secret, an affair, the crime). For the killer it is an innocent-looking version that never mentions the crime."
     )
-    info_they_observed: list[str] = Field(
+    info_they_observed: list[Observation] = Field(
         default_factory=list,
-        description="Concrete facts the character saw or heard about OTHER people at this moment (e.g., 'You saw Dr. Ross leave the conservatory carrying his bag'). Observations, not conclusions.",
+        description="What the character saw or heard about OTHER people during this moment, from where they really were.",
     )
 
 

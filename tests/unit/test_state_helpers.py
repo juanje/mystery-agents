@@ -12,6 +12,7 @@ from mystery_agents.models.state import (
     GlobalTimeline,
     MetaInfo,
     MurderMethod,
+    Observation,
     PersonalEvent,
     PersonalTimeline,
     PlayerConfig,
@@ -329,7 +330,9 @@ def test_format_personal_timelines_shows_claims_only_when_different() -> None:
                         location="Kitchen",
                         what_they_really_did="Cooked.",
                         what_they_will_tell_others="Cooked.",
-                        info_they_observed=["Saw Bob."],
+                        info_they_observed=[
+                            Observation(time="21:05", location="Kitchen", text="Saw Bob.")
+                        ],
                     ),
                     PersonalEvent(
                         time="22:00",
@@ -347,7 +350,7 @@ def test_format_personal_timelines_shows_claims_only_when_different() -> None:
     assert "### Ana (ID: char-1)" in text
     assert text.count("claims:") == 1
     assert "claims: Stayed in the kitchen." in text
-    assert "observed: Saw Bob." in text
+    assert "observed at 21:05 @ Kitchen: Saw Bob." in text
 
 
 def test_format_retry_feedback() -> None:
