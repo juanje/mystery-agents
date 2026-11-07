@@ -8,7 +8,7 @@ player witnessing the killer, which makes the game obvious.
 import re
 import unicodedata
 
-from mystery_agents.models.state import GameState, PersonalEvent, ValidationIssue
+from mystery_agents.models.state import GameState, Observation, PersonalEvent, ValidationIssue
 
 # Minutes of slack around event boundaries: people move between rooms
 TIME_TOLERANCE_MINUTES = 5
@@ -68,10 +68,6 @@ def same_place(first: str, second: str) -> bool:
     return bool(first_words & second_words)
 
 
-def _format_time(minute: int) -> str:
-    return f"{minute // 60:02d}:{minute % 60:02d}"
-
-
 def find_observation_time_errors(state: GameState) -> list[ValidationIssue]:
     """Find observations made at a time the observer wasn't in that moment of their evening."""
     names = {char.id: char.name for char in state.characters}
@@ -99,6 +95,19 @@ def find_observation_time_errors(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def _places_around(timeline_events: list[PersonalEvent], minute: int) -> list[str]:
+    """
+    Where someone could be seen at a time: the moments covering it and the ones next to them.
+
+    People are often seen on their way between two places ("leaving the dining room
+    for the library"), so the neighbouring moments count too.
+    """
+    spans = event_ranges(timeline_events)
+    covering = [index for index, span in enumerate(spans) if span and _covers(span, minute)]
+    nearby = {n for index in covering for n in (index - 1, index, index + 1)}
+    return [timeline_events[n].location for n in sorted(nearby) if 0 <= n < len(timeline_events)]
+
+
 def find_misplaced_observations(state: GameState) -> list[ValidationIssue]:
     """Find suspects observed somewhere their own timeline says they weren't."""
     names = {char.id: char.name for char in state.characters}
@@ -110,48 +119,42 @@ def find_misplaced_observations(state: GameState) -> list[ValidationIssue]:
                 times = _minutes(seen.time)
                 if not observed or not times or seen.observed_character_id == char_id:
                     continue
-                places = [
-                    other.location
-                    for other, span in zip(
-                        observed.events, event_ranges(observed.events), strict=True
+                places = _places_around(observed.events, times[0])
+                if not places or any(
+                    same_place(seen.location, place) or same_place(seen.text, place)
+                    for place in places
+                ):
+                    continue
+                observed_name = names.get(seen.observed_character_id, seen.observed_character_id)
+                issues.append(
+                    ValidationIssue(
+                        type="timeline_conflict",
+                        description=(
+                            f"{names.get(char_id, char_id)} sees {observed_name} at "
+                            f"{seen.location} at {seen.time} ('{seen.text}'), but "
+                            f"{observed_name}'s own timeline puts them at "
+                            f"{' / '.join(dict.fromkeys(places))} around then. Make the "
+                            f"observation match where {observed_name} really was."
+                        ),
+                        related_ids=[char_id],
+                        fix_in="timelines",
                     )
-                    if span and _covers(span, times[0])
-                ]
-                if places and not any(same_place(seen.location, place) for place in places):
-                    observed_name = names.get(
-                        seen.observed_character_id, seen.observed_character_id
-                    )
-                    issues.append(
-                        ValidationIssue(
-                            type="timeline_conflict",
-                            description=(
-                                f"{names.get(char_id, char_id)} sees {observed_name} at "
-                                f"{seen.location} at {seen.time} ('{seen.text}'), but "
-                                f"{observed_name}'s own timeline puts them at "
-                                f"{' / '.join(places)} then. Make the observation match where "
-                                f"{observed_name} really was."
-                            ),
-                            related_ids=[char_id],
-                            fix_in="timelines",
-                        )
-                    )
+                )
     return issues
 
 
-def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:
+def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
     """
-    Find games where too many suspects see the killer during the moments they hide.
+    Observations of the killer during the moments they hide, by innocent witness.
 
-    Those observations break the killer's account. Spread over a couple of players
-    they make the detective compare testimonies; given to everyone they solve the case.
+    Those are the observations that break the killer's account.
     """
     if not state.killer_selection:
-        return []
+        return {}
     killer_id = state.killer_selection.killer_id
     killer_timeline = state.personal_timelines.get(killer_id)
     if not killer_timeline:
-        return []
-
+        return {}
     hidden_spans = [
         span
         for event, span in zip(
@@ -159,35 +162,72 @@ def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:
         )
         if span and event.what_they_will_tell_others != event.what_they_really_did
     ]
-    witnesses = [
-        char_id
-        for char_id, timeline in state.personal_timelines.items()
-        if char_id != killer_id
-        and any(
-            seen.observed_character_id == killer_id
-            and (times := _minutes(seen.time))
-            and any(_covers(span, times[0]) for span in hidden_spans)
+    sightings: dict[str, list[Observation]] = {}
+    for char_id, timeline in state.personal_timelines.items():
+        if char_id == killer_id:
+            continue
+        found = [
+            seen
             for event in timeline.events
             for seen in event.info_they_observed
-        )
-    ]
-    limit = MAX_KILLER_WITNESSES.get(state.config.difficulty, 2)
-    if len(witnesses) <= limit:
-        return []
+            if seen.observed_character_id == killer_id
+            and (times := _minutes(seen.time))
+            and any(_covers(span, times[0]) for span in hidden_spans)
+        ]
+        if found:
+            sightings[char_id] = found
+    return sightings
 
+
+def _witness_limit(state: GameState) -> int:
+    return MAX_KILLER_WITNESSES.get(state.config.difficulty, 2)
+
+
+def drop_excess_killer_sightings(state: GameState) -> list[str]:
+    """
+    Remove the killer sightings of the witnesses beyond the difficulty's limit.
+
+    Asking the model to give fewer suspects these sightings didn't work: rewritten
+    timelines kept them. Removing them keeps the case solvable (the first witnesses
+    keep theirs) without letting everyone solve it alone.
+
+    Returns:
+        IDs of the suspects whose sightings were removed
+    """
+    sightings = _killer_sightings(state)
+    extra = list(sightings)[_witness_limit(state) :]
+    for char_id in extra:
+        removed = {id(seen) for seen in sightings[char_id]}
+        for event in state.personal_timelines[char_id].events:
+            event.info_they_observed = [
+                seen for seen in event.info_they_observed if id(seen) not in removed
+            ]
+    return extra
+
+
+def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:
+    """
+    Find games where too many suspects see the killer during the moments they hide.
+
+    Spread over a couple of players these sightings make the detective compare
+    testimonies; given to everyone they solve the case.
+    """
+    witnesses = list(_killer_sightings(state))
+    limit = _witness_limit(state)
+    if len(witnesses) <= limit or not state.killer_selection:
+        return []
     names = {char.id: char.name for char in state.characters}
-    killer_name = names.get(killer_id, killer_id)
-    hidden_times = ", ".join(f"{_format_time(a)}-{_format_time(b)}" for a, b in hidden_spans)
+    killer_name = names.get(state.killer_selection.killer_id, state.killer_selection.killer_id)
     extra = witnesses[limit:]
     return [
         ValidationIssue(
             type="over_obvious",
             description=(
-                f"{len(witnesses)} suspects see {killer_name} during the moments they hide "
-                f"({hidden_times}): {', '.join(names.get(w, w) for w in witnesses)}. At most "
-                f"{limit} should, each seeing only part of it, or nobody needs to compare "
-                f"testimonies. Rewrite the observations of {', '.join(names.get(w, w) for w in extra)} "
-                f"so they concern other suspects or other moments of {killer_name}'s evening."
+                f"{len(witnesses)} suspects see {killer_name} during the moments they hide: "
+                f"{', '.join(names.get(w, w) for w in witnesses)}. At most {limit} should, each "
+                "seeing only part of it, or nobody needs to compare testimonies. Rewrite the "
+                f"observations of {', '.join(names.get(w, w) for w in extra)} so they concern "
+                f"other suspects or other moments of {killer_name}'s evening."
             ),
             related_ids=extra,
             fix_in="timelines",

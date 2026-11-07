@@ -15,6 +15,7 @@ from mystery_agents.models.state import (
 )
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.timeline_checks import (
+    drop_excess_killer_sightings,
     event_ranges,
     find_killer_sheet_stands_out,
     find_misplaced_observations,
@@ -181,3 +182,34 @@ def test_some_truthful_innocents_hide_the_killer_sheet(state: GameState) -> None
     state.personal_timelines["ana"].events[1] = _event("21:50-22:20", "Library", hides=True)
 
     assert find_killer_sheet_stands_out(state) == []
+
+
+def test_people_seen_on_their_way_between_places_pass(state: GameState) -> None:
+    """Seeing Berta leave the dining room for the cellar fits either of her moments."""
+    state.personal_timelines["ana"].events[1].info_they_observed = [
+        Observation(
+            time="21:52",
+            observed_character_id="berta",
+            location="Hall",
+            text="You saw Berta Sosa walk towards the cellar.",
+        )
+    ]
+
+    assert find_misplaced_observations(state) == []
+
+
+def test_excess_killer_sightings_are_removed(state: GameState) -> None:
+    """Beyond the limit, extra witnesses lose their killer sightings but keep the rest."""
+    other = _seen("22:00", "ana", "Library")
+    for witness in ("ana", "berta", "carla"):
+        state.personal_timelines[witness].events[1].info_they_observed = [
+            _seen("22:00", "killer", "Study")
+        ]
+    state.personal_timelines["carla"].events[1].info_they_observed.append(other)
+
+    trimmed = drop_excess_killer_sightings(state)
+
+    assert trimmed == ["carla"]
+    assert state.personal_timelines["carla"].events[1].info_they_observed == [other]
+    assert len(state.personal_timelines["ana"].events[1].info_they_observed) == 1
+    assert find_too_many_killer_witnesses(state) == []
