@@ -174,6 +174,34 @@ def test_cli_validation_failure(sample_game_yml: Path) -> None:
             assert "Game generation failed validation" in result.output
 
 
+def test_cli_packaged_game_with_sheet_issues_succeeds(sample_game_yml: Path) -> None:
+    """A game packaged with only sheet issues left is a success with warnings."""
+    from mystery_agents.models.state import PackagingInfo, ValidationIssue
+
+    runner = CliRunner()
+    with isolated_cwd(temp_dir=sample_game_yml.parent):
+        import shutil
+
+        shutil.copy(sample_game_yml, Path.cwd() / "game.yml")
+
+        with patch("mystery_agents.graph.workflow.create_workflow") as mock_workflow:
+            final_state = {
+                "validation": ValidationReport(
+                    is_consistent=False,
+                    issues=[ValidationIssue(type="timeline_conflict", description="Test issue")],
+                ),
+                "packaging": PackagingInfo(),
+                "meta": MetaInfo(),
+            }
+            mock_workflow.return_value.stream.return_value = iter([{"final": final_state}])
+
+            result = runner.invoke(generate, ["--dry-run"])
+
+            assert result.exit_code == 0
+            assert "unresolved logic issues" in result.output
+            assert "GAME GENERATED SUCCESSFULLY" in result.output
+
+
 def test_cli_missing_meta_error(sample_game_yml: Path) -> None:
     """Test that CLI handles missing meta information."""
     runner = CliRunner()

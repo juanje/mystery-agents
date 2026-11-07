@@ -615,8 +615,8 @@ DETECTIVE AND HOST GUIDE
   culture (a private inquiry agent in Victorian times, a police detective today).
 - Guiding questions help a stuck table compare testimonies. A question only one suspect fits answers
   itself, so each one concerns a place, time or object several suspects are linked to, with facts that
-  match the timelines. They never cite the time or the witness of an observation in the deduction plan's
-  breaking pieces: the table has to find those by comparing sheets.
+  match the timelines. They never cite the time of an observation in the deduction plan's breaking pieces
+  or ask what a given witness saw then: the table has to find those by comparing sheets.
 - The detective's clue notes say what each clue suggests and what it combines with, never whom it convicts:
   the host reads them before the reveal.
 - The Act 2 intro gives the cause of death (poisoning, a blow to the head): players need it to know what

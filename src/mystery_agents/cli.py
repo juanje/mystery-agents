@@ -238,9 +238,14 @@ def generate(
                         click.echo(f"  - {suggestion}")
                 sys.exit(1)
 
-            # Check full game validation (V1)
+            # Check full game validation. With only sheet issues left the workflow goes on
+            # and packages the game, so that's a warning, not a failure.
             validation = final_state.get("validation")
-            if validation and not validation.is_consistent:
+            if validation and not validation.is_consistent and final_state.get("packaging"):
+                click.echo("\n⚠ Packaged with unresolved logic issues in the sheets:")
+                for issue in validation.issues:
+                    click.echo(f"  - {issue.type}: {issue.description}")
+            elif validation and not validation.is_consistent:
                 click.echo("\n❌ Game generation failed validation", err=True)
                 click.echo("\nValidation issues:")
                 for issue in validation.issues:

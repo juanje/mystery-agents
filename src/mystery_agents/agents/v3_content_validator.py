@@ -117,27 +117,36 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     ]
 
 
-# Minutes around a decisive observation or a route step within which a cited time points at it
+# Minutes around a decisive sighting within which a cited time points at it
 REVEALING_TIME_SLACK_MINUTES = 2
 
 
-def _decisive_pointers(state: GameState) -> tuple[set[str], list[int]]:
+def _decisive_sighting_times(state: GameState) -> list[int]:
     """
-    Who holds the observations that break the killer's account, and the times that matter.
+    Minutes of the observations that break the killer's account.
 
-    The times are those observations' and the killer's route steps'. A guiding
-    question that cites one of them, or names one of those witnesses, tells the
-    table where the answer is.
+    The murder's own time is left out: every player hears about it, so asking
+    where everyone was then points at nobody. Route times are left out too; the
+    window of an evening's movements ("between 22:00 and 22:20") is fair to ask about.
     """
     selection = state.killer_selection
     plan = selection.deduction_plan if selection else None
-    if not selection or not plan:
-        return set(), []
-    pieces = [piece for piece in plan.breaking_pieces if piece.kind == "observation"]
-    holders = [piece.holder_id for piece in pieces]
-    times = [m for piece in pieces for m in minutes_in(piece.time)[:1]]
-    times += [m for step in selection.route for m in minutes_in(step.time)]
-    return set(holders), times
+    if not plan:
+        return []
+    murder = (
+        minutes_in(state.timeline_global.murder_event.time)[:1] if state.timeline_global else []
+    )
+    times = [
+        minute
+        for piece in plan.breaking_pieces
+        if piece.kind == "observation"
+        for minute in minutes_in(piece.time)[:1]
+    ]
+    return [
+        minute
+        for minute in times
+        if not any(abs(minute - m) <= REVEALING_TIME_SLACK_MINUTES for m in murder)
+    ]
 
 
 def drop_revealing_questions(state: GameState) -> list[str]:
@@ -158,21 +167,13 @@ def drop_revealing_questions(state: GameState) -> list[str]:
     if not detective or not killer:
         return []
     shared = _parts_shared_with_others(state, killer.id)
-    holders, times = _decisive_pointers(state)
+    decisive = _decisive_sighting_times(state)
 
     def reveals(question: str) -> bool:
-        if _mentions(question, killer.name, ignore=shared):
-            return True
-        if any(
-            _mentions(question, char.name, ignore=_parts_shared_with_others(state, char.id))
-            for char in state.characters
-            if char.id in holders
-        ):
-            return True
-        return any(
-            abs(cited - decisive) <= REVEALING_TIME_SLACK_MINUTES
+        return _mentions(question, killer.name, ignore=shared) or any(
+            abs(cited - minute) <= REVEALING_TIME_SLACK_MINUTES
             for cited in minutes_in(question)
-            for decisive in times
+            for minute in decisive
         )
 
     removed = [q for q in detective.guiding_questions if reveals(q)]

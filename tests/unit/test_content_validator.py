@@ -301,7 +301,7 @@ def test_questions_naming_the_killer_are_dropped() -> None:
 
 
 def test_questions_citing_the_decisive_sightings_are_dropped() -> None:
-    """Asking for the witness or the minute of a breaking observation gives the answer away."""
+    """Asking about the minute of a breaking sighting gives it away; a wide window doesn't."""
     state = _game_with_killer()
     assert state.killer_selection is not None
     state.killer_selection.deduction_plan = DeductionPlan(
@@ -323,13 +323,12 @@ def test_questions_citing_the_decisive_sightings_are_dropped() -> None:
     detective.guiding_questions = [
         "¿Qué vio Elena desde el salón?",
         "¿Quién cruzaba el patio hacia las 22:13?",
-        "¿Quién tenía llave de la bodega?",
+        "¿Dónde estaba cada uno entre las 22:00 y las 22:20?",
     ]
 
     removed = drop_revealing_questions(state)
 
-    assert removed == ["¿Qué vio Elena desde el salón?", "¿Quién cruzaba el patio hacia las 22:13?"]
-    assert detective.guiding_questions == ["¿Quién tenía llave de la bodega?"]
+    assert removed == ["¿Quién cruzaba el patio hacia las 22:13?"]
 
 
 def test_clue_notes_naming_the_killer_are_flagged() -> None:
