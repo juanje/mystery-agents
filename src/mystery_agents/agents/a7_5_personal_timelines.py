@@ -4,7 +4,12 @@ import math
 
 from pydantic import BaseModel, Field
 
-from mystery_agents.models.state import GameState, PersonalEvent, PersonalTimeline
+from mystery_agents.models.state import (
+    GameState,
+    PersonalEvent,
+    PersonalTimeline,
+    ValidationIssue,
+)
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.prompts import A7_5_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
@@ -79,6 +84,59 @@ class PersonalTimelinesAgent(BaseAgent):
             raise ValueError("Killer selection is required for personal timelines")
 
         killer_id = state.killer_selection.killer_id
+        # The killer goes first: their real movements are what the others observe
+        suspect_ids = sorted(
+            (char.id for char in state.characters), key=lambda char_id: char_id != killer_id
+        )
+        state.personal_timelines = self._write(state, self._context(state), suspect_ids, {})
+        return state
+
+    def revise(self, state: GameState, issues: list[ValidationIssue]) -> GameState:
+        """
+        Rewrite the timelines of the suspects a content review found broken.
+
+        The other timelines stay as they are and are shown as context, so the
+        rewritten ones stay consistent with them.
+
+        Args:
+            state: Current game state with personal timelines
+            issues: Review issues with fix_in="timelines"
+
+        Returns:
+            Updated game state with the revised personal timelines
+        """
+        if self._should_use_mock(state) or not state.killer_selection:
+            return state
+
+        suspect_ids = {char.id for char in state.characters}
+        to_rewrite = [
+            char_id
+            for char_id in state.personal_timelines
+            if any(char_id in issue.related_ids for issue in issues) and char_id in suspect_ids
+        ]
+        if not to_rewrite:
+            return state
+
+        kept = {
+            char_id: timeline
+            for char_id, timeline in state.personal_timelines.items()
+            if char_id not in to_rewrite
+        }
+        problems = "\n".join(f"- {issue.description}" for issue in issues)
+        context = (
+            self._context(state)
+            + f"""
+REVIEW OF THE PREVIOUS VERSION - these problems were found in the timelines you are rewriting:
+{problems}
+Keep what was fine in those timelines and change only what fixes these problems.
+"""
+        )
+        state.personal_timelines = {**kept, **self._write(state, context, to_rewrite, kept)}
+        return state
+
+    def _context(self, state: GameState) -> str:
+        """The story every timeline must agree with."""
+        killer_id = state.killer_selection.killer_id if state.killer_selection else None
         suspects_info = []
         for char in state.characters:
             killer_mark = " **THE KILLER**" if char.id == killer_id else ""
@@ -89,7 +147,7 @@ class PersonalTimelinesAgent(BaseAgent):
                 f"  Secrets: {secrets}"
             )
 
-        user_message = f"""Create the personal timelines (alibis, cover stories and observations) for the suspects requested below:
+        return f"""Create the personal timelines (alibis, cover stories and observations) for the suspects requested below:
 
 GAME:
 - Target language: {state.config.language}
@@ -111,15 +169,31 @@ GLOBAL TIMELINE (DO NOT CONTRADICT):
 {format_global_timeline(state)}
 
 TRUTH NARRATIVE (what really happened):
-{state.killer_selection.truth_narrative}
-
-Return the response in the exact JSON format specified in the system prompt.
+{state.killer_selection.truth_narrative if state.killer_selection else ""}
 """
 
-        # The killer goes first: their real movements are what the others observe
-        suspect_ids = sorted(
-            (char.id for char in state.characters), key=lambda char_id: char_id != killer_id
-        )
+    def _write(
+        self,
+        state: GameState,
+        context: str,
+        suspect_ids: list[str],
+        written: dict[str, PersonalTimeline],
+    ) -> dict[str, PersonalTimeline]:
+        """
+        Write the timelines of the given suspects in small batches.
+
+        Args:
+            state: Current game state
+            context: Story context for the request
+            suspect_ids: Suspects to write, in writing order
+            written: Timelines already written, shown as context and kept
+
+        Returns:
+            The new timelines, keyed by character ID
+
+        Raises:
+            StructuredOutputError: If a suspect is left without a timeline
+        """
         timelines: dict[str, PersonalTimeline] = {}
         returned: list[str] = []
         max_calls = math.ceil(len(suspect_ids) / SUSPECTS_PER_CALL) + EXTRA_CALLS
@@ -128,7 +202,8 @@ Return the response in the exact JSON format specified in the system prompt.
             if not missing:
                 break
             batch = missing[:SUSPECTS_PER_CALL]
-            result = self.invoke(state, user_message + self._batch_request(state, timelines, batch))
+            request = context + self._batch_request(state, {**written, **timelines}, batch)
+            result = self.invoke(state, request)
             returned = [t.character_id for t in result.timelines]
             # An empty timeline leaves that player with nothing to say, so ask for it again
             timelines.update(
@@ -143,9 +218,7 @@ Return the response in the exact JSON format specified in the system prompt.
             raise StructuredOutputError(
                 f"No personal timeline for suspects: {missing} (last returned: {returned})"
             )
-
-        state.personal_timelines = timelines
-        return state
+        return timelines
 
     def _batch_request(
         self, state: GameState, written: dict[str, PersonalTimeline], batch: list[str]
@@ -166,6 +239,8 @@ ALREADY WRITTEN (keep them as they are and stay consistent with them):
 """
         return f"""{written_section}
 Now return ONLY the timelines for these character_ids: {", ".join(batch)}
+
+Return the response in the exact JSON format specified in the system prompt.
 """
 
     def _mock_output(self, state: GameState) -> GameState:

@@ -15,6 +15,7 @@ from mystery_agents.models.state import (
     PersonalEvent,
     PersonalTimeline,
     PlayerConfig,
+    ValidationIssue,
 )
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 
@@ -130,8 +131,8 @@ def test_run_writes_suspects_in_batches_killer_first(state: GameState) -> None:
     assert len(result.personal_timelines) == 4
     messages = [call[0][1] for call in mock_invoke.call_args_list]
     assert len(messages) == 2
-    assert messages[0].endswith("character_ids: char-3, char-1, char-2\n")
-    assert messages[1].endswith("character_ids: char-4\n")
+    assert "character_ids: char-3, char-1, char-2\n" in messages[0]
+    assert "character_ids: char-4\n" in messages[1]
     assert "ALREADY WRITTEN" in messages[1]
 
 
@@ -148,3 +149,39 @@ def test_run_asks_again_for_empty_timelines(state: GameState) -> None:
 
     assert mock_invoke.call_count == 2
     assert len(result.personal_timelines["char-2"].events) == 3
+
+
+def test_revise_rewrites_only_flagged_suspects(state: GameState) -> None:
+    """A review issue rewrites the flagged suspect's timeline and keeps the others as context."""
+    original = {"char-1": _timeline("char-1"), "char-2": _timeline("char-2")}
+    state.personal_timelines = dict(original)
+    revised = _timeline("char-2", events=4)
+    agent = PersonalTimelinesAgent()
+    issue = ValidationIssue(
+        type="contradiction",
+        description="Berta sees the hall from the garden",
+        related_ids=["char-2"],
+        fix_in="timelines",
+    )
+
+    with patch.object(agent, "invoke", return_value=A7_5Output(timelines=[revised])) as mock_invoke:
+        result = agent.revise(state, [issue])
+
+    request = mock_invoke.call_args[0][1]
+    assert "Berta sees the hall from the garden" in request
+    assert "ALREADY WRITTEN" in request
+    assert "ONLY the timelines for these character_ids: char-2" in request
+    assert result.personal_timelines["char-1"] is original["char-1"]
+    assert result.personal_timelines["char-2"] == revised
+
+
+def test_revise_without_known_suspects_changes_nothing(state: GameState) -> None:
+    """An issue that names no suspect can't be fixed here, so no call is made."""
+    state.personal_timelines = {"char-1": _timeline("char-1")}
+    agent = PersonalTimelinesAgent()
+    issue = ValidationIssue(type="contradiction", description="x", fix_in="timelines")
+
+    with patch.object(agent, "invoke") as mock_invoke:
+        agent.revise(state, [issue])
+
+    mock_invoke.assert_not_called()

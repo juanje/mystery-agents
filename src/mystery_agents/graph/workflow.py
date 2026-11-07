@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 
 from mystery_agents.agents.base import StructuredOutputError
-from mystery_agents.models.state import GameState
+from mystery_agents.models.state import GameState, ValidationIssue
 from mystery_agents.utils.cache import AgentFactory
 from mystery_agents.utils.constants import NODE_MAX_ATTEMPTS
 from mystery_agents.utils.logging_config import AgentLogger
@@ -238,14 +238,26 @@ def v3_content_validator_node(state: GameState) -> GameState:
         result.content_retry_count = 0
     elif report:
         for issue in report.issues:
-            log.warning(f"  {issue.type}: {issue.description}")
+            log.warning(f"  {issue.type} [{issue.fix_in}]: {issue.description}")
         if result.content_retry_count <= result.max_content_retries:
-            log.warning("⚠ Content review failed - rewriting content")
+            log.warning("⚠ Content review failed - revising content")
         else:
             # The plot is valid, so a game with imperfect texts beats no game at all
             log.warning("⚠ Content review still failing - packaging the last version anyway")
 
     return cast(GameState, result)
+
+
+def a7_5_revise_timelines_node(state: GameState) -> GameState:
+    """A7.5 (revision): Rewrite the personal timelines the content review found broken."""
+    from mystery_agents.agents.a7_5_personal_timelines import PersonalTimelinesAgent
+
+    log = AgentLogger("a7_5_personal_timelines", state)
+    issues = timeline_issues(state)
+    suspects = sorted({char_id for issue in issues for char_id in issue.related_ids})
+    log.info(f"Rewriting personal timelines flagged by the review: {', '.join(suspects)}")
+    agent = AgentFactory.get_agent(PersonalTimelinesAgent)
+    return cast(GameState, agent.revise(state, issues))
 
 
 def a8_5_host_images_node(state: GameState) -> GameState:
@@ -345,7 +357,17 @@ def should_retry_validation(state: GameState) -> Literal["pass", "retry", "fail"
     return "fail"
 
 
-def should_retry_content_validation(state: GameState) -> Literal["pass", "retry", "fail"]:
+def timeline_issues(state: GameState) -> list[ValidationIssue]:
+    """Content review issues that only a rewrite of the personal timelines can fix."""
+    report = state.content_validation
+    if not report or report.is_consistent:
+        return []
+    return [issue for issue in report.issues if issue.fix_in == "timelines"]
+
+
+def should_retry_content_validation(
+    state: GameState,
+) -> Literal["pass", "retry", "retry_timelines", "fail"]:
     """
     Determine if content validation passed, should retry, or ran out of retries.
 
@@ -354,6 +376,7 @@ def should_retry_content_validation(state: GameState) -> Literal["pass", "retry"
 
     Returns:
         "pass" if validation passed (or there is no report)
+        "retry_timelines" if some issues lie in the personal timelines and retries remain
         "retry" if validation failed but retries remain
         "fail" if max retries exceeded
     """
@@ -361,10 +384,11 @@ def should_retry_content_validation(state: GameState) -> Literal["pass", "retry"
     if not report or report.is_consistent:
         return "pass"
 
-    if state.content_retry_count <= state.max_content_retries:
-        return "retry"
+    if state.content_retry_count > state.max_content_retries:
+        return "fail"
 
-    return "fail"
+    # A8 can't change the players' sheets, so those issues go back to their author first
+    return "retry_timelines" if timeline_issues(state) else "retry"
 
 
 def route_after_game_validation(state: GameState) -> list[str]:
@@ -417,6 +441,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_node("v2_game_logic_validator", v2_game_logic_validator_node)
     graph.add_node("a8_content", a8_content_node)
     graph.add_node("v3_content_validator", v3_content_validator_node)
+    graph.add_node("a7_5_revise_timelines", a7_5_revise_timelines_node)
     graph.add_node("a8_5_host_images", a8_5_host_images_node)
     graph.add_node("a9_packaging", a9_packaging_node)
 
@@ -463,9 +488,11 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
         {
             "pass": "a8_5_host_images",
             "retry": "a8_content",
+            "retry_timelines": "a7_5_revise_timelines",
             "fail": "a8_5_host_images",
         },
     )
+    graph.add_edge("a7_5_revise_timelines", "a8_content")
     # Packaging waits for both branches
     graph.add_edge(["a8_5_host_images", "a3_5_character_images"], "a9_packaging")
     graph.add_edge("a9_packaging", END)

@@ -117,21 +117,23 @@ class ContentGenerationAgent(BaseAgent):
             for rel in state.relationships
         ]
 
-        # A retry after V3 must know what was wrong with the previous content
+        # A retry after V3 must know what was wrong with the previous content. Issues in the
+        # personal timelines were already fixed by rewriting them, so only content issues remain.
         report = state.content_validation
-        retry_feedback = (
-            format_retry_feedback(
-                [f"{i.type}: {i.description}" for i in report.issues], report.suggested_fixes
-            )
+        content_issues = (
+            [issue for issue in report.issues if issue.fix_in == "content"]
             if report and not report.is_consistent
-            else ""
+            else []
+        )
+        retry_feedback = format_retry_feedback(
+            [f"{i.type}: {i.description}" for i in content_issues],
+            report.suggested_fixes if report and content_issues else [],
         )
         if retry_feedback:
             # V3 can't tell A8 which side of a contradiction to change; only A8's texts can
             retry_feedback += (
-                "The character sheets, relationships and timelines (global and personal) are final "
-                "and can't change. Fix every contradiction by changing your clues, host guide or "
-                "solution to match them.\n"
+                "The character sheets, relationships and timelines (global and personal) are what "
+                "players hold, so change your clues, host guide or solution to match them.\n"
             )
 
         user_message = f"""Generate ALL written content for this mystery party game:

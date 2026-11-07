@@ -22,6 +22,7 @@ from mystery_agents.models.state import (
     KillerSelection,
     MetaInfo,
     PlayerConfig,
+    ValidationIssue,
     ValidationReport,
 )
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
@@ -100,6 +101,20 @@ def test_should_retry_content_validation(
     state.content_retry_count = retry_count
 
     assert should_retry_content_validation(state) == expected
+
+
+def test_timeline_issues_are_sent_back_to_their_author(state: GameState) -> None:
+    """A8 can't change the players' sheets, so timeline issues retry through A7.5 first."""
+    state.content_validation = ValidationReport(
+        is_consistent=False,
+        issues=[ValidationIssue(type="contradiction", description="x", fix_in="timelines")],
+    )
+    state.content_retry_count = 1
+
+    assert should_retry_content_validation(state) == "retry_timelines"
+
+    state.content_retry_count = 3
+    assert should_retry_content_validation(state) == "fail"
 
 
 def _game_with_killer() -> GameState:

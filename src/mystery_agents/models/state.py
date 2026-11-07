@@ -620,6 +620,10 @@ class ValidationIssue(BaseModel):
         default_factory=list,
         description="List of IDs related to this issue (character IDs, event IDs, etc.). Can be empty.",
     )
+    fix_in: Literal["content", "timelines"] = Field(
+        default="content",
+        description="Where the fix belongs: 'timelines' when the problem lies inside the suspects' personal timelines (a suspect's own sheet contradicts itself or another sheet, or too many sheets give the killer away), so only rewriting those timelines can fix it; 'content' for clues, host guide, detective material and solution. For 'timelines', put the IDs of the suspects whose timelines must change in related_ids.",
+    )
 
 
 class ValidationReport(BaseModel):
