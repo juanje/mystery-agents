@@ -286,7 +286,6 @@ FINAL SOLUTION (read at the reveal):
 KILLER BRIEF (only if the killer knows):
 {state.killer_brief_narrative or "None"}
 
-Return the response in the exact JSON format specified in the system prompt.
 """
 
         report: ValidationReport = self.invoke(state, user_message)

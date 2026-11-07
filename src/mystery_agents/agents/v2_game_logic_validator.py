@@ -137,7 +137,6 @@ IMPORTANT:
 - If the killer has a plausible way to commit the crime (even if not every detail is in the timeline), that's sufficient
 - Only mark is_consistent=false for issues that make the game TRULY unplayable or unsolvable
 
-Return the response in the exact JSON format specified in the system prompt.
 """
 
         # Invoke LLM with structured output

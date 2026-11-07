@@ -369,7 +369,7 @@ def test_user_message_includes_all_context(complete_game_state: GameState) -> No
         assert "CHARACTERS" in user_message
         assert "CRIME" in user_message
         assert "SOLUTION" in user_message
-        assert "REQUIREMENTS" in user_message
+        assert "Write at least" in user_message
 
         # Should include specific values
         assert str(complete_game_state.config.duration_minutes) in user_message

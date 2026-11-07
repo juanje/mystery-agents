@@ -241,7 +241,6 @@ ALREADY WRITTEN (keep them as they are and stay consistent with them):
         return f"""{written_section}
 Now return ONLY the timelines for these character_ids: {", ".join(batch)}
 
-Return the response in the exact JSON format specified in the system prompt.
 """
 
     def _mock_output(self, state: GameState) -> GameState:

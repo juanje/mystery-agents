@@ -41,11 +41,11 @@ class A8Output(BaseModel):
         description="Complete host guide with setup instructions, victim role, detective role, and solution."
     )
     clues: list[ClueSpec] = Field(
-        description="List of clues for Act 2 investigation. Should include at least one clue per character."
+        description="Clues for the Act 2 investigation, in the order the detective reveals them."
     )
     killer_brief_narrative: str | None = Field(
         default=None,
-        description="Brief narrative for the killer player if killer_knows_identity is true. Null otherwise.",
+        description="Only when the killer knows their identity, otherwise null: two or three paragraphs in second person telling the killer player what they did, when and how, and which cover story to keep, without revealing the clues.",
     )
 
 
@@ -170,35 +170,8 @@ OPPORTUNITY (their hidden moment) or MEANS, not just a motive. Their own story o
 will clear them later:
 {red_herring_material}
 
-REQUIREMENTS:
-1. Create a "host_guide" HostGuide object with all required fields
-2. Create a "clues" array with at least {max(MIN_CLUES_PER_GAME, len(state.characters))} ClueSpec objects
-3. Character IDs in clues must match existing character IDs
-4. All string fields must have values - do not leave any empty
-5. Arrays can be empty [] if not applicable
-6. Create a "killer_brief_narrative" field:
-   - If killer_knows_identity is TRUE, generate a brief narrative for the killer (2-3 paragraphs)
-   - If killer_knows_identity is FALSE, set this field to null
-   - The brief narrative should be written in second person and help the killer play their role
-
-**CRITICAL FOR ACT 2 INTRO SCRIPT**:
-- The act_2_intro_script MUST include the CAUSE OF DEATH clearly
-- Murder method type: {safe_get_crime_method_description(state)}
-- Weapon: {safe_get_crime_weapon(state)}
-- Players need to know if it was: stabbing, poisoning, blunt force trauma, shooting, etc.
-- Example: "The victim has been found in the study with a stab wound to the back" or "Signs point to poisoning - the victim collapsed after drinking"
-
-**CRITICAL FOR FINAL SOLUTION**:
-- The final_solution_script must explain EVERY aspect of how the murder was committed
-- Include: who, why (complete motive), when (exact timing), where, how (method), how (weapon acquisition), how (opportunity exploitation), how (alibi creation), how (evidence placement)
-- Resolve ANY locked room mysteries, timeline puzzles, or apparent contradictions
-- Leave no unanswered questions
-- Use only evidence that appears in your clues or in the players' observations (personal timelines)
-- Explain every red herring: why that suspect looked guilty and what clears them
-
-{retry_feedback}
-Return the response in the exact JSON format specified in the system prompt.
-"""
+Write at least {max(MIN_CLUES_PER_GAME, len(state.characters))} clues.
+{retry_feedback}"""
 
         # Invoke LLM with structured output
         result = self.invoke(state, user_message)
