@@ -12,6 +12,7 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import V3_CONTENT_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_deduction_plan,
     format_global_timeline,
     format_personal_timelines,
     safe_get_crime_method_description,
@@ -304,6 +305,9 @@ DETECTIVE:
 {chr(10).join(f"  - {q}" for q in detective.guiding_questions) if detective else "N/A"}
 - Clue interpretations:
 {chr(10).join(interpretations) if interpretations else "N/A"}
+
+DEDUCTION PLAN (how the case was meant to be solved; flag what the texts don't implement):
+{format_deduction_plan(state)}
 
 FINAL SOLUTION (read at the reveal):
 {detective.final_solution_script if detective else "N/A"}

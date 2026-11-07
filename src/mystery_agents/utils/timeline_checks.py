@@ -15,6 +15,8 @@ TIME_TOLERANCE_MINUTES = 5
 # Most innocent suspects allowed to see the killer while the killer hides something.
 # More than this and players don't need to compare testimonies at all.
 MAX_KILLER_WITNESSES = {"easy": 3, "medium": 2, "hard": 2}
+# A planned observation may be written a little earlier or later than planned
+PLANNED_TIME_SLACK_MINUTES = 10
 # Innocent suspects kept hiding something when some must become truthful
 MAX_INNOCENTS_HIDING = 3
 # Words too generic to tell two places apart ("the corridor of the upper floor")
@@ -327,8 +329,26 @@ def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
     return sightings
 
 
+def _planned_witnesses(state: GameState) -> list[str]:
+    """Suspects the deduction plan gives an observation that breaks the killer's account."""
+    plan = state.killer_selection.deduction_plan if state.killer_selection else None
+    if not plan:
+        return []
+    return list(
+        dict.fromkeys(
+            piece.holder_id for piece in plan.breaking_pieces if piece.kind == "observation"
+        )
+    )
+
+
 def _witness_limit(state: GameState) -> int:
-    return MAX_KILLER_WITNESSES.get(state.config.difficulty, 2)
+    return max(MAX_KILLER_WITNESSES.get(state.config.difficulty, 2), len(_planned_witnesses(state)))
+
+
+def _witnesses_planned_first(state: GameState, witnesses: list[str]) -> list[str]:
+    """Order witnesses so the planned ones keep their sightings."""
+    planned = _planned_witnesses(state)
+    return sorted(witnesses, key=lambda char_id: char_id not in planned)
 
 
 def drop_excess_killer_sightings(state: GameState) -> list[str]:
@@ -343,7 +363,7 @@ def drop_excess_killer_sightings(state: GameState) -> list[str]:
         IDs of the suspects whose sightings were removed
     """
     sightings = _killer_sightings(state)
-    extra = list(sightings)[_witness_limit(state) :]
+    extra = _witnesses_planned_first(state, list(sightings))[_witness_limit(state) :]
     for char_id in extra:
         removed = {id(seen) for seen in sightings[char_id]}
         for event in state.personal_timelines[char_id].events:
@@ -360,7 +380,7 @@ def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:
     Spread over a couple of players these sightings make the detective compare
     testimonies; given to everyone they solve the case.
     """
-    witnesses = list(_killer_sightings(state))
+    witnesses = _witnesses_planned_first(state, list(_killer_sightings(state)))
     limit = _witness_limit(state)
     if len(witnesses) <= limit or not state.killer_selection:
         return []
@@ -381,6 +401,83 @@ def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:
             fix_in="timelines",
         )
     ]
+
+
+def find_route_not_followed(state: GameState) -> list[ValidationIssue]:
+    """Find route steps where the killer's own sheet puts them in another room."""
+    selection = state.killer_selection
+    if not selection or not selection.route or not state.world or not state.world.rooms:
+        return []
+    timeline = state.personal_timelines.get(selection.killer_id)
+    if not timeline:
+        return []
+    rooms = {room.name for room in state.world.rooms}
+    issues = []
+    for step in selection.route:
+        times = _minutes(step.time)
+        if not times or step.room not in rooms:
+            continue
+        places = _place_at(timeline.events, times[0])
+        if places and step.room not in places:
+            issues.append(
+                ValidationIssue(
+                    type="timeline_conflict",
+                    description=(
+                        f"The killer's route has them in {step.room} at {step.time} ({step.action}), "
+                        f"but their sheet puts them in {' / '.join(dict.fromkeys(places))}. Their real "
+                        "location must follow the route; their account can still claim elsewhere."
+                    ),
+                    related_ids=[selection.killer_id],
+                    fix_in="timelines",
+                )
+            )
+    return issues
+
+
+def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]:
+    """
+    Find observations the deduction plan assigns that aren't on their holder's sheet.
+
+    Without them the case can't be solved, or a red herring can't be cleared.
+    """
+    selection = state.killer_selection
+    plan = selection.deduction_plan if selection else None
+    if not plan:
+        return []
+    names = {char.id: char.name for char in state.characters}
+    pieces = [
+        *plan.breaking_pieces,
+        plan.means_piece,
+        *(entry.suspicion for entry in plan.red_herrings),
+        *(entry.clearing for entry in plan.red_herrings),
+    ]
+    issues = []
+    for piece in pieces:
+        timeline = state.personal_timelines.get(piece.holder_id)
+        planned_at = _minutes(piece.time)
+        if piece.kind != "observation" or not timeline or not planned_at:
+            continue
+        found = any(
+            seen.observed_character_id == piece.about_id
+            and (times := _minutes(seen.time))
+            and abs(times[0] - planned_at[0]) <= PLANNED_TIME_SLACK_MINUTES
+            for event in timeline.events
+            for seen in event.info_they_observed
+        )
+        if not found:
+            issues.append(
+                ValidationIssue(
+                    type="logic_gap",
+                    description=(
+                        f"The deduction plan gives {names.get(piece.holder_id, piece.holder_id)} an "
+                        f"observation of {names.get(piece.about_id, piece.about_id)} around "
+                        f"{piece.time} ('{piece.description}'), but their sheet doesn't have it. Add it."
+                    ),
+                    related_ids=[piece.holder_id],
+                    fix_in="timelines",
+                )
+            )
+    return issues
 
 
 def find_killer_sheet_stands_out(state: GameState) -> list[ValidationIssue]:
@@ -430,6 +527,8 @@ def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
         *find_impossible_sightings(state),
         *find_absent_from_shared_events(state),
         *find_murder_heard_out_of_range(state),
+        *find_route_not_followed(state),
+        *find_missing_planned_observations(state),
         *find_too_many_killer_witnesses(state),
         *find_killer_sheet_stands_out(state),
     ]

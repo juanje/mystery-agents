@@ -4,6 +4,8 @@ import pytest
 
 from mystery_agents.models.state import (
     CharacterSpec,
+    DeductionPlan,
+    EvidencePiece,
     GameConfig,
     GameState,
     KillerSelection,
@@ -21,8 +23,10 @@ from mystery_agents.utils.timeline_checks import (
     find_impossible_sightings,
     find_killer_sheet_stands_out,
     find_misplaced_observations,
+    find_missing_planned_observations,
     find_murder_heard_out_of_range,
     find_observation_time_errors,
+    find_route_not_followed,
     find_timeline_violations,
     find_too_many_killer_witnesses,
     same_place,
@@ -402,3 +406,66 @@ def test_the_murder_is_only_heard_where_it_reaches(state: GameState) -> None:
     issues = find_murder_heard_out_of_range(state)
 
     assert [issue.related_ids for issue in issues] == [["berta"]]
+
+
+def _plan(holders: list[str]) -> DeductionPlan:
+    def obs(holder: str) -> EvidencePiece:
+        return EvidencePiece(
+            kind="observation", holder_id=holder, about_id="killer", time="22:00", description="x"
+        )
+
+    return DeductionPlan(
+        breaking_pieces=[obs(holder) for holder in holders],
+        means_piece=EvidencePiece(
+            kind="clue", holder_id="", about_id="killer", time="21:00", description="x"
+        ),
+        red_herrings=[],
+    )
+
+
+def test_killer_must_follow_the_route(state: GameState) -> None:
+    """The killer's real place at each route step is the route's room."""
+    from mystery_agents.models.state import HostCharacter, Room, RouteStep, WorldBible
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name=n, floor="0", description="x", connects_to=[]) for n in ("Study", "Library")
+        ],
+    )
+    assert state.killer_selection is not None
+    state.killer_selection.route = [RouteStep(time="22:00", room="Study", action="x")]
+    assert find_route_not_followed(state) == []
+
+    state.killer_selection.route = [RouteStep(time="22:00", room="Library", action="x")]
+    assert [issue.related_ids for issue in find_route_not_followed(state)] == [["killer"]]
+
+
+def test_planned_observations_must_be_on_the_holder_sheet(state: GameState) -> None:
+    """A sighting the plan gives Ana must appear on Ana's sheet near the planned time."""
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = _plan(["ana"])
+
+    assert [issue.related_ids for issue in find_missing_planned_observations(state)] == [["ana"]]
+
+    state.personal_timelines["ana"].events[1].info_they_observed = [
+        _seen("22:05", "killer", "Study")
+    ]
+    assert find_missing_planned_observations(state) == []
+
+
+def test_planned_witnesses_keep_their_sightings(state: GameState) -> None:
+    """If the plan gives three players a sighting, none of them loses it."""
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = _plan(["ana", "berta", "carla"])
+    for witness in ("ana", "berta", "carla"):
+        state.personal_timelines[witness].events[1].info_they_observed = [
+            _seen("22:00", "killer", "Study")
+        ]
+
+    assert drop_excess_killer_sightings(state) == []

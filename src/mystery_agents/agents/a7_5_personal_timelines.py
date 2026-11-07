@@ -16,7 +16,9 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import format_floor_plan, room_names
 from mystery_agents.utils.prompts import A7_5_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_deduction_plan,
     format_global_timeline,
+    format_killer_route,
     format_personal_timelines,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
@@ -219,6 +221,12 @@ GLOBAL TIMELINE (DO NOT CONTRADICT):
 
 TRUTH NARRATIVE (what really happened):
 {state.killer_selection.truth_narrative if state.killer_selection else ""}
+
+KILLER'S REAL ROUTE (the killer's sheet places them exactly here):
+{format_killer_route(state)}
+
+DEDUCTION PLAN (write every observation it assigns on its holder's sheet, at that time):
+{format_deduction_plan(state)}
 """
 
     def _write(

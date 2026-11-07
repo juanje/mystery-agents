@@ -353,6 +353,8 @@ You MUST return a JSON object with exactly one field:
        - time_window: object with "start" and "end" in HH:MM format (e.g., {"start": "21:00", "end": "21:30"})
        - notes: string (description of the opportunity)
      * IMPORTANT: You now have character IDs available - you can create opportunities if relevant
+   - means_access: array of {character_id, how}: at least three suspects who could get or reach the weapon
+     or substance (it belongs to them, they know where it is kept, they handle it at work)
 
 CRITICAL RULES:
 1. The victim MUST be designed as a character the HOST will roleplay in Act 1
@@ -362,10 +364,13 @@ CRITICAL RULES:
 5. The murder method and weapon should be culturally and historically appropriate for the country and epoch
 6. Consider the characters' relationships and motives when designing the crime
 7. The crime should create interesting dynamics between the suspects
-8. The method must be plausible: its timing must match how that poison or weapon really acts (a slow poison can't kill in minutes), and the killer must not act in front of the victim or a witness unless the plot explains why that doesn't expose them
-9. All string fields must be non-empty
-10. All arrays must be valid JSON arrays (use [] if empty)
-11. Follow the exact field names and types specified above
+8. The means must not point at one person: at least three suspects could have got the weapon or substance
+   (means_access). The killer is chosen later among them, and a weapon only one suspect could have makes the
+   game obvious (a "clinical" poison with a single doctor at the table).
+9. The method must be plausible: its timing must match how that poison or weapon really acts (a slow poison can't kill in minutes), and the killer must not act in front of the victim or a witness unless the plot explains why that doesn't expose them
+10. All string fields must be non-empty
+11. All arrays must be valid JSON arrays (use [] if empty)
+12. Follow the exact field names and types specified above
 
 Use the world context, character information, country, epoch, and cultural details to create a compelling crime.
 """
@@ -399,75 +404,47 @@ is found. It must fit the murder method and how that method really acts.
 
 
 # A7: Killer Selection Agent
-A7_SYSTEM_PROMPT = """You are a mystery logic designer for murder mystery games.
+A7_SYSTEM_PROMPT = (
+    """You decide who the killer is and how the case gets solved in a live-action murder mystery party game.
+You are not writing anything players read: the suspects' sheets and the clues are written afterwards, in
+parallel, by writers who implement your plan. Whatever your plan leaves open, each of them fills in
+differently, and the game stops adding up.
 
-Your task is to select the KILLER from the list of suspects and ensure the logic is airtight.
+"""
+    + FAIR_PLAY
+    + """
+CHOOSING THE KILLER
+- Choose among the suspects who could get the weapon or substance and who have a moment out of the group's
+  sight in the shared timeline. Prefer the one whose opportunity is least visible: a quiet gap during an
+  ordinary errand, not a public act such as offering to bring the victim's drink, which points at them
+  before the investigation starts.
+- Several suspects had comparable chances, and your plan gives each of them a reason to look guilty.
+- The shared facts and the murder event can't change. The killer's route uses only the gaps the timeline
+  leaves, and the rooms and connections of the floor plan.
 
-OUTPUT FORMAT:
-You MUST return a KillerSelection object with:
-- killer_id: string (ID of the chosen character, must match a character ID)
-- rationale: string (explanation of why this character was chosen)
-- modified_events: array of strings (descriptions of timeline adjustments, can be empty [])
-- truth_narrative: string (complete solution narrative for the host guide)
+THE ROUTE
+The killer's real movements step by step, from slipping away until they are back among the others: time,
+room and what they do. Their sheet will place them exactly there.
 
-CRITICAL RULES:
-1. The killer MUST be one of the suspect characters (players), NEVER the victim (host)
-3. The killer must have: motive, means, and opportunity
-4. The solution must be deducible from clues but not obvious
-5. Other suspects should have partial evidence against them (red herrings)
-6. killer_id must match an existing character ID exactly
-7. truth_narrative must be a complete, detailed solution that answers ALL questions (see below)
-8. modified_events can be empty [] if no adjustments needed
-9. Follow the exact field names and types specified above
+THE DEDUCTION PLAN
+- breaking_pieces: 2 to 4 pieces that break the killer's account only when combined, each held by a
+  different player (an observation) or a clue. An observation is something its holder could see from where
+  they were (their room or one visible from it on the floor plan) or hear, and it is indirect: the killer
+  seen somewhere they later deny, at an odd time, coming back the wrong way. Nobody sees the crime itself.
+- means_piece: how players learn the killer could get the weapon or substance. Others had access too, so it
+  doesn't settle the case.
+- red_herrings: one for every innocent suspect. suspicion is means or opportunity players will hold (their
+  hidden moment, their access to the means), not only motive. clearing is a later piece that clears them,
+  held by another player or a clue, never their own word.
+- Difficulty: easy games need two pieces that point at the same gap; medium ones three that need each
+  other; hard ones pieces that sound innocent until compared.
 
-**CRITICAL: TRUTH NARRATIVE MUST RESOLVE ALL ASPECTS OF THE MYSTERY**:
-Your truth_narrative must be a COMPLETE solution that answers:
-1. **WHO**: The killer's identity
-2. **WHY**: Complete motive with backstory and emotional/practical reasons
-3. **WHEN**: Exact timing - which timeline gap/opportunity they used
-4. **WHERE**: Exact location where the murder occurred
-5. **HOW - METHOD**: Detailed description of how they committed the murder
-6. **HOW - WEAPON**: What weapon/method they used and where they got it
-7. **HOW - OPPORTUNITY**: How they created or exploited the opportunity
-8. **HOW - ALIBI**: How they created their false alibi or what they claimed vs reality
-9. **HOW - EVIDENCE**: Explanation of any physical evidence, how it got there, what it means
-10. **HOW - ESCAPE**: If there's a locked room or similar puzzle, how they solved it
-
-**RESOLVE EVERY MYSTERY ELEMENT**:
-- If the door was locked from inside, explain HOW the killer locked it after exiting
-- If there are witnesses who saw the killer elsewhere, explain HOW they created that false impression
-- If there's contradictory physical evidence, explain WHY it appears contradictory and what really happened
-- If there are timeline inconsistencies, explain the TRUTH behind what really happened
-- Leave NO unanswered questions or plot holes
-
-**FORMAT**: Write the truth_narrative as a clear, detailed narrative (2-4 paragraphs) that reads like Poirot or Miss Marple's final explanation. Make it satisfying and complete.
-
-**CRITICAL: WORK WITH THE EXISTING TIMELINE**:
-The timeline has already been generated by another agent. Your truth_narrative MUST:
-- ✅ Use the opportunities and gaps ALREADY present in the timeline
-- ✅ Explain what happened during moments when the killer was alone/unaccounted for
-- ✅ Reference specific timeline events that the killer exploited
-- ❌ NEVER invent events that don't exist in the timeline (e.g., "met privately at 21:45" if no such event exists)
-- ❌ NEVER place the killer somewhere that contradicts the timeline
-- ❌ NEVER have the victim do something that contradicts their timeline actions
-
-**HOW TO BUILD THE TRUTH NARRATIVE**:
-1. Review the timeline carefully - identify when the killer was alone/could slip away
-2. Find a gap or ambiguous moment near the time of death
-3. Explain that during THIS specific timeline gap, the killer committed the murder
-4. If the killer claims an alibi later (e.g., "was in dining room"), explain they RETURNED after the murder
-5. The truth narrative fills in HIDDEN details of EXISTING timeline gaps, not new events
-
-**EXAMPLES**:
-✅ GOOD: "At 22:12, when Elena claimed she went to fetch documents (timeline event), she actually slipped onto the terrace and committed the murder, returning by 22:15 when she was seen again."
-
-❌ BAD: "At 21:45, Elena had a private meeting with the victim in his suite (no such event in timeline) where she killed him."
-
-✅ GOOD: "The timeline shows Carmen left the dining room at 22:10 'to make a call'. During this 8-minute window before she returned at 22:18, she committed the murder."
-
-❌ BAD: "Carmen killed the victim earlier in the day before the party started (timeline only covers the party)."
-
-Ensure the mystery is challenging but solvable."""
+THE TRUTH NARRATIVE
+The full solution as the detective tells it, in 2 to 4 paragraphs: who, why, when, where, how (method,
+weapon and where it came from), how the alibi was built, and the evidence. It follows the route and the
+murder event exactly and rests only on the plan's pieces.
+"""
+)
 
 # A7.5: Personal Timelines Agent
 A7_5_SYSTEM_PROMPT = (
@@ -498,11 +475,10 @@ HOW YOU WRITE THE EVENINGS
 - Two or three innocent suspects hide something unrelated to the murder (an affair, a debt, a secret
   meeting), so their account differs from what they really did. The others tell the truth. That way the
   killer's sheet looks like any truthful sheet, and the hidden moments become red herrings.
-- The killer's account only breaks when testimonies are combined. Two innocent suspects (up to three in
-  easy games) see the killer during the moments they hide, each seeing only part of it and indirectly:
-  somewhere they later deny, at an odd time, coming back from the wrong direction. Nobody sees the crime,
-  the killer with the victim at the scene, or the weapon. More witnesses than that solve the case without
-  the detective's work, and code counts them.
+- The deduction plan says which suspects see the killer, when and what: write exactly those observations on
+  their holders' sheets, and the ones that clear or cast suspicion on each innocent. Nobody else sees the
+  killer during the moments they hide, and nobody sees the crime itself: more witnesses than planned solve
+  the case without the detective's work, and code removes the extra ones.
 - The other observations cast suspicion on innocent suspects or clear them later, so players can rule
   people out by comparing stories. Each suspect has 3 to 5 observations, each one about someone's motive,
   opportunity or alibi rather than filler like "looked nervous".

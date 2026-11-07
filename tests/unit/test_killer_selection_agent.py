@@ -71,7 +71,8 @@ def test_killer_selection_agent_mock_output(state_with_timeline: GameState) -> N
     assert result.killer_selection is not None
     assert result.killer_selection.killer_id == state_with_timeline.characters[0].id
     assert result.killer_selection.rationale != ""
-    assert len(result.killer_selection.modified_events) > 0
+    assert result.killer_selection.route
+    assert result.killer_selection.deduction_plan is not None
     assert result.killer_selection.truth_narrative != ""
 
 

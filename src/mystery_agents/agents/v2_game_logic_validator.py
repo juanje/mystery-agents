@@ -5,7 +5,9 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_deduction_plan,
     format_global_timeline,
+    format_killer_route,
     format_personal_timelines,
     safe_get_crime_method_description,
     safe_get_crime_scene_room_id,
@@ -82,8 +84,11 @@ COMPLETE TRUTH NARRATIVE:
 KILLER RATIONALE:
 {state.killer_selection.rationale}
 
-MODIFIED EVENTS (if any):
-{chr(10).join(f"- {event}" for event in state.killer_selection.modified_events) if state.killer_selection.modified_events else "- None"}
+KILLER'S REAL ROUTE:
+{format_killer_route(state)}
+
+DEDUCTION PLAN (the sheets must contain the observations it assigns):
+{format_deduction_plan(state)}
 """
 
         user_message = f"""Validate this mystery party game for logical consistency:
@@ -118,29 +123,8 @@ PERSONAL TIMELINES (what each suspect really did, claims and observed):
 {format_personal_timelines(state)}
 {truth_narrative}
 
-REQUIREMENTS:
-1. Create a ValidationReport object with: is_consistent (boolean), issues (array), suggested_fixes (array)
-2. If is_consistent is true, issues should be empty []
-3. If is_consistent is false, provide at least one ValidationIssue in the issues array
-4. Each ValidationIssue must have: type, description, related_ids (array, can be empty [])
-5. suggested_fixes is an array of strings (can be empty [])
-6. All string fields must have values - do not leave any empty
-
-VALIDATION GUIDELINES:
-- Check if the killer has motive, means, and a PLAUSIBLE opportunity (doesn't need to be perfect)
-- Check if the timeline is REASONABLY consistent (minor gaps are acceptable if explained in truth_narrative)
-- Check if the mystery can be solved with available information (some ambiguity is fine for medium difficulty)
-- Check if all characters are integrated (they should have roles and motives)
-- Check the personal timelines: they must not contradict the global timeline or the truth narrative, and an observation can only describe what the observed person really did at that time
-- Check that the observations exposing the killer's account exist and are held by at least two different innocent suspects
-- Only flag CRITICAL issues that make the game unplayable
-
-IMPORTANT:
-- Be REASONABLE: Minor inconsistencies that are explained in the truth_narrative should NOT prevent validation
-- The truth_narrative explains what REALLY happened - use it to resolve timeline ambiguities
-- If the killer has a plausible way to commit the crime (even if not every detail is in the timeline), that's sufficient
-- Only mark is_consistent=false for issues that make the game TRULY unplayable or unsolvable
-
+Also check that the killer's sheet follows the route, and that the observations the deduction plan assigns
+are on their holders' sheets and possible from where the holders were.
 """
 
         # Invoke LLM with structured output

@@ -125,6 +125,8 @@ Return the response in the exact JSON format specified in the system prompt.
 
         crime = result.crime
         crime.murder_method.type = method.option.type
+        suspect_ids = {char.id for char in state.characters}
+        crime.means_access = [a for a in crime.means_access if a.character_id in suspect_ids]
         if state.world:
             # The victim was decided with the world; the sheets and occasion already use it
             host = state.world.host

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import operator
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from mystery_agents.utils.constants import DEFAULT_COUNTRY_ES, DEFAULT_OUTPUT_DIR
 
@@ -237,6 +237,15 @@ class OpportunitySpec(BaseModel):
     )
 
 
+class MeansAccess(BaseModel):
+    """How a suspect could have got hold of the weapon or substance."""
+
+    character_id: str = Field(description="ID of the suspect.")
+    how: str = Field(
+        description="How they could get or reach it (they know where it is kept, it belongs to them, they handle it at work)."
+    )
+
+
 class CrimeSpec(BaseModel):
     """Complete crime specification."""
 
@@ -259,6 +268,10 @@ class CrimeSpec(BaseModel):
     possible_opportunities: list[OpportunitySpec] = Field(
         default_factory=list,
         description="List of opportunity windows for suspects to commit the crime. IMPORTANT: Use an empty array [] by default - opportunities will be defined later in the timeline when character IDs are available. Only include opportunities if you have valid character IDs with the exact format: character_id (string), can_be_alone_with_victim (boolean), time_window (object with start/end in HH:MM), notes (string).",
+    )
+    means_access: list[MeansAccess] = Field(
+        default_factory=list,
+        description="At least three suspects who could have got hold of the weapon or substance, so having it doesn't point at one person.",
     )
 
 
@@ -426,21 +439,108 @@ class GlobalTimeline(BaseModel):
     )
 
 
+class RouteStep(BaseModel):
+    """One step of the killer's real movements."""
+
+    time: str = Field(description="HH:MM or HH:MM-HH:MM.")
+    room: str = Field(description="Name of the floor plan room.")
+    action: str = Field(description="What the killer really does there.")
+
+
+class EvidencePiece(BaseModel):
+    """A piece players will hold: a clue card or an observation on someone's sheet."""
+
+    kind: Literal["clue", "observation"] = Field(
+        description="'observation' if a suspect saw or heard it (written on their sheet), 'clue' if it is a physical clue the detective reveals."
+    )
+    holder_id: str = Field(
+        description="For an observation, ID of the suspect who has it on their sheet. Empty for a clue."
+    )
+    about_id: str = Field(description="ID of the suspect this piece concerns.")
+    time: str = Field(
+        description="HH:MM the piece refers to (when it was seen, or when the clue places someone)."
+    )
+    description: str = Field(
+        description="What the piece shows, as a fact players can compare (e.g., 'Ana sees Diego come back up the service stairs at 22:12')."
+    )
+
+
+class RedHerringPlan(BaseModel):
+    """Why an innocent suspect looks guilty, and what clears them."""
+
+    character_id: str = Field(description="ID of the innocent suspect.")
+    suspicion: EvidencePiece = Field(
+        description="What makes them look capable: means or opportunity, not only motive."
+    )
+    clearing: EvidencePiece = Field(
+        description="The piece that later clears them. It must be something players hold, never their own word."
+    )
+
+
+class DeductionPlan(BaseModel):
+    """
+    How the case gets solved, decided before anything is written.
+
+    Writers working in parallel kept inventing evidence on their own: means only
+    the solution knew about, red herrings nothing could clear. The plan fixes which
+    piece goes where, and every later writer implements its part.
+    """
+
+    breaking_pieces: list[EvidencePiece] = Field(
+        description="The 2 to 4 pieces that break the killer's account when combined, held by different players or clues. None is enough on its own."
+    )
+    means_piece: EvidencePiece = Field(
+        description="How players learn the killer could get the weapon or substance. Others must have had access too."
+    )
+    red_herrings: list[RedHerringPlan] = Field(description="One entry for every innocent suspect.")
+
+
+def _require_plan_fields(schema: dict[str, Any]) -> None:
+    """
+    Make route and deduction_plan required for the model, while code can omit them.
+
+    Gemini writes required fields first, so leaving them optional would put the
+    plan after the narrative it should shape, and allow a null plan.
+    """
+    props = schema["properties"]
+    plan = props["deduction_plan"]
+    props["deduction_plan"] = next(
+        (option for option in plan.get("anyOf", []) if "$ref" in option), plan
+    ) | {"description": plan.get("description", "")}
+    props["deduction_plan"].pop("default", None)
+    props["route"].pop("default", None)
+    required = schema.setdefault("required", [])
+    for name in ("route", "deduction_plan"):
+        if name not in required:
+            required.append(name)
+    schema["required"] = [name for name in props if name in required]
+
+
 class KillerSelection(BaseModel):
     """Killer selection and rationale."""
+
+    model_config = ConfigDict(json_schema_extra=_require_plan_fields)
 
     killer_id: str = Field(
         description="ID of the character who is the killer. Must match one of the suspect character IDs."
     )
     rationale: str = Field(
-        description="Explanation of why this character was chosen as the killer (e.g., 'Has strongest motive and opportunity')."
+        description="Why this suspect: whose opportunity is least visible while several others had comparable chances."
     )
-    modified_events: list[str] = Field(
+    route: list[RouteStep] = Field(
         default_factory=list,
-        description="List of descriptions of any timeline events that need to be adjusted for the solution to work. Can be empty.",
+        description="The killer's real movements from the moment they slip away until they are back among the others, in rooms of the floor plan.",
     )
     truth_narrative: str = Field(
         description="Complete narrative of what actually happened - the full solution to the mystery."
+    )
+    deduction_plan: DeductionPlan | None = Field(
+        default=None,
+        description="Which pieces players will hold and how they solve the case.",
+    )
+    modified_events: list[str] = Field(
+        default_factory=list,
+        description="Unused; kept for older saved games.",
     )
 
 

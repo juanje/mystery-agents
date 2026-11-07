@@ -17,6 +17,7 @@ from mystery_agents.utils.constants import (
 from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import A8_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
+    format_deduction_plan,
     format_global_timeline,
     format_personal_timelines,
     safe_get_crime_method_description,
@@ -159,6 +160,10 @@ CRIME:
 
 SOLUTION:
 {state.killer_selection.truth_narrative if state.killer_selection else "No solution"}
+
+DEDUCTION PLAN (write a clue for every piece marked as a clue; the solution clears each red herring with
+the piece planned for it, and rests on these pieces only):
+{format_deduction_plan(state)}
 
 FLOOR PLAN (use these room names; a clue or the solution can only rely on connections and views listed here):
 {format_floor_plan(state)}

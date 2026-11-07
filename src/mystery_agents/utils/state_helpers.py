@@ -1,6 +1,6 @@
 """Helper functions for safe access to nested GameState fields."""
 
-from mystery_agents.models.state import GameState
+from mystery_agents.models.state import EvidencePiece, GameState
 
 
 def safe_get_world_location_name(state: GameState) -> str:
@@ -171,3 +171,43 @@ def format_retry_feedback(issues: list[str], fixes: list[str]) -> str:
         lines.append("Suggested fixes:")
         lines.extend(f"- {fix}" for fix in fixes)
     return "\n".join(lines) + "\n"
+
+
+def format_killer_route(state: GameState) -> str:
+    """The killer's real movements, one line per step."""
+    selection = state.killer_selection
+    if not selection or not selection.route:
+        return "No route"
+    return "\n".join(f"- {step.time} @ {step.room}: {step.action}" for step in selection.route)
+
+
+def format_deduction_plan(state: GameState) -> str:
+    """
+    Render the deduction plan with names: who holds which piece and what it shows.
+
+    Returns:
+        The plan as prompt text, or a placeholder when there is none
+    """
+    selection = state.killer_selection
+    plan = selection.deduction_plan if selection else None
+    if not plan:
+        return "No deduction plan"
+    names = {char.id: char.name for char in state.characters}
+
+    def piece(p: EvidencePiece) -> str:
+        holder = (
+            f"observation on {names.get(p.holder_id, p.holder_id)}'s sheet"
+            if p.kind == "observation"
+            else "clue"
+        )
+        return f"[{holder}, about {names.get(p.about_id, p.about_id)}, {p.time}] {p.description}"
+
+    lines = ["Pieces that break the killer's account (only together):"]
+    lines.extend(f"- {piece(p)}" for p in plan.breaking_pieces)
+    lines.append(f"How players learn the killer had the means: {piece(plan.means_piece)}")
+    lines.append("Red herrings:")
+    for entry in plan.red_herrings:
+        lines.append(f"- {names.get(entry.character_id, entry.character_id)}:")
+        lines.append(f"  looks guilty: {piece(entry.suspicion)}")
+        lines.append(f"  cleared by: {piece(entry.clearing)}")
+    return "\n".join(lines)

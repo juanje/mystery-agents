@@ -1,12 +1,19 @@
 """A7: Killer Selection Agent - Chooses the culprit and ensures logic is sound."""
 
-from mystery_agents.models.state import GameState, KillerSelection
+from mystery_agents.models.state import (
+    DeductionPlan,
+    EvidencePiece,
+    GameState,
+    KillerSelection,
+    RedHerringPlan,
+    RouteStep,
+)
 from mystery_agents.utils.cache import LLMCache
-from mystery_agents.utils.floor_plan import format_floor_plan
+from mystery_agents.utils.floor_plan import find_room, format_floor_plan
 from mystery_agents.utils.prompts import A7_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import format_global_timeline
 
-from .base import BaseAgent
+from .base import BaseAgent, StructuredOutputError
 
 
 class KillerSelectionAgent(BaseAgent):
@@ -47,73 +54,69 @@ class KillerSelectionAgent(BaseAgent):
         if self._should_use_mock(state):
             return self._mock_output(state)
 
-        # Prepare context for LLM
-        suspects_info = []
-        for char in state.characters:
-            suspects_info.append(
-                f"- {char.name} (ID: {char.id}): {char.role}, motive: {char.motive_for_crime}"
-            )
-
-        # Detailed events so A7 can see what actually happened
-        timeline_summary = format_global_timeline(state)
-
-        # Validate that crime is set (should always be at this point in workflow)
         if not state.crime:
             raise ValueError("Crime specification is required for killer selection")
 
-        user_message = f"""Select the killer from these suspects and ensure the mystery is logically sound:
+        names = {char.id: char.name for char in state.characters}
+        suspects_info = [
+            f"- {char.name} (ID: {char.id}): {char.role}, {char.relation_to_victim}\n"
+            f"  Motive: {char.motive_for_crime or 'None'}\n"
+            f"  Secrets: {'; '.join(char.personal_secrets) or 'None'}"
+            for char in state.characters
+        ]
+        means_access = [
+            f"- {names.get(access.character_id, access.character_id)} (ID: {access.character_id}): {access.how}"
+            for access in state.crime.means_access
+        ]
+
+        user_message = f"""Choose the killer and plan how this mystery gets solved:
 
 VICTIM (HOST - NOT A SUSPECT):
 - {state.crime.victim.name}: {state.crime.victim.role_in_setting}
 
-SUSPECTS (PLAYERS - CHOOSE ONE AS KILLER):
+SUSPECTS (CHOOSE ONE AS KILLER):
 {chr(10).join(suspects_info)}
 
-CRIME DETAILS:
+CRIME:
 - Method: {state.crime.murder_method.description}
 - Weapon: {state.crime.murder_method.weapon_used}
-- Location: {state.crime.crime_scene.description}
+- Scene: {state.crime.crime_scene.description}
 - Time of death: {state.crime.time_of_death_approx}
 
-FLOOR PLAN (the killer moves only through these rooms and connections):
+WHO COULD GET THE WEAPON OR SUBSTANCE:
+{chr(10).join(means_access) if means_access else "Not specified: decide who had access in the plan"}
+
+FLOOR PLAN (the route and every observation use these rooms, connections and views):
 {format_floor_plan(state)}
 
-TIMELINE (EXISTING EVENTS - DO NOT CONTRADICT):
-{timeline_summary}
+SHARED TIMELINE AND MURDER EVENT (facts that can't change):
+{format_global_timeline(state)}
 
 DIFFICULTY: {state.config.difficulty}
-
-**CRITICAL INSTRUCTIONS**:
-1. Review the timeline carefully and identify which suspect has the BEST opportunity based on EXISTING timeline events
-2. Look for moments where a suspect was:
-   - Alone or unaccounted for
-   - Near the crime location
-   - Had a plausible reason to slip away
-   - A gap in their whereabouts during or just before time of death
-3. Your truth_narrative MUST explain what happened during these EXISTING gaps/opportunities, and the murder
-   as the MURDER EVENT describes it (time, room, what is heard, the scene, who finds the body)
-4. DO NOT invent new events (like "they met privately at X time") unless that event exists in the timeline
-5. If you need the killer to have done something, use an existing timeline event where they could have done it
-
-REQUIREMENTS:
-1. Create a KillerSelection object with: killer_id, rationale, modified_events, truth_narrative
-2. killer_id must match one of the suspect character IDs exactly who HAS an opportunity in the timeline
-3. rationale must explain why this character was chosen based on EXISTING timeline opportunities
-4. modified_events is an array of strings (can be empty [])
-5. truth_narrative must explain the murder using ONLY existing timeline events and gaps
-6. All string fields must have values - do not leave any empty
-
-Return the response in the exact JSON format specified in the system prompt.
 """
 
         # Invoke LLM with structured output
         result = self.invoke(state, user_message)
 
-        # Validate killer is in suspects list
         killer_ids = [c.id for c in state.characters]
         if result.killer_id not in killer_ids:
-            # Fallback: choose first character
-            result.killer_id = state.characters[0].id if state.characters else "unknown"
+            raise StructuredOutputError(f"Killer {result.killer_id!r} is not a suspect")
+        for step in result.route:
+            step.room = find_room(state, step.room) or step.room
+
+        # Every innocent needs a planned reason to look guilty and a way to be cleared
+        plan = result.deduction_plan
+        if not plan:
+            raise StructuredOutputError("No deduction plan")
+        plan.red_herrings = [
+            entry
+            for entry in plan.red_herrings
+            if entry.character_id in killer_ids and entry.character_id != result.killer_id
+        ]
+        planned = {entry.character_id for entry in plan.red_herrings}
+        missing = [c for c in killer_ids if c != result.killer_id and c not in planned]
+        if missing:
+            raise StructuredOutputError(f"No red herring planned for suspects: {missing}")
 
         # Update state
         state.killer_selection = result
@@ -125,10 +128,52 @@ Return the response in the exact JSON format specified in the system prompt.
         # Choose first character as killer for mock
         killer_id = state.characters[0].id if state.characters else "mock-killer"
 
+        others = [c.id for c in state.characters if c.id != killer_id]
+        witness = others[0] if others else killer_id
         state.killer_selection = KillerSelection(
             killer_id=killer_id,
             rationale="This character had the strongest motive and best opportunity.",
-            modified_events=["Adjusted timeline to place killer near victim at time of death"],
+            route=[
+                RouteStep(time="21:30-21:45", room="Study", action="Slips into the study."),
+            ],
+            deduction_plan=DeductionPlan(
+                breaking_pieces=[
+                    EvidencePiece(
+                        kind="clue",
+                        holder_id=witness,
+                        about_id=killer_id,
+                        time="21:35",
+                        description="Seen coming back from the study corridor.",
+                    )
+                ],
+                means_piece=EvidencePiece(
+                    kind="clue",
+                    holder_id="",
+                    about_id=killer_id,
+                    time="21:00",
+                    description="The weapon was kept where several guests could reach it.",
+                ),
+                red_herrings=[
+                    RedHerringPlan(
+                        character_id=char_id,
+                        suspicion=EvidencePiece(
+                            kind="clue",
+                            holder_id="",
+                            about_id=char_id,
+                            time="21:30",
+                            description="Was away from the group.",
+                        ),
+                        clearing=EvidencePiece(
+                            kind="clue",
+                            holder_id=killer_id,
+                            about_id=char_id,
+                            time="21:35",
+                            description="Seen in the garden.",
+                        ),
+                    )
+                    for char_id in others
+                ],
+            ),
             truth_narrative="""The killer poisoned the victim's evening brandy during Act 1.
 They had access to the study and the means to obtain the poison.
 The motive was related to the recent change in the victim's will.
