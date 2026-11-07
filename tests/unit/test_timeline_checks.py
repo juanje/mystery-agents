@@ -14,6 +14,7 @@ from mystery_agents.models.state import (
     PersonalEvent,
     PersonalTimeline,
     PlayerConfig,
+    RedHerringPlan,
 )
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.timeline_checks import (
@@ -28,6 +29,7 @@ from mystery_agents.utils.timeline_checks import (
     find_missing_planned_observations,
     find_murder_heard_out_of_range,
     find_observation_time_errors,
+    find_plan_problems,
     find_route_not_followed,
     find_timeline_violations,
     find_too_many_killer_witnesses,
@@ -544,3 +546,59 @@ def test_plans_with_sightings_through_walls_are_rejected(state: GameState) -> No
 
     plan.breaking_pieces[0].from_room = "Cellar"
     assert len(find_impossible_planned_sightings(state)) == 1
+
+
+def test_plan_with_too_many_witnesses_is_rejected(state: GameState) -> None:
+    """Three planned witnesses solve a medium game without comparing testimonies."""
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = _plan(["ana", "berta", "carla"])
+
+    problems = find_plan_problems(state)
+
+    assert any("3 suspects see the killer" in problem for problem in problems)
+
+
+def test_plan_clue_that_fits_only_the_killer_is_rejected(state: GameState) -> None:
+    """A breaking clue must declare at least one more suspect it could point to."""
+    assert state.killer_selection is not None
+    plan = _plan(["ana"])
+    plan.breaking_pieces.append(
+        EvidencePiece(
+            kind="clue", holder_id="", about_id="killer", time="22:00", description="A scalpel"
+        )
+    )
+    state.killer_selection.deduction_plan = plan
+
+    assert any("fits only" in problem for problem in find_plan_problems(state))
+
+    plan.breaking_pieces[-1].fits_ids = ["killer", "berta"]
+    plan.means_piece.fits_ids = ["killer", "carla"]
+    assert not any("fits only" in problem for problem in find_plan_problems(state))
+
+
+def test_unaware_killer_must_hold_an_observation(state: GameState) -> None:
+    """Without one, the killer's sheet is the only one with nothing seen near the crime."""
+    assert state.killer_selection is not None
+    plan = _plan(["ana"])
+    plan.means_piece.fits_ids = ["killer", "carla"]
+    state.killer_selection.deduction_plan = plan
+    state.config.killer_knows_identity = False
+
+    assert any("holds no observation" in problem for problem in find_plan_problems(state))
+
+    plan.red_herrings = [
+        RedHerringPlan(
+            character_id="berta",
+            suspicion=EvidencePiece(
+                kind="clue", holder_id="", about_id="berta", time="21:30", description="x"
+            ),
+            clearing=EvidencePiece(
+                kind="observation",
+                holder_id="killer",
+                about_id="berta",
+                time="21:40",
+                description="x",
+            ),
+        )
+    ]
+    assert find_plan_problems(state) == []

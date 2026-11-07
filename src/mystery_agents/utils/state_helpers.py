@@ -200,7 +200,14 @@ def format_deduction_plan(state: GameState) -> str:
             if p.kind == "observation"
             else "clue"
         )
-        return f"[{holder}, about {names.get(p.about_id, p.about_id)}, {p.time}] {p.description}"
+        fits = (
+            f" It must fit any of: {', '.join(names.get(i, i) for i in p.fits_ids)}."
+            if p.kind == "clue" and p.fits_ids
+            else ""
+        )
+        return (
+            f"[{holder}, about {names.get(p.about_id, p.about_id)}, {p.time}] {p.description}{fits}"
+        )
 
     lines = ["Pieces that break the killer's account (only together):"]
     lines.extend(f"- {piece(p)}" for p in plan.breaking_pieces)

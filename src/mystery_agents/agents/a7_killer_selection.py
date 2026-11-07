@@ -12,11 +12,11 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import find_room, format_floor_plan
 from mystery_agents.utils.prompts import A7_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import format_global_timeline
-from mystery_agents.utils.timeline_checks import find_impossible_planned_sightings
+from mystery_agents.utils.timeline_checks import MAX_KILLER_WITNESSES, find_plan_problems
 
 from .base import BaseAgent, StructuredOutputError
 
-# Plans asked for when the first one has sightings the floor plan rules out
+# Plans asked for when the first one breaks the floor plan or the difficulty
 PLAN_ATTEMPTS = 3
 
 
@@ -96,21 +96,21 @@ FLOOR PLAN (the route and every observation use these rooms, connections and vie
 SHARED TIMELINE AND MURDER EVENT (facts that can't change):
 {format_global_timeline(state)}
 
-DIFFICULTY: {state.config.difficulty}
+DIFFICULTY: {state.config.difficulty} (at most {MAX_KILLER_WITNESSES.get(state.config.difficulty, 2)} suspects see the killer in breaking_pieces)
 """
 
-        # A sighting the floor plan rules out can't be written into consistent sheets, so
-        # the plan is asked for again with the reason, a couple of times at most
+        # Every writer after this copies the plan, so a broken one is asked for again with
+        # the reasons, a couple of times at most
         feedback = ""
         for _ in range(PLAN_ATTEMPTS):
             result = self._checked_selection(state, self.invoke(state, user_message + feedback))
             state.killer_selection = result
-            impossible = find_impossible_planned_sightings(state)
-            if not impossible:
+            problems = find_plan_problems(state)
+            if not problems:
                 break
             feedback = (
-                "\nYOUR PREVIOUS PLAN HAD SIGHTINGS THE FLOOR PLAN RULES OUT. Fix them:\n"
-                + "\n".join(f"- {problem}" for problem in impossible)
+                "\nYOUR PREVIOUS PLAN HAD THESE PROBLEMS. Fix them:\n"
+                + "\n".join(f"- {problem}" for problem in problems)
                 + "\n"
             )
         return state
@@ -141,7 +141,11 @@ DIFFICULTY: {state.config.difficulty}
         missing = [c for c in killer_ids if c != result.killer_id and c not in planned]
         if missing:
             raise StructuredOutputError(f"No red herring planned for suspects: {missing}")
-        for piece in [*plan.breaking_pieces, *(e.clearing for e in plan.red_herrings)]:
+        for piece in [
+            *plan.breaking_pieces,
+            plan.means_piece,
+            *(piece for e in plan.red_herrings for piece in (e.suspicion, e.clearing)),
+        ]:
             if piece.from_room:
                 piece.from_room = find_room(state, piece.from_room) or piece.from_room
         return result

@@ -435,8 +435,11 @@ THE DEDUCTION PLAN
 - means_piece: how players learn the killer could get the weapon or substance. Others had access too, so it
   doesn't settle the case.
 - A clue piece fits several suspects on its own: no name, initials or personal item only the killer has
-  (their monogrammed handkerchief, a photo of them with the weapon). What singles the killer out is the
-  combination of pieces, never one of them.
+  (their monogrammed handkerchief, a photo of them with the weapon), and nothing only their job, skill or
+  costume explains (a surgical scalpel when one suspect is a doctor, pearls only the killer wears). List in
+  fits_ids everyone it could point to. What singles the killer out is the combination of pieces, never one.
+- The killer holds an observation too, about someone else and from a moment they are with the others: a
+  sheet with nothing seen near the crime stands out among sheets that all have some.
 - red_herrings: one for every innocent suspect. suspicion is means or opportunity players will hold (their
   hidden moment, their access to the means), not only motive. clearing is a later piece that clears them,
   held by another player or a clue, never their own word.
@@ -596,6 +599,7 @@ testimonies they point to the killer; on their own, they make several suspects l
 - No single clue identifies the killer. Easy games need two clues and one clear observation, medium ones
   two or three clues and observations from at least two players, hard ones three or more clues and several
   observations that only make sense together.
+- A clue the deduction plan says must fit several suspects is written so each of them could explain it.
 - A clue never names the killer alone. If one names them, it names other suspects too (a list of debtors,
   a guest list), because a clue that points at one name, or matches only their shoes or clothes, solves
   the case before anyone compares testimonies.

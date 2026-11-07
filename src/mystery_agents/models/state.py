@@ -464,6 +464,10 @@ class EvidencePiece(BaseModel):
         default="",
         description="For an observation, the floor plan room the holder is in when they see or hear it; it must be the observed person's room or one visible from it. Empty for a clue.",
     )
+    fits_ids: list[str] = Field(
+        default_factory=list,
+        description="For a clue, IDs of every suspect it could point to on its own (at least two, the one it is about included): who owns such an object, has that skill or job, wears that colour or fabric. Empty for an observation.",
+    )
     description: str = Field(
         description="What the piece shows, as a fact players can compare (e.g., 'Ana sees Diego come back up the service stairs at 22:12')."
     )

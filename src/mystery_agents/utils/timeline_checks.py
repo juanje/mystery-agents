@@ -600,6 +600,68 @@ def find_impossible_planned_sightings(state: GameState) -> list[str]:
     return problems
 
 
+# Clues that settle the case point at one suspect; a fair one fits at least this many
+MIN_SUSPECTS_A_CLUE_FITS = 2
+
+
+def find_plan_problems(state: GameState) -> list[str]:
+    """
+    Find deduction plans that would make the game impossible or too easy.
+
+    Checked before anyone writes from the plan, because what it fixes, later writers
+    copy faithfully:
+    - sightings the floor plan rules out;
+    - more witnesses of the killer than the difficulty allows (three in a medium
+      game solved it without comparing testimonies);
+    - a breaking or means clue that fits only the killer (a surgical scalpel when
+      only one suspect is a doctor), declared through fits_ids;
+    - an unaware killer who holds no observation, whose sheet then is the only one
+      with nothing seen near the crime.
+    """
+    selection = state.killer_selection
+    plan = selection.deduction_plan if selection else None
+    if not selection or not plan:
+        return []
+    names = {char.id: char.name for char in state.characters}
+    killer_id = selection.killer_id
+    problems = find_impossible_planned_sightings(state)
+
+    witnesses = {
+        piece.holder_id
+        for piece in plan.breaking_pieces
+        if piece.kind == "observation" and piece.about_id == killer_id
+    }
+    limit = MAX_KILLER_WITNESSES.get(state.config.difficulty, 2)
+    if len(witnesses) > limit:
+        problems.append(
+            f"{len(witnesses)} suspects see the killer in breaking_pieces "
+            f"({', '.join(names.get(w, w) for w in sorted(witnesses))}); a "
+            f"{state.config.difficulty} game allows at most {limit}. Replace the others with clues."
+        )
+
+    for piece in [*plan.breaking_pieces, plan.means_piece]:
+        if piece.kind != "clue":
+            continue
+        fits = {i for i in piece.fits_ids if i in names} | {piece.about_id}
+        if len(fits) < MIN_SUSPECTS_A_CLUE_FITS:
+            problems.append(
+                f"The clue '{piece.description}' fits only {names.get(piece.about_id, piece.about_id)}, "
+                "so it names them by itself. Make it something several suspects could own, use or "
+                "wear, and list them all in fits_ids."
+            )
+
+    pieces = _plan_pieces(plan)
+    if not state.config.killer_knows_identity and not any(
+        piece.kind == "observation" and piece.holder_id == killer_id for piece in pieces
+    ):
+        problems.append(
+            f"{names.get(killer_id, killer_id)} holds no observation, so their sheet would be the only "
+            "one with nothing seen near the crime. Make them the holder of one clearing or suspicion "
+            "observation, from a moment they are with the others."
+        )
+    return problems
+
+
 def find_killer_sheet_stands_out(state: GameState) -> list[ValidationIssue]:
     """
     Find games where the unaware killer is the only suspect with nothing to hide.
