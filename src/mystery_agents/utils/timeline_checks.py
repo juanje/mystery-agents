@@ -143,6 +143,47 @@ def find_misplaced_observations(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
+    """
+    Find observations of a room the observer couldn't see from where they were.
+
+    With a floor plan, someone sees their own room, the rooms next to it (through a
+    doorway) and the rooms the plan says are visible from it. Anything else is a
+    sighting players will reject when they compare sheets.
+    """
+    if not state.world or not state.world.rooms:
+        return []
+    rooms = {room.name: room for room in state.world.rooms}
+    names = {char.id: char.name for char in state.characters}
+    issues = []
+    for char_id, timeline in state.personal_timelines.items():
+        for event in timeline.events:
+            here = rooms.get(event.location)
+            if not here:
+                continue
+            visible = {here.name, *here.connects_to, *here.can_see}
+            for seen in event.info_they_observed:
+                if (
+                    seen.sense == "sight"
+                    and seen.location in rooms
+                    and seen.location not in visible
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            type="timeline_conflict",
+                            description=(
+                                f"{names.get(char_id, char_id)} is in {here.name} at {event.time} "
+                                f"but observes something in {seen.location} ('{seen.text}'), "
+                                f"which can't be seen from there. From {here.name} they can see: "
+                                f"{', '.join(sorted(visible))}."
+                            ),
+                            related_ids=[char_id],
+                            fix_in="timelines",
+                        )
+                    )
+    return issues
+
+
 def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
     """
     Observations of the killer during the moments they hide, by innocent witness.
@@ -279,6 +320,7 @@ def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
     return [
         *find_observation_time_errors(state),
         *find_misplaced_observations(state),
+        *find_impossible_sightings(state),
         *find_too_many_killer_witnesses(state),
         *find_killer_sheet_stands_out(state),
     ]

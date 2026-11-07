@@ -17,6 +17,7 @@ from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_P
 from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
     event_ranges,
+    find_impossible_sightings,
     find_killer_sheet_stands_out,
     find_misplaced_observations,
     find_observation_time_errors,
@@ -213,3 +214,59 @@ def test_excess_killer_sightings_are_removed(state: GameState) -> None:
     assert state.personal_timelines["carla"].events[1].info_they_observed == [other]
     assert len(state.personal_timelines["ana"].events[1].info_they_observed) == 1
     assert find_too_many_killer_witnesses(state) == []
+
+
+def test_sightings_must_be_visible_from_the_observer_room(state: GameState) -> None:
+    """From the cellar nobody sees the study; from the library, next door, they can."""
+    from mystery_agents.models.state import HostCharacter, Room, WorldBible
+
+    def room(name: str, connects: list[str]) -> Room:
+        return Room(name=name, floor="0", description="x", connects_to=connects)
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            room("Library", ["Study"]),
+            room("Study", ["Library"]),
+            room("Cellar", []),
+            room("Dining room", []),
+            room("Garden", []),
+            room("Terrace", []),
+        ],
+    )
+    state.personal_timelines["ana"].events[1].info_they_observed = [
+        _seen("22:00", "killer", "Study")
+    ]
+    state.personal_timelines["berta"].events[1].info_they_observed = [
+        _seen("22:00", "killer", "Study")
+    ]
+
+    issues = find_impossible_sightings(state)
+
+    assert [issue.related_ids for issue in issues] == [["berta"]]
+
+
+def test_sounds_can_come_from_rooms_out_of_sight(state: GameState) -> None:
+    """A scream heard from the cellar is fine even if the study can't be seen."""
+    from mystery_agents.models.state import HostCharacter, Room, WorldBible
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name=n, floor="0", description="x", connects_to=[]) for n in ("Study", "Cellar")
+        ],
+    )
+    heard = _seen("22:00", "killer", "Study").model_copy(update={"sense": "sound"})
+    state.personal_timelines["berta"].events[1].info_they_observed = [heard]
+
+    assert find_impossible_sightings(state) == []

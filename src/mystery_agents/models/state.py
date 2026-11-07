@@ -430,6 +430,10 @@ class Observation(BaseModel):
     text: str = Field(
         description="What the player reads, in second person: a concrete fact, not a conclusion (e.g., 'You saw Dr. Ross leave the conservatory carrying his bag')."
     )
+    sense: Literal["sight", "sound"] = Field(
+        default="sight",
+        description="'sound' when it was heard rather than seen (a scream, a door slamming); a sound can come from a room the observer can't see.",
+    )
 
 
 class PersonalEvent(BaseModel):
