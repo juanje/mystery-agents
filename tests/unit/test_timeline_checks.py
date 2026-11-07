@@ -20,6 +20,7 @@ from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_P
 from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
     drop_impossible_sightings,
+    drop_killer_tells,
     event_ranges,
     find_absent_from_shared_events,
     find_impossible_planned_sightings,
@@ -707,3 +708,15 @@ def test_plan_clearings_must_cover_the_murder_and_clues_fit_a_few(state: GameSta
     plan.means_piece.fits_ids = ["killer", "ana"]
     plan.red_herrings[0].clearing.time = "22:03"
     assert not any("fits 4" in p or "leaves them time" in p for p in find_plan_problems(state))
+
+
+def test_revealing_sentences_are_removed_from_the_unaware_killer_account(state: GameState) -> None:
+    """The sentence with 'fingido' goes; the rest of the account stays."""
+    state.config.killer_knows_identity = False
+    state.config.language = "es"
+    event = state.personal_timelines["killer"].events[1]
+    event.what_they_will_tell_others = "Fuiste al despacho. Reaccionas con fingido sobresalto."
+
+    assert drop_killer_tells(state)
+    assert event.what_they_will_tell_others == "Fuiste al despacho."
+    assert find_killer_account_tells(state) == []

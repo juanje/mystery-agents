@@ -924,6 +924,54 @@ def find_killer_account_tells(state: GameState) -> list[ValidationIssue]:
     ]
 
 
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+
+
+def drop_killer_tells(state: GameState) -> bool:
+    """
+    Remove the sentences of an unaware killer's account that give the role away.
+
+    Flagged and rewritten, the sheet kept "fingido sobresalto" round after round:
+    the rewrite knows who the killer is. A sentence less in an innocent-looking
+    account costs nothing, so code removes it; an account left empty keeps its first
+    sentence rather than none.
+
+    Returns:
+        Whether anything was removed
+    """
+    if not state.killer_selection or state.config.killer_knows_identity:
+        return False
+    timeline = state.personal_timelines.get(state.killer_selection.killer_id)
+    tells = KILLER_TELLS.get(state.config.language, ())
+    if not timeline or not tells:
+        return False
+    keep_case = state.config.language == "he"
+
+    def clean(text: str) -> str:
+        sentences = _SENTENCE_END.split(text)
+        kept = [
+            sentence
+            for sentence in sentences
+            if not any(t in (sentence.casefold() if keep_case else _plain(sentence)) for t in tells)
+        ]
+        return " ".join(kept) if kept else text
+
+    removed = False
+    for event in timeline.events:
+        told = clean(event.what_they_will_tell_others)
+        if told != event.what_they_will_tell_others:
+            # The unaware killer's sheet prints this account as what they did
+            if event.what_they_really_did == event.what_they_will_tell_others:
+                event.what_they_really_did = told
+            event.what_they_will_tell_others = told
+            removed = True
+    narrative = clean(timeline.subjective_narrative)
+    if narrative != timeline.subjective_narrative:
+        timeline.subjective_narrative = narrative
+        removed = True
+    return removed
+
+
 def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
     """Run every deterministic personal timeline check."""
     return [

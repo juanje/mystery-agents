@@ -14,6 +14,7 @@ from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
     drop_impossible_sightings,
+    drop_killer_tells,
     find_timeline_violations,
     place_murder_sounds,
 )
@@ -224,6 +225,8 @@ def _prune_sheets(state: GameState, log: AgentLogger) -> GameState:
     unseen = drop_impossible_sightings(state)
     if unseen:
         log.info(f"Removed sightings the floor plan rules out from: {', '.join(unseen)}")
+    if drop_killer_tells(state):
+        log.info("Removed sentences that told the unaware killer they hide something")
     trimmed = drop_excess_killer_sightings(state)
     if trimmed:
         log.info(f"Removed killer sightings beyond the limit from: {', '.join(trimmed)}")
