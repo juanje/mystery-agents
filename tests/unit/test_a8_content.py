@@ -384,12 +384,13 @@ def test_user_message_includes_all_context(complete_game_state: GameState) -> No
         assert f"Difficulty: {complete_game_state.config.difficulty}" in user_message
         character = complete_game_state.characters[0]
         assert f"Relation to victim: {character.relation_to_victim}" in user_message
-        assert "PREVIOUS ATTEMPT WAS REJECTED" not in user_message
+        assert "REVISION" not in user_message
 
 
 def test_user_message_includes_review_issues_on_retry(complete_game_state: GameState) -> None:
-    """After a failed content review, A8 is told what to fix."""
+    """After a failed content review, A8 edits its previous version and is told what to fix."""
     complete_game_state.config.dry_run = False
+    complete_game_state.host_guide = HostGuide(spoiler_free_intro="Previous intro")
     complete_game_state.content_validation = ValidationReport(
         is_consistent=False,
         issues=[ValidationIssue(type="spoiler", description="Clue 2 names the killer")],
@@ -402,7 +403,8 @@ def test_user_message_includes_review_issues_on_retry(complete_game_state: GameS
         agent.run(complete_game_state)
 
     user_message = mock_invoke.call_args[0][1]
-    assert "PREVIOUS ATTEMPT WAS REJECTED" in user_message
+    assert "REVISION" in user_message
+    assert "Previous intro" in user_message
     assert "- spoiler: Clue 2 names the killer" in user_message
     assert "- Rename clue 2" in user_message
     assert "timelines (global and personal) are what players hold" in user_message
@@ -411,6 +413,7 @@ def test_user_message_includes_review_issues_on_retry(complete_game_state: GameS
 def test_retry_feedback_leaves_out_timeline_issues(complete_game_state: GameState) -> None:
     """Issues inside the personal timelines were fixed upstream, so A8 isn't asked to fix them."""
     complete_game_state.config.dry_run = False
+    complete_game_state.host_guide = HostGuide(spoiler_free_intro="Previous intro")
     complete_game_state.content_validation = ValidationReport(
         is_consistent=False,
         issues=[
@@ -431,6 +434,7 @@ def test_retry_feedback_leaves_out_timeline_issues(complete_game_state: GameStat
     user_message = mock_invoke.call_args[0][1]
     assert "Clue 2 names the killer" in user_message
     assert "Ana sees the corridor" not in user_message
+    assert "Some personal timelines were rewritten" in user_message
 
 
 def test_a8_output_schema_has_no_const_fields() -> None:

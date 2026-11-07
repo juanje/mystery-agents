@@ -18,7 +18,6 @@ from mystery_agents.utils.prompts import A8_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
     format_personal_timelines,
-    format_retry_feedback,
     safe_get_crime_method_description,
     safe_get_crime_scene_description,
     safe_get_crime_time_of_death,
@@ -117,24 +116,7 @@ class ContentGenerationAgent(BaseAgent):
             for rel in state.relationships
         ]
 
-        # A retry after V3 must know what was wrong with the previous content. Issues in the
-        # personal timelines were already fixed by rewriting them, so only content issues remain.
-        report = state.content_validation
-        content_issues = (
-            [issue for issue in report.issues if issue.fix_in == "content"]
-            if report and not report.is_consistent
-            else []
-        )
-        retry_feedback = format_retry_feedback(
-            [f"{i.type}: {i.description}" for i in content_issues],
-            report.suggested_fixes if report and content_issues else [],
-        )
-        if retry_feedback:
-            # V3 can't tell A8 which side of a contradiction to change; only A8's texts can
-            retry_feedback += (
-                "The character sheets, relationships and timelines (global and personal) are what "
-                "players hold, so change your clues, host guide or solution to match them.\n"
-            )
+        retry_feedback = self._revision_request(state)
 
         user_message = f"""Generate ALL written content for this mystery party game:
 
@@ -227,6 +209,57 @@ Return the response in the exact JSON format specified in the system prompt.
         state.killer_brief_narrative = result.killer_brief_narrative
 
         return state
+
+    @staticmethod
+    def _revision_request(state: GameState) -> str:
+        """
+        After a failed content review, ask A8 to edit its previous version.
+
+        Rewriting from scratch fixed the flagged problems but introduced new ones,
+        so reviews never converged. Starting from the reviewed version keeps
+        everything that already passed.
+
+        Issues inside the personal timelines were already fixed by rewriting them,
+        so only content issues are listed.
+        """
+        report = state.content_validation
+        if not report or report.is_consistent or not state.host_guide:
+            return ""
+        content_issues = [issue for issue in report.issues if issue.fix_in == "content"]
+        timelines_rewritten = len(content_issues) < len(report.issues)
+
+        previous = A8Output(
+            host_guide=state.host_guide,
+            clues=state.clues,
+            killer_brief_narrative=state.killer_brief_narrative,
+        ).model_dump_json(indent=1)
+        lines = [
+            "",
+            "REVISION: this is your previous version, already reviewed. Return it again with only",
+            "the changes needed to fix the problems below, keeping every other text and clue ID as",
+            "it is: the parts the review didn't flag already work at the table.",
+            "",
+            "PREVIOUS VERSION:",
+            previous,
+            "",
+        ]
+        if content_issues:
+            lines.append("PROBLEMS FOUND BY THE REVIEW:")
+            lines.extend(f"- {i.type}: {i.description}" for i in content_issues)
+            if report.suggested_fixes:
+                lines.append("Suggested fixes:")
+                lines.extend(f"- {fix}" for fix in report.suggested_fixes)
+            # V3 can't tell A8 which side of a contradiction to change; only A8's texts can
+            lines.append(
+                "The character sheets, relationships and timelines (global and personal) are what "
+                "players hold, so change your clues, host guide or solution to match them."
+            )
+        if timelines_rewritten:
+            lines.append(
+                "Some personal timelines were rewritten after the review. Update any text that "
+                "quotes or relies on them so it matches the PERSONAL TIMELINES above."
+            )
+        return "\n".join(lines) + "\n"
 
     @staticmethod
     def _red_herring_material(state: GameState, killer_id: str | None) -> str:
