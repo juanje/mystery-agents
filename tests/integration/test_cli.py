@@ -12,6 +12,7 @@ from mystery_agents.models.state import (
     GameState,
     HostCharacter,
     MetaInfo,
+    MurderEvent,
     PlayerConfig,
     ValidationReport,
 )
@@ -119,7 +120,17 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
         )
         initial_state.characters = []
         initial_state.timeline_global = GlobalTimeline(
-            time_blocks=[], live_action_murder_event=None
+            time_blocks=[],
+            murder_event=MurderEvent(
+                time="22:00",
+                room="Study",
+                what_happens="x",
+                heard_elsewhere="",
+                heard_in=[],
+                scene_when_found="x",
+                discovered_at="22:05",
+                discovered_by=[],
+            ),
         )
         initial_state.killer_selection = KillerSelection(
             killer_id="test", rationale="Test", modified_events=[], truth_narrative="Test"
@@ -328,7 +339,19 @@ def test_cli_accesses_nested_objects_correctly() -> None:
         PackagingInfo,
     )
 
-    initial_state.timeline_global = GlobalTimeline(time_blocks=[], live_action_murder_event=None)
+    initial_state.timeline_global = GlobalTimeline(
+        time_blocks=[],
+        murder_event=MurderEvent(
+            time="22:00",
+            room="Study",
+            what_happens="x",
+            heard_elsewhere="",
+            heard_in=[],
+            scene_when_found="x",
+            discovered_at="22:05",
+            discovered_by=[],
+        ),
+    )
     initial_state.killer_selection = KillerSelection(
         killer_id="test", rationale="Test", modified_events=[], truth_narrative="Test"
     )

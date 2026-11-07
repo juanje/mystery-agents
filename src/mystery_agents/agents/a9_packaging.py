@@ -30,7 +30,6 @@ from mystery_agents.utils.i18n import (
     translate_country_name,
     translate_epoch,
     translate_relationship_type,
-    translate_room_name,
 )
 from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
@@ -566,26 +565,20 @@ ZIP file: {zip_path}
             for event in block.events:
                 result.append(f"- {event.description}")
 
-        # Add the murder event if it exists
-        if hasattr(timeline, "live_action_murder_event") and timeline.live_action_murder_event:
-            murder_event = timeline.live_action_murder_event
-            result.append(f"\n### {labels['murder_event_title']}")
-            result.append(f"- **{labels['time']}**: {murder_event.time_approx}")
-            # Translate room name
-            room_name = translate_room_name(murder_event.room_id, state.config.language)
-            result.append(f"- **{labels['location']}**: {room_name}")
-            result.append(f"- **{labels['what_happened']}**: {murder_event.description}")
-            if (
-                hasattr(murder_event, "character_ids_involved")
-                and murder_event.character_ids_involved
-            ):
-                # Convert character IDs to names
-                character_names = self._replace_character_ids_with_names(
-                    state, murder_event.character_ids_involved
-                )
-                result.append(
-                    f"- **{labels['characters_involved']}**: {', '.join(character_names)}"
-                )
+        murder = timeline.murder_event
+        finders = self._replace_character_ids_with_names(state, murder.discovered_by)
+        result.append(f"\n### {labels['murder_event_title']}")
+        result.append(f"- **{labels['time']}**: {murder.time}")
+        result.append(f"- **{labels['location']}**: {murder.room}")
+        result.append(f"- **{labels['what_happened']}**: {murder.what_happens}")
+        if murder.heard_elsewhere:
+            heard_in = f" ({', '.join(murder.heard_in)})" if murder.heard_in else ""
+            result.append(f"- **{labels['heard_elsewhere']}**: {murder.heard_elsewhere}{heard_in}")
+        result.append(f"- **{labels['scene_when_found']}**: {murder.scene_when_found}")
+        result.append(
+            f"- **{labels['discovered']}**: {murder.discovered_at}"
+            + (f" ({', '.join(finders)})" if finders else "")
+        )
 
         return "\n".join(result)
 

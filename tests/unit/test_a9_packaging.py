@@ -725,3 +725,30 @@ def test_character_sheet_shows_the_house(basic_game_state: GameState, tmp_path: 
     assert "**Biblioteca** (Planta baja)" in sheet
     assert "*Comunica con*: Despacho." in sheet
     assert "*Desde aquí se ve*: Jardín." in sheet
+
+
+def test_solution_timeline_shows_the_full_murder_event(basic_game_state: GameState) -> None:
+    """The solution repeats the murder event facts the sheets were written from."""
+    from mystery_agents.models.state import GlobalTimeline, MurderEvent, TimeBlock
+    from mystery_agents.utils.i18n import get_document_labels
+
+    state = basic_game_state
+    state.timeline_global = GlobalTimeline(
+        time_blocks=[TimeBlock(start="21:00", end="22:00", events=[])],
+        murder_event=MurderEvent(
+            time="22:15",
+            room="Despacho",
+            what_happens="Se desploma sobre el escritorio.",
+            heard_elsewhere="Un golpe seco",
+            heard_in=["Biblioteca"],
+            scene_when_found="La copa sigue intacta sobre el escritorio.",
+            discovered_at="22:20",
+            discovered_by=[],
+        ),
+    )
+
+    text = PackagingAgent()._format_timeline(state, get_document_labels("es"))
+
+    assert "Un golpe seco (Biblioteca)" in text
+    assert "La copa sigue intacta sobre el escritorio." in text
+    assert "22:20" in text

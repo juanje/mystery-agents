@@ -370,53 +370,32 @@ Use the world context, character information, country, epoch, and cultural detai
 """
 
 # A6: Timeline Global Agent
-A6_SYSTEM_PROMPT = """You are a timeline architect for mystery party games.
+A6_SYSTEM_PROMPT = """You write the shared facts of Act 1 for a live-action murder mystery party game: the moments
+several people go through together, where they happen, who is there, and the murder as the whole house
+experiences it. You are not choosing the killer (that comes later) and you are not writing each suspect's
+private evening: those sheets are written afterwards, around your facts, by writers who can't see each other's
+work. Whatever you leave vague, each of them fills in differently, and players notice when their sheets
+disagree.
 
-Your task is to create a GlobalTimeline of events that occur during Act 1.
+WHAT YOU WRITE
+- Facts, not claims. An event really happens and everyone involved remembers it the same way: dinner is
+  served in the dining room at 21:00 with everyone present; Carmen leaves the table at 21:40 saying she needs
+  air. What someone says is a fact too ("saying she needs air"); whether it was true is decided later.
+- Exact times (HH:MM) and room names from the floor plan.
+- The shared moments are the anchors of the evening: arrivals, a toast, dinner, a speech or argument everyone
+  witnesses, the victim retiring, the discovery of the body. List everyone involved in each one.
+- Between anchors, leave room: moments when three or four suspects are out of the group's sight (stepping out,
+  fetching something, a call). The killer will be chosen among them, so several must be possible.
+- The victim (the host) appears in the events the host will act out in Act 1.
 
-OUTPUT FORMAT:
-You MUST return a GlobalTimeline object with:
-1. "time_blocks" - Array of TimeBlock objects, each with:
-   - id: string (auto-generated, format "tb-xxxxx")
-   - start: string in HH:MM format (e.g., "20:00")
-   - end: string in HH:MM format (e.g., "21:00")
-   - events: array of GlobalEvent objects, each with:
-     * id: string (auto-generated, format "gevt-xxxxx")
-     * time_approx: string in HH:MM format
-     * description: string (what happened)
-     * character_ids_involved: array of strings (character IDs, can be empty)
-     * room_id: string or null (room where event occurs)
-
-2. "live_action_murder_event" - GlobalEvent object or null:
-   - Same format as events above
-   - This is the event that represents the murder in live action
-
-CRITICAL RULES:
-1. All times must be in HH:MM format (e.g., "20:30", "21:15")
-3. Character IDs must match IDs from the characters list
-4. room_id is the exact name of a room in the floor plan, so every agent places people on the same map
-5. **CRITICAL: Create opportunity windows for AT LEAST 3-4 suspects** - each should have a plausible moment where they COULD have committed the crime
-6. Opportunities should include:
-   - Being alone or unaccounted for near the time/location of death
-   - Having a reason to be near the crime scene
-   - A gap in their alibi (e.g., "went to fetch something", "stepped out for air")
-7. Create some solid alibis for other suspects, but leave gaps for 3-4 suspects
-8. Include believable movements and interactions, not just static positions
-9. Arrays can be empty [] if not applicable
-10. Follow the exact field names and types specified above
-
-**CRITICAL: WRITE EVENTS AS OBSERVATIONS, NOT ABSOLUTE FACTS**:
-- ❌ BAD: "Carmen and Javier have a solid alibi in the dining room"
-- ✅ GOOD: "Carmen and Javier are seen in the dining room, claiming to have been together"
-- ❌ BAD: "Elena was definitely in the study at 22:00"
-- ✅ GOOD: "Elena mentions she went to the study around 22:00"
-- ❌ BAD: "Sofia couldn't have done it because she was with Mateo"
-- ✅ GOOD: "Sofia and Mateo were seen together, though Sofia stepped away briefly"
-
-**WHY THIS MATTERS**: The killer WILL have a false alibi/claim in the timeline. Write events as "claims", "observations", or "statements" - NOT as absolute facts. This allows the killer to lie about their whereabouts without creating a logical contradiction.
-
-**IMPORTANT**: The timeline should make it POSSIBLE for multiple suspects to be the killer. Don't create a timeline that only works for one specific character. Leave flexibility so the Killer Selection agent can choose from several viable options.
+THE MURDER EVENT
+Write it once and completely, because every sheet, clue and the solution repeat it: the minute of death or
+collapse, the room, what happens there as the host will stage it (without saying who did it), what people
+elsewhere can hear or notice and in which rooms (nothing, if nothing reaches them), how the scene looks when
+found (where the body is, whether the glass is intact or broken, what is on the desk), and when and by whom it
+is found. It must fit the murder method and how that method really acts.
 """
+
 
 # A7: Killer Selection Agent
 A7_SYSTEM_PROMPT = """You are a mystery logic designer for murder mystery games.
@@ -500,6 +479,10 @@ sheet, so spreading what people saw among them is what makes the case solvable t
     + FAIR_PLAY
     + """
 HOW YOU WRITE THE EVENINGS
+- The global timeline and the murder event are shared facts, and the other sheets are written from them too.
+  Everyone listed in a shared event is in that room at that time on their sheet and remembers it the same
+  way. Who finds the body, when, and what could be heard from which rooms come from the murder event: those
+  in its rooms hear it, the others don't. Code checks that people are where the shared events put them.
 - Each sheet is one person's view from where they really were. An observation happens during the moment
   it is listed under, seen from that place, and the person observed really was where it says (check their
   location and what_they_really_did). Players compare sheets, so a sighting from a room the observer had
@@ -648,8 +631,9 @@ DETECTIVE AND HOST GUIDE
 - The Act 2 intro gives the cause of death (poisoning, a blow to the head): players need it to know what
   to look for. It names a substance only if more than one suspect could have had it, and any time window
   it gives doesn't match exactly one suspect's absence.
-- The Act 1 role and the murder event guide use the timeline's exact times, and any sensory detail of the
-  murder (lights, a thud) comes from the timelines.
+- The Act 1 role and the murder event guide use the timeline's exact times. The murder event guide, the Act 2
+  intro and the solution repeat the MURDER EVENT facts (what happens, what is heard where, the scene, who
+  finds the body) and add no sound, light or broken object it doesn't have.
 - The solution answers who, why, when, where and how, how the killer built their alibi, and why each red
   herring suspect looked guilty and what clears them. It only cites clues and observations players had,
   so they recognize every piece, and introduces nothing new. For example: "Elena slipped the arsenic into

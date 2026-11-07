@@ -12,6 +12,7 @@ from mystery_agents.models.state import (
     GlobalTimeline,
     HostCharacter,
     MetaInfo,
+    MurderEvent,
     MurderMethod,
     Observation,
     PersonalEvent,
@@ -294,7 +295,17 @@ def test_format_global_timeline_uses_character_names() -> None:
                         )
                     ],
                 )
-            ]
+            ],
+            murder_event=MurderEvent(
+                time="22:15",
+                room="Study",
+                what_happens="He collapses over the desk.",
+                heard_elsewhere="A thud",
+                heard_in=["Hall"],
+                scene_when_found="Glass intact on the desk.",
+                discovered_at="22:20",
+                discovered_by=["char-1"],
+            ),
         ),
     )
 
@@ -302,6 +313,8 @@ def test_format_global_timeline_uses_character_names() -> None:
 
     assert "--- 21:00 to 22:00 ---" in text
     assert "21:15 [Ana] (Location: kitchen): Leaves the kitchen" in text
+    assert "Heard elsewhere: A thud (in: Hall)" in text
+    assert "Found at 22:20 by Ana" in text
     assert "char-1" not in text
 
 

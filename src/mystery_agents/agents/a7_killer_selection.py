@@ -90,7 +90,8 @@ DIFFICULTY: {state.config.difficulty}
    - Near the crime location
    - Had a plausible reason to slip away
    - A gap in their whereabouts during or just before time of death
-3. Your truth_narrative MUST explain what happened during these EXISTING gaps/opportunities
+3. Your truth_narrative MUST explain what happened during these EXISTING gaps/opportunities, and the murder
+   as the MURDER EVENT describes it (time, room, what is heard, the scene, who finds the body)
 4. DO NOT invent new events (like "they met privately at X time") unless that event exists in the timeline
 5. If you need the killer to have done something, use an existing timeline event where they could have done it
 

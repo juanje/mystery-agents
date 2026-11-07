@@ -96,6 +96,19 @@ def format_global_timeline(state: GameState) -> str:
             char_str = f" [{', '.join(involved)}]" if involved else ""
             location_str = f" (Location: {event.room_id})" if event.room_id else ""
             lines.append(f"  • {event.time_approx}{char_str}{location_str}: {event.description}")
+
+    murder = state.timeline_global.murder_event
+    finders = [names.get(char_id, char_id) for char_id in murder.discovered_by]
+    lines.extend(
+        [
+            "\n--- MURDER EVENT (every document repeats these facts) ---",
+            f"  • {murder.time} (Location: {murder.room}): {murder.what_happens}",
+            f"  • Heard elsewhere: {murder.heard_elsewhere or 'nothing'}"
+            + (f" (in: {', '.join(murder.heard_in)})" if murder.heard_in else ""),
+            f"  • Scene when found: {murder.scene_when_found}",
+            f"  • Found at {murder.discovered_at} by {', '.join(finders) or 'the host'}",
+        ]
+    )
     return "\n".join(lines)
 
 

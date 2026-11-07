@@ -2,12 +2,15 @@
 
 from mystery_agents.models.state import GameState, GlobalTimeline
 from mystery_agents.utils.cache import LLMCache
-from mystery_agents.utils.floor_plan import format_floor_plan
+from mystery_agents.utils.floor_plan import find_room, format_floor_plan
 from mystery_agents.utils.prompts import A6_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_retry_feedback,
+    safe_get_crime_method_description,
+    safe_get_crime_scene_description,
     safe_get_crime_time_of_death,
     safe_get_crime_victim_name,
+    safe_get_crime_weapon,
     safe_get_world_location_name,
 )
 
@@ -54,7 +57,9 @@ class TimelineAgent(BaseAgent):
         # Prepare context for LLM
         characters_list = []
         for char in state.characters:
-            characters_list.append(f"- {char.name} (ID: {char.id}): {char.role}")
+            characters_list.append(
+                f"- {char.name} (ID: {char.id}): {char.role}, {char.relation_to_victim}"
+            )
 
         time_of_death = safe_get_crime_time_of_death(state)
         # A retry after V2 must know what was wrong with the previous timeline
@@ -67,44 +72,41 @@ class TimelineAgent(BaseAgent):
             else ""
         )
 
-        user_message = f"""Generate a timeline of events for the mystery party game:
+        user_message = f"""Write the shared facts of Act 1 for this mystery party game:
 
 SETTING:
 - Location: {safe_get_world_location_name(state)}
-- Time of death: {time_of_death}
-
-CHARACTERS (SUSPECTS):
-{chr(10).join(characters_list) if characters_list else "No characters"}
+- Gathering reason: {state.world.gathering_reason if state.world else "A special gathering"}
+- Duration: {state.config.duration_minutes} minutes
 
 VICTIM (HOST):
 - {safe_get_crime_victim_name(state)}
 
-FLOOR PLAN (every room_id is exactly one of these room names):
+CHARACTERS (SUSPECTS):
+{chr(10).join(characters_list) if characters_list else "No characters"}
+
+CRIME (the killer is chosen later):
+- Method: {safe_get_crime_method_description(state)}
+- Weapon: {safe_get_crime_weapon(state)}
+- Scene: {safe_get_crime_scene_description(state)}
+- Time of death: {time_of_death}
+
+FLOOR PLAN (every room_id and the murder room are exactly one of these room names):
 {format_floor_plan(state)}
 
-REQUIREMENTS:
-1. Create a "time_blocks" array with TimeBlock objects
-2. Each TimeBlock must have: start (HH:MM), end (HH:MM), events (array of GlobalEvent)
-3. Each GlobalEvent must have: time_approx (HH:MM), description, character_ids_involved (array), room_id (string or null)
-4. Create a "live_action_murder_event" GlobalEvent object (or null)
-5. All character IDs must match IDs from the characters list
-6. All times must be in HH:MM format (e.g., "20:30")
-7. Arrays can be empty [] if not applicable
-
-**CRITICAL FOR GAMEPLAY**: The timeline MUST create plausible opportunity windows for AT LEAST 3-4 different suspects:
-- Include moments where suspects are alone, unaccounted for, or could plausibly access the crime scene
-- Create gaps in alibis (e.g., "X went to fetch wine", "Y stepped outside", "Z was looking for something")
-- Show natural movements and reasons for characters to be near various locations
-- Don't lock all characters into ironclad group alibis - leave flexibility
-
-The killer will be selected later, so the timeline should work for MULTIPLE possible killers, not just one.
-
-{retry_feedback}
-Return the response in the exact JSON format specified in the system prompt.
-"""
+{retry_feedback}"""
 
         # Invoke LLM with structured output
         result = self.invoke(state, user_message)
+
+        # Room names must match the plan exactly; later checks compare them
+        for block in result.time_blocks:
+            for event in block.events:
+                if event.room_id:
+                    event.room_id = find_room(state, event.room_id) or event.room_id
+        result.murder_event.room = (
+            find_room(state, result.murder_event.room) or result.murder_event.room
+        )
 
         # Update state
         state.timeline_global = result
@@ -113,7 +115,7 @@ Return the response in the exact JSON format specified in the system prompt.
 
     def _mock_output(self, state: GameState) -> GameState:
         """Generate mock data for dry run mode."""
-        from mystery_agents.models.state import GlobalEvent, GlobalTimeline, TimeBlock
+        from mystery_agents.models.state import GlobalEvent, GlobalTimeline, MurderEvent, TimeBlock
 
         time_blocks = [
             TimeBlock(
@@ -124,7 +126,7 @@ Return the response in the exact JSON format specified in the system prompt.
                         time_approx="20:30",
                         description="Guests arrive and mingle",
                         character_ids_involved=[c.id for c in state.characters[:3]],
-                        room_id="main_hall",
+                        room_id="Hall",
                     )
                 ],
             ),
@@ -136,7 +138,7 @@ Return the response in the exact JSON format specified in the system prompt.
                         time_approx="21:30",
                         description="Dinner is served",
                         character_ids_involved=[c.id for c in state.characters],
-                        room_id="dining_room",
+                        room_id="Drawing room",
                     )
                 ],
             ),
@@ -148,7 +150,7 @@ Return the response in the exact JSON format specified in the system prompt.
                         time_approx="22:30",
                         description="Murder occurs",
                         character_ids_involved=[],
-                        room_id="study",
+                        room_id="Study",
                     )
                 ],
             ),
@@ -156,11 +158,15 @@ Return the response in the exact JSON format specified in the system prompt.
 
         state.timeline_global = GlobalTimeline(
             time_blocks=time_blocks,
-            live_action_murder_event=GlobalEvent(
-                time_approx="22:30",
-                description="The lights go out and a scream is heard",
-                character_ids_involved=[],
-                room_id="study",
+            murder_event=MurderEvent(
+                time="22:30",
+                room="Study",
+                what_happens="The victim drinks from the glass and collapses over the desk.",
+                heard_elsewhere="A thud and a glass breaking",
+                heard_in=["Hall"],
+                scene_when_found="The victim lies by the desk; the glass is broken on the floor.",
+                discovered_at="22:35",
+                discovered_by=[c.id for c in state.characters[:1]],
             ),
         )
 

@@ -363,7 +363,7 @@ class GlobalEvent(BaseModel):
     )
     room_id: str | None = Field(
         default=None,
-        description="ID of the room where the event occurs (e.g., 'dining_room', 'study'). Can be null if not applicable.",
+        description="Name of the floor plan room where the event happens. Null only when it doesn't happen in one place.",
     )
 
 
@@ -382,16 +382,43 @@ class TimeBlock(BaseModel):
     )
 
 
+class MurderEvent(BaseModel):
+    """
+    The moment of the murder as the whole house experiences it.
+
+    It used to be a one-line event that never reached the agents writing the
+    sheets and the solution, so each of them invented its own blackout, thud
+    or broken glass.
+    """
+
+    time: str = Field(description="HH:MM when the victim dies or collapses.")
+    room: str = Field(description="Name of the floor plan room where it happens.")
+    what_happens: str = Field(
+        description="What happens in the room, as the host will stage it, without saying who did it."
+    )
+    heard_elsewhere: str = Field(
+        description="What people in other rooms can hear or notice (e.g., 'a thud and breaking glass'), or '' if nothing reaches them."
+    )
+    heard_in: list[str] = Field(
+        description="Names of the rooms where that can be heard or noticed. Empty when nothing reaches anyone."
+    )
+    scene_when_found: str = Field(
+        description="How the room looks when the body is found: where the body is, the glass or weapon (intact or broken, where), anything out of place."
+    )
+    discovered_at: str = Field(description="HH:MM when the body is found.")
+    discovered_by: list[str] = Field(
+        description="IDs of the suspects who find the body (the others arrive later)."
+    )
+
+
 class GlobalTimeline(BaseModel):
     """Global timeline of events."""
 
     time_blocks: list[TimeBlock] = Field(
-        default_factory=list,
-        description="List of time blocks that make up the timeline. Each block has a start/end time and contains events.",
+        description="Act 1 in chronological time blocks. Each event is a shared fact: it really happens, everyone involved remembers it the same way."
     )
-    live_action_murder_event: GlobalEvent | None = Field(
-        default=None,
-        description="The specific event that represents the murder in live action (e.g., 'Lights go out and a scream is heard'). Can be null.",
+    murder_event: MurderEvent = Field(
+        description="The murder as the whole house experiences it. Every sheet, clue and the solution repeat these facts."
     )
 
 
