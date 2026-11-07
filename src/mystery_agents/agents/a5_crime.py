@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from mystery_agents.models.state import CrimeSpec, GameState
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import GAME_TONE_STYLE, MOCK_VICTIM_NAME
+from mystery_agents.utils.floor_plan import find_room, format_floor_plan
 from mystery_agents.utils.prompts import A5_CRIME_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     safe_get_world_epoch,
@@ -78,6 +79,14 @@ WORLD CONTEXT:
 - Location: {safe_get_world_location_name(state)} ({safe_get_world_location_type(state)})
 - Setting: {state.world.summary if state.world else "Mystery party setting"}
 
+- Gathering reason: {state.world.gathering_reason if state.world else "A special gathering"}
+
+VICTIM (already decided; keep this name, age and role):
+- {state.world.host.name if state.world else "The host"}, {state.world.host.age if state.world else "?"}, {state.world.host.role_in_setting if state.world else ""}
+
+FLOOR PLAN (crime_scene.room_id is exactly one of these room names):
+{format_floor_plan(state)}
+
 CHARACTERS ({len(state.characters)} suspects):
 {chr(10).join(characters_summary)}
 
@@ -108,8 +117,24 @@ Return the response in the exact JSON format specified in the system prompt.
         # Invoke LLM with structured output
         result = self.invoke(state, user_message)
 
+        crime = result.crime
+        if state.world:
+            # The victim was decided with the world; the sheets and occasion already use it
+            host = state.world.host
+            crime.victim = crime.victim.model_copy(
+                update={
+                    "name": host.name,
+                    "age": host.age,
+                    "gender": state.config.host_gender,
+                    "role_in_setting": host.role_in_setting,
+                }
+            )
+            scene_room = find_room(state, crime.crime_scene.room_id)
+            if scene_room:
+                crime.crime_scene.room_id = scene_room
+
         # Update state
-        state.crime = result.crime
+        state.crime = crime
 
         return state
 

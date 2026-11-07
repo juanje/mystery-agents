@@ -78,8 +78,11 @@ WORLD:
 - Country: {state.config.country}
 - Summary: {state.world.summary if state.world else "Mystery party setting"}
 
-NOTE: The victim (host's Act 1 character) will be created later. Focus on creating interesting suspects who would naturally be at this location.
-The victim WILL BE {state.config.host_gender.upper()} (played by the host). Write every relation_to_victim, secret and motive accordingly, with gendered terms that fit a {state.config.host_gender} victim (e.g. a former fiancée of a male victim, a former fiancé of a female victim).
+- Gathering reason: {state.world.gathering_reason if state.world else "A special gathering"}
+
+VICTIM (the host's Act 1 character, not a suspect):
+- {state.world.host.name if state.world else "The host"}, {state.world.host.age if state.world else "?"} years old, {state.config.host_gender}: {state.world.host.role_in_setting if state.world else ""}
+Every relation_to_victim, secret and motive refers to this person, with gendered terms that fit a {state.config.host_gender} victim (e.g. a former fiancée of a male victim, a former fiancé of a female victim), and ages that fit the victim's age.
 
 CONSTRAINTS:
 - Tone: {GAME_TONE_STYLE}

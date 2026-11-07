@@ -14,6 +14,7 @@ from mystery_agents.models.state import (
     DetectiveRole,
     GameConfig,
     GameState,
+    HostCharacter,
     HostGuide,
     KillerSelection,
     MetaInfo,
@@ -43,6 +44,8 @@ def basic_game_state() -> GameState:
             dry_run=True,
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="1920s",
             location_type="Mansion",
             location_name="Blackwood Manor",
@@ -131,6 +134,8 @@ def test_get_game_context_with_custom_epoch() -> None:
             duration_minutes=TEST_DEFAULT_DURATION,
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="custom",
             location_type="Castle",
             location_name="Castle Blackwood",
@@ -174,6 +179,8 @@ def test_get_game_context_with_region() -> None:
             duration_minutes=TEST_DEFAULT_DURATION,
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="modern",
             location_type="Mansion",
             location_name="Test Manor",
@@ -307,6 +314,8 @@ def test_run_without_characters(tmp_path: Path) -> None:
             dry_run=True,
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="modern",
             location_type="Mansion",
             location_name="Test",

@@ -171,9 +171,11 @@ You MUST return a JSON object with exactly one field:
    - location_type: string (e.g., "Mansion", "Cruise Ship", "Corporate Building")
    - location_name: string (e.g., "Blackwood Manor", "SS Orient Express")
    - summary: string (2-3 sentences describing the setting, including cultural context)
-   - gathering_reason: string (the in-game narrative reason why all characters are gathered, e.g., "Memorial dinner honoring the late Lord Cavendish", "Reading of the will", "60th birthday celebration", "Annual family reunion")
+   - host: the victim the host plays (name, age, role_in_setting)
+   - gathering_reason: string (the in-game narrative reason why all characters are gathered, e.g., "Reading of the will", "60th birthday celebration of the host", "Annual family reunion")
    - visual_keywords: array of strings (e.g., ["gothic", "elegant", "candlelit", "Spanish colonial"])
    - constraints: array of strings (e.g., ["No modern technology", "Limited access"])
+   - rooms: the floor plan (name, floor, description, connects_to, can_see for each room)
 
 CRITICAL RULES:
 1. The "epoch" field MUST be copied EXACTLY from the config (do NOT modify, expand, or translate it)
@@ -182,10 +184,19 @@ CRITICAL RULES:
 4. Think about what weapons or items would be culturally and historically appropriate
 5. The location should feel authentic and immersive
 6. The gathering_reason must be specific and contextual - it should explain WHY all these people are at this location on this particular night (e.g., family event, business meeting, celebration, ceremony). This is critical for player immersion.
-7. Don't feature real historical people as guests or participants. If you mention one as background, the reference must fit the exact year (e.g., no "famous novelist" before they were famous)
-8. All string fields must be non-empty
-9. All arrays must be valid JSON arrays (use [] if empty)
-10. Follow the exact field names and types specified above
+7. THE VICTIM AND THE OCCASION: everything later is built around the victim, so decide them together. The
+   gathering reason names the victim (or none) and fits their age: an 80th birthday needs an 80-year-old.
+8. THE FLOOR PLAN is the only map every later writer uses to place people and decide who could see whom, so it
+   must be enough to stage the whole evening:
+   - 8 to 14 places with readable names in the game's language, including corridors, stairs and outdoor areas.
+   - The rooms where dinner and the murder can happen, a few private rooms where someone can be alone, and at
+     least one secondary route (service stairs, a back door, a garden path) so people can move unseen.
+   - connects_to lists direct connections; can_see lists the few rooms someone can watch from there (a window
+     over the terrace, a gallery over the hall). Leave can_see empty when nothing is visible.
+9. Don't feature real historical people as guests or participants. If you mention one as background, the reference must fit the exact year (e.g., no "famous novelist" before they were famous)
+10. All string fields must be non-empty
+11. All arrays must be valid JSON arrays (use [] if empty)
+12. Follow the exact field names and types specified above
 
 Use the epoch, theme, country, and player count from the config to create an authentic, detailed world.
 The tone should be {GAME_TONE_DESCRIPTION}.
@@ -383,7 +394,7 @@ You MUST return a GlobalTimeline object with:
 CRITICAL RULES:
 1. All times must be in HH:MM format (e.g., "20:30", "21:15")
 3. Character IDs must match IDs from the characters list
-4. Room IDs should be descriptive strings (e.g., "dining_room", "study")
+4. room_id is the exact name of a room in the floor plan, so every agent places people on the same map
 5. **CRITICAL: Create opportunity windows for AT LEAST 3-4 suspects** - each should have a plausible moment where they COULD have committed the crime
 6. Opportunities should include:
    - Being alone or unaccounted for near the time/location of death

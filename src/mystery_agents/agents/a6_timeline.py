@@ -2,6 +2,7 @@
 
 from mystery_agents.models.state import GameState, GlobalTimeline
 from mystery_agents.utils.cache import LLMCache
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import A6_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_retry_feedback,
@@ -55,12 +56,6 @@ class TimelineAgent(BaseAgent):
         for char in state.characters:
             characters_list.append(f"- {char.name} (ID: {char.id}): {char.role}")
 
-        rooms_list = []
-        if state.maps:
-            for map_spec in state.maps:
-                for room in map_spec.rooms:
-                    rooms_list.append(f"- {room.name} (ID: {room.id})")
-
         time_of_death = safe_get_crime_time_of_death(state)
         # A retry after V2 must know what was wrong with the previous timeline
         report = state.validation
@@ -84,8 +79,8 @@ CHARACTERS (SUSPECTS):
 VICTIM (HOST):
 - {safe_get_crime_victim_name(state)}
 
-ROOMS:
-{chr(10).join(rooms_list) if rooms_list else "Generate appropriate rooms"}
+FLOOR PLAN (every room_id is exactly one of these room names):
+{format_floor_plan(state)}
 
 REQUIREMENTS:
 1. Create a "time_blocks" array with TimeBlock objects

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import GAME_TONE_STYLE
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import V1_WORLD_VALIDATOR_SYSTEM_PROMPT
 
 from .base import BaseAgent
@@ -112,9 +113,17 @@ GENERATED WORLD:
 - Summary: {state.world.summary}
 - Visual Keywords: {", ".join(state.world.visual_keywords)}
 - Constraints: {", ".join(state.world.constraints)}
+- Victim (host's role): {state.world.host.name}, {state.world.host.age}, {state.world.host.role_in_setting}
+- Gathering reason: {state.world.gathering_reason}
+
+FLOOR PLAN:
+{format_floor_plan(state)}
 {critical_section}
 
 VALIDATION CRITERIA:
+
+0. **Victim and occasion**: Does the gathering reason fit the victim's name and age (an 80th birthday needs an
+   80-year-old)? Is the floor plan enough to stage a dinner, a private murder and people moving unseen?
 
 1. **Historical Accuracy** (CRITICAL):
    - Does the location/setting exist or could it have existed in {epoch_desc}?

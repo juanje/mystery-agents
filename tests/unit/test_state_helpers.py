@@ -10,6 +10,7 @@ from mystery_agents.models.state import (
     GameState,
     GlobalEvent,
     GlobalTimeline,
+    HostCharacter,
     MetaInfo,
     MurderMethod,
     Observation,
@@ -66,6 +67,8 @@ def state_with_world() -> GameState:
         ),
     )
     state.world = WorldBible(
+        host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+        rooms=[],
         location_name="Victorian Manor",
         epoch="1890s",
         location_type="mansion",

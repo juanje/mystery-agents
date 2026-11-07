@@ -63,6 +63,45 @@ class GameConfig(BaseModel):
 
 
 # --- World ---
+class HostCharacter(BaseModel):
+    """
+    The victim's identity, decided with the world.
+
+    The occasion and the suspects' relations depend on who the victim is, so it
+    can't wait for the crime: a "80th birthday" for a 63-year-old victim, or a
+    patriarch with another name, ended up on every sheet.
+    """
+
+    name: str = Field(
+        description="Full name of the victim the host plays, authentic for the country and epoch."
+    )
+    age: int = Field(description="Age of the victim; it must fit the gathering reason.")
+    role_in_setting: str = Field(
+        description="The victim's place in this setting (e.g., 'Owner of the estate and head of the family')."
+    )
+
+
+class Room(BaseModel):
+    """A place in the setting where people can be or be seen."""
+
+    name: str = Field(
+        description="Readable name in the game's language, unique in the plan (e.g., 'Biblioteca'). Every document uses exactly this name."
+    )
+    floor: str = Field(
+        description="Floor or area, in the game's language (e.g., 'Planta baja', 'Planta alta', 'Exterior')."
+    )
+    description: str = Field(
+        description="One sentence on what is there and what it is used for tonight. Mention it if a door is usually locked or a passage is hidden."
+    )
+    connects_to: list[str] = Field(
+        description="Names of the rooms reachable directly from here, including service stairs or hidden passages."
+    )
+    can_see: list[str] = Field(
+        default_factory=list,
+        description="Names of other rooms someone here can see into or watch (through windows, open doorways, a gallery).",
+    )
+
+
 class WorldBible(BaseModel):
     """World and setting definition."""
 
@@ -78,8 +117,11 @@ class WorldBible(BaseModel):
     summary: str = Field(
         description="A 2-3 sentence summary of the setting, atmosphere, and context for the mystery party."
     )
+    host: HostCharacter = Field(
+        description="The victim, whom the host plays in Act 1. The gathering revolves around them."
+    )
     gathering_reason: str = Field(
-        description="The in-game reason why all characters are gathered at this location (e.g., 'Memorial dinner honoring the late Lord Cavendish', 'Reading of the will', '60th birthday celebration', 'Annual family reunion'). This provides narrative context for the event."
+        description="The in-game reason why all characters are gathered at this location tonight, consistent with the victim's name and age (e.g., 'Reading of the will', '60th birthday celebration of the host', 'Annual family reunion'). This provides narrative context for the event."
     )
     visual_keywords: list[str] = Field(
         default_factory=list,
@@ -88,6 +130,9 @@ class WorldBible(BaseModel):
     constraints: list[str] = Field(
         default_factory=list,
         description="List of constraints or rules for the setting (e.g., 'No modern technology', 'Limited access to certain rooms').",
+    )
+    rooms: list[Room] = Field(
+        description="Floor plan of the places where the evening happens, corridors, stairs and outdoor areas included, since people are seen in them too."
     )
 
 

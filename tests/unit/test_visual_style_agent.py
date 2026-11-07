@@ -3,7 +3,14 @@
 import pytest
 
 from mystery_agents.agents.a2_5_visual_style import VisualStyleAgent
-from mystery_agents.models.state import GameConfig, GameState, MetaInfo, PlayerConfig, WorldBible
+from mystery_agents.models.state import (
+    GameConfig,
+    GameState,
+    HostCharacter,
+    MetaInfo,
+    PlayerConfig,
+    WorldBible,
+)
 
 
 @pytest.fixture
@@ -20,6 +27,8 @@ def state_with_world() -> GameState:
         ),
     )
     state.world = WorldBible(
+        host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+        rooms=[],
         epoch="1920s",
         location_type="Mansion",
         location_name="Villa Mediterránea",
@@ -94,6 +103,8 @@ def test_visual_style_agent_mock_has_required_fields() -> None:
         ),
     )
     state.world = WorldBible(
+        host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+        rooms=[],
         epoch="Modern",
         location_type="Mansion",
         location_name="Test Manor",
@@ -133,6 +144,8 @@ def test_visual_style_negative_prompts_exclude_problematic_elements() -> None:
         ),
     )
     state.world = WorldBible(
+        host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+        rooms=[],
         epoch="Victorian",
         location_type="Mansion",
         location_name="Test Manor",

@@ -1,0 +1,74 @@
+"""The setting's floor plan: the shared map every agent places people on.
+
+Without it, each agent invented its own corridors and sight lines, and the
+suspects' sheets disagreed on who could see whom from where.
+"""
+
+import unicodedata
+
+from mystery_agents.models.state import GameState, Room, WorldBible
+
+
+def _key(name: str) -> str:
+    """Comparison key for a room name: no accents, case or surrounding spaces."""
+    plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return " ".join(plain.casefold().split())
+
+
+def normalize_floor_plan(world: WorldBible) -> WorldBible:
+    """
+    Make the plan consistent: unique names, links only to known rooms, both ways.
+
+    A door works from both sides, so a connection listed on one room is added to
+    the other. Links to rooms the plan doesn't have are dropped.
+    """
+    rooms: dict[str, Room] = {}
+    for room in world.rooms:
+        rooms.setdefault(_key(room.name), room)
+    names = {key: room.name for key, room in rooms.items()}
+
+    def known(links: list[str], own: str) -> list[str]:
+        found = [names[_key(link)] for link in links if _key(link) in names]
+        return list(dict.fromkeys(name for name in found if name != own))
+
+    connections = {room.name: set(known(room.connects_to, room.name)) for room in rooms.values()}
+    for name, linked in list(connections.items()):
+        for other in linked:
+            connections[other].add(name)
+
+    world.rooms = [
+        room.model_copy(
+            update={
+                "connects_to": [n for n in names.values() if n in connections[room.name]],
+                "can_see": known(room.can_see, room.name),
+            }
+        )
+        for room in rooms.values()
+    ]
+    return world
+
+
+def room_names(state: GameState) -> list[str]:
+    """Names of the rooms in the plan, in plan order."""
+    return [room.name for room in state.world.rooms] if state.world else []
+
+
+def find_room(state: GameState, name: str) -> str | None:
+    """The plan's name for a room, matching case and accents loosely; None if unknown."""
+    wanted = _key(name)
+    return next((room for room in room_names(state) if _key(room) == wanted), None)
+
+
+def format_floor_plan(state: GameState) -> str:
+    """Describe the plan for a prompt."""
+    if not state.world or not state.world.rooms:
+        return "No floor plan"
+    lines = []
+    for room in state.world.rooms:
+        line = f"- {room.name} ({room.floor}): {room.description}"
+        if room.connects_to:
+            line += f" Connects to: {', '.join(room.connects_to)}."
+        if room.can_see:
+            line += f" From here you can see: {', '.join(room.can_see)}."
+        lines.append(line)
+    return "\n".join(lines)

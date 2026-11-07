@@ -10,6 +10,7 @@ from mystery_agents.cli import generate
 from mystery_agents.models.state import (
     GameConfig,
     GameState,
+    HostCharacter,
     MetaInfo,
     PlayerConfig,
     ValidationReport,
@@ -89,6 +90,8 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
         )
 
         initial_state.world = WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="Modern",
             location_type="Mansion",
             location_name="Test Manor",

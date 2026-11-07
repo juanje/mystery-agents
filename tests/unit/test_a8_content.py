@@ -11,6 +11,7 @@ from mystery_agents.models.state import (
     CrimeSpec,
     GameConfig,
     GameState,
+    HostCharacter,
     HostGuide,
     KillerSelection,
     MetaInfo,
@@ -43,6 +44,8 @@ def complete_game_state() -> GameState:
             dry_run=False,
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="1920s",
             location_type="Mansion",
             location_name="Blackwood Manor",
@@ -221,6 +224,8 @@ def test_run_without_killer_selection() -> None:
             dry_run=True,  # Use dry run to avoid LLM call
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="1920s",
             location_type="Mansion",
             location_name="Blackwood Manor",
@@ -289,6 +294,8 @@ def test_run_with_empty_characters() -> None:
             dry_run=True,
         ),
         world=WorldBible(
+            host=HostCharacter(name="Victor Hale", age=60, role_in_setting="Host"),
+            rooms=[],
             epoch="1920s",
             location_type="Mansion",
             location_name="Blackwood Manor",

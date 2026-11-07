@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field
 
 from mystery_agents.models.state import GameState, WorldBible
 from mystery_agents.utils.cache import LLMCache
-from mystery_agents.utils.constants import GAME_TONE_STYLE, MOCK_WORLD_NAME
+from mystery_agents.utils.constants import GAME_TONE_STYLE, MOCK_VICTIM_NAME, MOCK_WORLD_NAME
+from mystery_agents.utils.floor_plan import normalize_floor_plan
 from mystery_agents.utils.prompts import A2_WORLD_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import format_retry_feedback
 
@@ -104,10 +105,11 @@ HISTORICAL & CULTURAL REQUIREMENTS (ALL MUST BE SATISFIED):
 10. **NO Regional Mixing**: If a region is specified, do NOT use cultural elements from other regions of {state.config.country}
 
 REQUIREMENTS:
-1. Create a "world" object with epoch, location_type, location_name, summary, gathering_reason, visual_keywords, and constraints
+1. Create a "world" object with epoch, location_type, location_name, summary, host, gathering_reason, visual_keywords, constraints and rooms
 2. The "epoch" field MUST be EXACTLY: {epoch_desc} (copy this value exactly, do NOT modify, expand, or translate it)
 3. The world should be rich in detail and feel authentic to {state.config.country} in the {epoch_desc} era
 4. The gathering_reason must explain WHY all these people are at this location tonight (e.g., family event, memorial service, celebration, business meeting, ceremony)
+   The host (victim) is {state.config.host_gender}, with a name authentic to {location_spec}.
 5. Include cultural elements that will inform character creation, costume suggestions, and crime details later
 6. The location should be suitable for a mystery party with {state.config.players.total} suspects
 7. All string fields must have values - do not leave any empty
@@ -121,13 +123,13 @@ Return the response in the exact JSON format specified in the system prompt.
         result = self.invoke(state, user_message)
 
         # Update state
-        state.world = result.world
+        state.world = normalize_floor_plan(result.world)
 
         return state
 
     def _mock_output(self, state: GameState) -> GameState:
         """Generate mock data for dry run mode."""
-        from mystery_agents.models.state import WorldBible
+        from mystery_agents.models.state import HostCharacter, Room, WorldBible
 
         state.world = WorldBible(
             epoch="Modern",
@@ -137,6 +139,36 @@ Return the response in the exact JSON format specified in the system prompt.
             gathering_reason="Annual family reunion to commemorate the patriarch's legacy",
             visual_keywords=["gothic", "elegant", "mysterious", "candlelit"],
             constraints=["Limited access to certain rooms", "No modern technology in some areas"],
+            host=HostCharacter(
+                name=MOCK_VICTIM_NAME, age=65, role_in_setting="Owner of the mansion"
+            ),
+            rooms=[
+                Room(
+                    name="Drawing room",
+                    floor="Ground floor",
+                    description="Where the guests gather for drinks.",
+                    connects_to=["Hall", "Garden"],
+                ),
+                Room(
+                    name="Hall",
+                    floor="Ground floor",
+                    description="Entrance hall with the main stairs.",
+                    connects_to=["Drawing room", "Study"],
+                ),
+                Room(
+                    name="Study",
+                    floor="Ground floor",
+                    description="The victim's private study.",
+                    connects_to=["Hall", "Garden"],
+                ),
+                Room(
+                    name="Garden",
+                    floor="Outside",
+                    description="Gardens behind the house.",
+                    connects_to=["Drawing room", "Study"],
+                    can_see=["Study"],
+                ),
+            ],
         )
 
         return state

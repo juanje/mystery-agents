@@ -2,6 +2,7 @@
 
 from mystery_agents.models.state import GameState, KillerSelection
 from mystery_agents.utils.cache import LLMCache
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import A7_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import format_global_timeline
 
@@ -73,6 +74,9 @@ CRIME DETAILS:
 - Weapon: {state.crime.murder_method.weapon_used}
 - Location: {state.crime.crime_scene.description}
 - Time of death: {state.crime.time_of_death_approx}
+
+FLOOR PLAN (the killer moves only through these rooms and connections):
+{format_floor_plan(state)}
 
 TIMELINE (EXISTING EVENTS - DO NOT CONTRADICT):
 {timeline_summary}

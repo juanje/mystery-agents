@@ -14,6 +14,7 @@ from mystery_agents.utils.constants import (
     MOCK_WAIT_TIME,
     MOCK_WORLD_NAME,
 )
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import A8_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
@@ -158,6 +159,9 @@ CRIME:
 
 SOLUTION:
 {state.killer_selection.truth_narrative if state.killer_selection else "No solution"}
+
+FLOOR PLAN (use these room names; a clue or the solution can only rely on connections and views listed here):
+{format_floor_plan(state)}
 
 GLOBAL TIMELINE (times and places in every document must match it):
 {format_global_timeline(state)}

@@ -2,6 +2,7 @@
 
 from mystery_agents.models.state import GameState, ValidationReport
 from mystery_agents.utils.cache import LLMCache
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
@@ -106,6 +107,9 @@ CRIME:
 - Weapon: {safe_get_crime_weapon(state)}
 - Location: {safe_get_crime_scene_room_id(state)}
 - Time: {safe_get_crime_time_of_death(state)}
+
+FLOOR PLAN (people move along connections and see only their room or the rooms visible from it):
+{format_floor_plan(state)}
 
 COMPLETE TIMELINE:
 {format_global_timeline(state)}

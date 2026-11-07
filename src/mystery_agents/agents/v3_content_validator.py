@@ -9,6 +9,7 @@ from mystery_agents.models.state import (
     ValidationReport,
 )
 from mystery_agents.utils.cache import LLMCache
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.prompts import V3_CONTENT_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
@@ -280,6 +281,9 @@ GAME:
 
 SUSPECTS:
 {chr(10).join(characters_info)}
+
+FLOOR PLAN (what players know about the house; who could see whom follows from it):
+{format_floor_plan(state)}
 
 GLOBAL TIMELINE:
 {format_global_timeline(state)}
