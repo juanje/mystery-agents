@@ -1,6 +1,7 @@
 """Helper functions for safe access to nested GameState fields."""
 
 from mystery_agents.models.state import EvidencePiece, GameState
+from mystery_agents.utils.timeline_checks import planned_observation
 
 
 def safe_get_world_location_name(state: GameState) -> str:
@@ -225,8 +226,12 @@ def format_deduction_plan(state: GameState) -> str:
             if p.kind == "clue" and p.fits_ids
             else ""
         )
+        # Once the sheets exist, what players hold is the sheet's wording and minute
+        seen = planned_observation(state, p)
+        written = f' On the sheet: "{seen.text}" ({seen.time}).' if seen else ""
         return (
-            f"[{holder}, about {names.get(p.about_id, p.about_id)}, {p.time}] {p.description}{fits}"
+            f"[{holder}, about {names.get(p.about_id, p.about_id)}, {p.time}] "
+            f"{p.description}{fits}{written}"
         )
 
     lines = ["Pieces that break the killer's account (only together):"]

@@ -3,6 +3,7 @@
 from mystery_agents.models.state import GameState, ValidationReport
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import format_floor_plan
+from mystery_agents.utils.presence import format_presence
 from mystery_agents.utils.prompts import V2_GAME_LOGIC_VALIDATOR_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_deduction_plan,
@@ -74,20 +75,16 @@ class GameLogicValidatorAgent(BaseAgent):
                 f"- {char.name} (ID: {char.id}): {char.role}, motive: {char.motive_for_crime}"
             )
 
-        # Include full truth narrative for context
-        truth_narrative = ""
+        # The sheets were written from the route and the grid, which supersede A7's narrative
+        truth = ""
         if state.killer_selection:
-            truth_narrative = f"""
-COMPLETE TRUTH NARRATIVE:
-{state.killer_selection.truth_narrative}
-
-KILLER RATIONALE:
-{state.killer_selection.rationale}
-
-KILLER'S REAL ROUTE:
+            truth = f"""
+WHAT REALLY HAPPENED (the killer's real route and where everyone really was):
 {format_killer_route(state)}
 
-DEDUCTION PLAN (the sheets must contain the observations it assigns):
+{format_presence(state)}
+
+DEDUCTION PLAN (how the case is meant to be solved):
 {format_deduction_plan(state)}
 """
 
@@ -121,10 +118,10 @@ COMPLETE TIMELINE:
 
 PERSONAL TIMELINES (what each suspect really did, claims and observed):
 {format_personal_timelines(state)}
-{truth_narrative}
-
-Also check that the killer's sheet follows the route, and that the observations the deduction plan assigns
-are on their holders' sheets and possible from where the holders were.
+{truth}
+Code already checks places and times against the grid, the floor plan, the shared events, the route and the
+plan's observations, and fixes or reports them. Spend your review on what code can't see: whether motives,
+means and opportunity make sense, and whether the plan makes the case solvable and not obvious.
 """
 
         # Invoke LLM with structured output

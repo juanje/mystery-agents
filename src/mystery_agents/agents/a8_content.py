@@ -15,10 +15,12 @@ from mystery_agents.utils.constants import (
     MOCK_WORLD_NAME,
 )
 from mystery_agents.utils.floor_plan import format_floor_plan
+from mystery_agents.utils.presence import format_presence
 from mystery_agents.utils.prompts import A8_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_deduction_plan,
     format_global_timeline,
+    format_killer_route,
     format_personal_timelines,
     format_testimony,
     safe_get_crime_method_description,
@@ -174,8 +176,11 @@ CRIME:
 - Time: {safe_get_crime_time_of_death(state)}
 - Location: {safe_get_crime_scene_description(state)}
 
-SOLUTION:
-{state.killer_selection.truth_narrative if state.killer_selection else "No solution"}
+WHAT REALLY HAPPENED (the killer's real route, and where everyone really was; the sheets were written from
+this, so where an earlier plan differs, this wins):
+{format_killer_route(state)}
+
+{format_presence(state)}
 
 DEDUCTION PLAN (write a clue for every piece marked as a clue; the solution clears each red herring with
 the piece planned for it, and rests on these pieces only):
