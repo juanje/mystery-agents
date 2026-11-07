@@ -101,6 +101,7 @@ def test_crime_keeps_the_victim_decided_with_the_world() -> None:
 
     state = _state([_room("Despacho", [])])
     state.config.host_gender = "female"
+    state.config.murder_method = "fall"
     crime = CrimeSpec(
         victim=VictimSpec(
             name="Fernando", age=63, gender="male", role_in_setting="Patriarch", public_persona="x"
@@ -117,6 +118,7 @@ def test_crime_keeps_the_victim_decided_with_the_world() -> None:
     assert result.crime is not None
     victim = result.crime.victim
     assert (victim.name, victim.age, victim.gender) == ("Elvira", 70, "female")
+    assert result.crime.murder_method.type == "other"  # the configured "fall"
     assert result.crime.crime_scene.room_id == "Despacho"
 
 
@@ -150,3 +152,20 @@ def test_plans_need_every_room_reachable_and_two_ways_per_floor() -> None:
     assert any("Bodega" in problem for problem in problems)
     assert any("'Planta alta' has 1" in problem for problem in problems)
     assert floor_plan_problems(normalize_floor_plan(good)) == []
+
+
+def test_murder_method_is_picked_per_game_unless_configured() -> None:
+    """Random picks are stable for a game and vary across games; a configured method wins."""
+    from mystery_agents.agents.a5_crime import choose_murder_method
+
+    state = _state([])
+    assert choose_murder_method(state) == choose_murder_method(state)
+
+    picks = set()
+    for _ in range(40):
+        state.meta = MetaInfo()
+        picks.add(choose_murder_method(state))
+    assert len(picks) >= 4
+
+    state.config.murder_method = "stabbing"
+    assert choose_murder_method(state) == "stabbing"

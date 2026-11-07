@@ -75,6 +75,7 @@ class ConfigLoaderAgent:
             host_gender=data["host_gender"],
             duration_minutes=data.get("duration_minutes", 90),
             difficulty=data.get("difficulty", "medium"),
+            murder_method=data.get("murder_method", "random"),
             killer_knows_identity=data.get("killer_knows_identity", False),
             # CLI flags override YAML
             generate_images=state.config.generate_images,
@@ -111,6 +112,7 @@ class ConfigLoaderAgent:
         click.echo(f"  Setting: {config.epoch} / {config.theme}")
         click.echo(f"  Duration: {config.duration_minutes} minutes")
         click.echo(f"  Difficulty: {config.difficulty}")
+        click.echo(f"  Murder method: {config.murder_method}")
         click.echo()
         click.echo("  PARTY SIZE:")
         click.echo(

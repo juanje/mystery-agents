@@ -13,6 +13,9 @@ from mystery_agents.utils.constants import DEFAULT_COUNTRY_ES, DEFAULT_OUTPUT_DI
 
 # --- Basic Types ---
 DifficultyLevel = Literal["easy", "medium", "hard"]
+MurderMethodChoice = Literal[
+    "random", "poison", "stabbing", "blunt_force", "shooting", "strangling", "fall"
+]
 Epoch = Literal["modern", "1920s", "victorian", "custom"]
 Theme = Literal["family_mansion", "corporate_retreat", "cruise", "train", "custom"]
 Gender = Literal["male", "female"]
@@ -50,6 +53,7 @@ class GameConfig(BaseModel):
     host_gender: Gender = "male"
     duration_minutes: int = Field(90, ge=60, le=180)
     difficulty: DifficultyLevel = "medium"
+    murder_method: MurderMethodChoice = "random"  # "random" picks one per game
     killer_knows_identity: bool = False  # If True, killer's character sheet reveals their identity
     generate_images: bool = False
     dry_run: bool = False

@@ -169,6 +169,7 @@ players:
 host_gender: male
 duration_minutes: 90      # 60-180
 difficulty: medium        # easy, medium, hard
+murder_method: random     # random, poison, stabbing, blunt_force, shooting, strangling, fall
 killer_knows_identity: false  # If true, killer knows they're the murderer
 ```
 

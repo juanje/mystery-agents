@@ -1,5 +1,8 @@
 """A5: Crime Agent - Creates the crime specification after characters and relationships are defined."""
 
+import random
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from mystery_agents.models.state import CrimeSpec, GameState
@@ -14,6 +17,46 @@ from mystery_agents.utils.state_helpers import (
 )
 
 from .base import BaseAgent
+
+MethodType = Literal["stabbing", "poison", "shooting", "blunt_force", "other"]
+
+# Left to choose, the model poisoned a glass in every game. The method is picked in code
+# (or set in the config) and the model writes the crime around it.
+METHOD_BRIEFS: dict[str, tuple[MethodType, str]] = {
+    "poison": (
+        "poison",
+        "Poisoning. Choose a substance specific to this setting and its people, not the first one "
+        "that comes to mind, and a way to deliver it that fits the evening.",
+    ),
+    "stabbing": (
+        "stabbing",
+        "A stabbing with a blade that belongs in this setting (a letter opener, a kitchen knife, "
+        "a dagger from a collection).",
+    ),
+    "blunt_force": (
+        "blunt_force",
+        "A blow with a heavy object at hand in the room (a candlestick, a bronze statuette, a fire poker).",
+    ),
+    "shooting": (
+        "shooting",
+        "A shot whose sound is covered or mistaken for something else (fireworks, a storm, a car).",
+    ),
+    "strangling": (
+        "other",
+        "Strangling or smothering with something at hand (a scarf, a curtain cord, a cushion).",
+    ),
+    "fall": (
+        "other",
+        "A push from a height (a balcony, a staircase, a cliff path) that first looks like an accident.",
+    ),
+}
+
+
+def choose_murder_method(state: GameState) -> str:
+    """The configured method, or one picked at random (stable for a given game)."""
+    if state.config.murder_method != "random":
+        return state.config.murder_method
+    return random.Random(state.meta.id).choice(sorted(METHOD_BRIEFS))
 
 
 class A5Output(BaseModel):
@@ -70,6 +113,8 @@ class CrimeAgent(BaseAgent):
                 f"relation: {char.relation_to_victim}, motive: {char.motive_for_crime or 'None'}"
             )
 
+        method = choose_murder_method(state)
+
         # Prepare context for LLM
         user_message = f"""Generate a mystery party game crime based on the world and characters:
 
@@ -86,6 +131,9 @@ VICTIM (already decided; keep this name, age and role):
 
 FLOOR PLAN (crime_scene.room_id is exactly one of these room names):
 {format_floor_plan(state)}
+
+MURDER METHOD (decided for this game; build the crime around it):
+- {METHOD_BRIEFS[method][1]}
 
 CHARACTERS ({len(state.characters)} suspects):
 {chr(10).join(characters_summary)}
@@ -118,6 +166,7 @@ Return the response in the exact JSON format specified in the system prompt.
         result = self.invoke(state, user_message)
 
         crime = result.crime
+        crime.murder_method.type = METHOD_BRIEFS[method][0]
         if state.world:
             # The victim was decided with the world; the sheets and occasion already use it
             host = state.world.host

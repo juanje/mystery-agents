@@ -46,6 +46,11 @@ duration_minutes: 90
 # Options: easy, medium, hard
 difficulty: medium
 
+# Murder method
+# "random" (default) picks a different one for each game.
+# Options: random, poison, stabbing, blunt_force, shooting, strangling, fall
+murder_method: random
+
 # Killer identity revelation
 # If true, the killer's character sheet will reveal that they are the murderer
 # and include a brief narrative of how they committed the crime.
