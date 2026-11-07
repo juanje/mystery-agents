@@ -9,6 +9,9 @@ import unicodedata
 
 from mystery_agents.models.state import GameState, Room, WorldBible
 
+# Floors with this many rooms need two ways in; a single cellar or tower room doesn't
+MIN_ROOMS_FOR_TWO_WAYS = 3
+
 
 def _key(name: str) -> str:
     """Comparison key for a room name: no accents, case or surrounding spaces."""
@@ -87,9 +90,10 @@ def floor_plan_problems(world: WorldBible) -> list[str]:
     """
     Find plans that can't stage the evening.
 
-    Every room must be reachable, and each floor must have at least two ways to the
-    rest of the house: a plan whose only way upstairs was the "secret" service stair
-    turned that secret route into the obvious one.
+    Every room must be reachable, and each whole floor (three rooms or more) must have
+    at least two ways to the rest of the house: a plan whose only way upstairs was the
+    "secret" service stair turned that secret route into the obvious one. A cellar or
+    tower with a single door is fine.
     """
     rooms = {room.name: room for room in world.rooms}
     if not rooms:
@@ -111,9 +115,9 @@ def floor_plan_problems(world: WorldBible) -> list[str]:
             "Connect every room to the rest of the house."
         )
 
-    floors = {room.floor for room in rooms.values()}
-    if len(floors) > 1:
-        for floor in sorted(floors):
+    floors = [room.floor for room in rooms.values()]
+    if len(set(floors)) > 1:
+        for floor in sorted({f for f in floors if floors.count(f) >= MIN_ROOMS_FOR_TWO_WAYS}):
             exits = {
                 (room.name, linked)
                 for room in rooms.values()

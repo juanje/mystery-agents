@@ -130,15 +130,18 @@ def test_plans_need_every_room_reachable_and_two_ways_per_floor() -> None:
         [
             room("Hall", "Planta baja", ["Escalera de servicio"]),
             room("Escalera de servicio", "Planta alta", ["Hall", "Galería"]),
-            room("Galería", "Planta alta", ["Escalera de servicio"]),
+            room("Galería", "Planta alta", ["Escalera de servicio", "Dormitorio"]),
+            room("Dormitorio", "Planta alta", ["Galería"]),
             room("Bodega", "Sótano", []),
         ]
     ).world
     good = _state(
         [
-            room("Hall", "Planta baja", ["Escalera principal", "Escalera de servicio"]),
+            room("Hall", "Planta baja", ["Escalera principal", "Escalera de servicio", "Bodega"]),
             room("Escalera principal", "Planta alta", ["Hall"]),
             room("Escalera de servicio", "Planta alta", ["Hall"]),
+            room("Dormitorio", "Planta alta", ["Escalera principal"]),
+            room("Bodega", "Sótano", ["Hall"]),
         ]
     ).world
 
