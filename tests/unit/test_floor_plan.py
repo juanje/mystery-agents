@@ -156,16 +156,35 @@ def test_plans_need_every_room_reachable_and_two_ways_per_floor() -> None:
 
 def test_murder_method_is_picked_per_game_unless_configured() -> None:
     """Random picks are stable for a game and vary across games; a configured method wins."""
-    from mystery_agents.agents.a5_crime import choose_murder_method
+    from mystery_agents.utils.murder_methods import choose_murder_method
 
     state = _state([])
     assert choose_murder_method(state) == choose_murder_method(state)
 
     picks = set()
-    for _ in range(40):
+    weapons = set()
+    for _ in range(60):
         state.meta = MetaInfo()
-        picks.add(choose_murder_method(state))
+        chosen = choose_murder_method(state)
+        picks.add(chosen.key)
+        weapons.add(chosen.weapon)
     assert len(picks) >= 4
+    assert len(weapons) >= 10
 
     state.config.murder_method = "stabbing"
-    assert choose_murder_method(state) == "stabbing"
+    assert choose_murder_method(state).key == "stabbing"
+
+
+def test_weapons_fit_the_epoch() -> None:
+    """A hatpin or laudanum belongs in the past; insulin in modern games."""
+    from mystery_agents.utils.murder_methods import choose_murder_method
+
+    state = _state([])
+    state.config.epoch = "modern"
+    state.config.murder_method = "poison"
+    modern = set()
+    for _ in range(80):
+        state.meta = MetaInfo()
+        modern.add(choose_murder_method(state).weapon)
+    assert "laudanum" not in modern
+    assert "insulin" in modern
