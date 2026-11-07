@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -203,26 +204,24 @@ def generate(
                     sys.exit(1)
                 click.echo(f"Resuming game {game_id}...\n")
 
-            all_states = []
+            # Only the last node's state matters: it carries the whole game
+            final_state: Any = None
             for output in workflow.stream(initial_state, config=workflow_config):
-                for node_name, state in output.items():
-                    all_states.append((node_name, state))
+                for state in output.values():
+                    final_state = state
 
             # The run reached the end, so its checkpoints are no longer needed
             checkpointer.delete_thread(game_id)
 
-            # Check if we got any states
-            if not all_states:
+            if final_state is None:
                 click.echo("\n❌ Error: Workflow did not produce output", err=True)
                 sys.exit(1)
-
-            final_node_name, final_state = all_states[-1]
 
             if not isinstance(final_state, dict):
                 click.echo("\n❌ Error: Unexpected state format", err=True)
                 sys.exit(1)
 
-            # Check world validation first (V2)
+            # Check world validation first (V1)
             world_validation = final_state.get("world_validation")
             if world_validation and not world_validation.is_coherent:
                 click.echo(

@@ -9,7 +9,6 @@ from mystery_agents.utils.cache import (
     AgentFactory,
     LLMCache,
     clear_all_caches,
-    get_cache_stats,
 )
 
 
@@ -167,24 +166,6 @@ def test_clear_all_caches(mock_google_api_key: None) -> None:
 
     assert LLMCache.cache_stats()["cached_models"] == 0
     assert AgentFactory.cache_stats()["cached_agents"] == 0
-
-
-def test_get_cache_stats(mock_google_api_key: None) -> None:
-    """Test getting combined cache statistics."""
-    # Initially empty
-    stats = get_cache_stats()
-    assert stats["llm_cache"]["cached_models"] == 0
-    assert stats["agent_cache"]["cached_agents"] == 0
-
-    # Populate caches
-    LLMCache.get_model("tier1")
-    LLMCache.get_model("tier2")
-    AgentFactory.get_agent(WorldAgent)
-
-    # Check combined stats
-    stats = get_cache_stats()
-    assert stats["llm_cache"]["cached_models"] == 2
-    assert stats["agent_cache"]["cached_agents"] == 1
 
 
 def test_cache_performance_benefit(mock_google_api_key: None) -> None:

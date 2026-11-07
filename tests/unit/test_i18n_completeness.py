@@ -230,7 +230,7 @@ def test_no_empty_values_in_source_language() -> None:
 
 def test_required_sections_exist() -> None:
     """Test that all required top-level sections exist in all languages."""
-    required_sections = ["document", "clue", "room", "language"]
+    required_sections = ["document", "clue", "language"]
 
     for lang_code in ["en", "es", "it", "de", "he"]:
         data = load_translations(lang_code)

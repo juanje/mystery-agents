@@ -21,6 +21,7 @@ from mystery_agents.utils.constants import (
     IMAGE_GENERATION_RETRY_DELAY_BASE,
     IMAGE_GENERATION_TEMPERATURE,
     IMAGE_GENERATION_TIMEOUT,
+    PNG_EXT,
 )
 
 logger = logging.getLogger(__name__)
@@ -137,3 +138,8 @@ def get_character_image_output_dir(game_id: str, output_dir: str) -> Path:
         Path to the images/characters directory for this game
     """
     return Path(output_dir) / f"{GAME_DIR_PREFIX}{game_id}" / "images" / "characters"
+
+
+def portrait_filename(owner_id: str, name: str) -> str:
+    """File name of a portrait: the owner's ID and their name, lowercase with underscores."""
+    return f"{owner_id}_{name.lower().replace(' ', '_')}{PNG_EXT}"

@@ -29,7 +29,6 @@ from mystery_agents.models.state import (
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.presence import (
     align_observations,
-    apply_presence,
     possible_sightings,
     presence_problems,
 )
@@ -294,29 +293,6 @@ def test_sightings_the_grid_rules_out_are_removed(state: GameState) -> None:
     assert state.personal_timelines["ana"].events[0].info_they_observed[0].location == (
         "Dining room"
     )
-
-
-def test_sheet_events_take_the_grid_times_and_places(state: GameState) -> None:
-    """One event per slot takes the grid's times and places; any other count, at least its places."""
-    slots = _slots(state, "killer")
-    events = [
-        PersonalEvent(
-            time="?", location="Hall", what_they_really_did="x", what_they_will_tell_others="x"
-        )
-        for _ in slots
-    ]
-    timeline = PersonalTimeline(character_id="killer", events=events, subjective_narrative="")
-
-    assert apply_presence(timeline, slots)
-    assert [e.location for e in timeline.events] == [s.room for s in slots]
-    assert timeline.events[2].claimed_location == "Library"
-
-    timeline.events.pop()
-    timeline.events[2].location = "Hall"
-    timeline.events[2].time = "21:40-21:45"
-    assert not apply_presence(timeline, slots)
-    assert timeline.events[2].location == "Study"
-    assert timeline.events[2].claimed_location == "Library"
 
 
 def test_unaware_killer_observes_only_where_their_account_puts_them(state: GameState) -> None:

@@ -161,7 +161,6 @@ def test_cli_handles_dict_state_correctly(test_output_dir: Path) -> None:
             host_guide_file=FileDescriptor(
                 type="markdown", name=HOST_GUIDE_FILENAME, path="test.md"
             ),
-            index_summary="Test package",
         )
 
         # Mock nodes to just pass through state (fast - no agent execution)
@@ -377,7 +376,6 @@ def test_cli_accesses_nested_objects_correctly() -> None:
     ]
     initial_state.packaging = PackagingInfo(
         host_guide_file=FileDescriptor(type="markdown", name=HOST_GUIDE_FILENAME, path="test.md"),
-        index_summary="Test",
     )
 
     # Mock workflow nodes to avoid agent execution - we only need the state structure
@@ -438,7 +436,7 @@ def test_cli_accesses_nested_objects_correctly() -> None:
     # Verify other nested accesses work
     packaging = final_state.get("packaging")
     assert packaging is not None, "Packaging should exist"
-    assert packaging.index_summary is not None, "Should access nested object attribute"
+    assert packaging.host_guide_file is not None, "Should access nested object attribute"
 
     meta = final_state.get("meta")
     assert meta is not None, "Meta should exist"

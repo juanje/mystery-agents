@@ -1,6 +1,6 @@
-"""Helper functions for safe access to nested GameState fields."""
+"""Safe access to nested GameState fields, and the state rendered as prompt text."""
 
-from mystery_agents.models.state import EvidencePiece, GameState
+from mystery_agents.models.state import CharacterSpec, EvidencePiece, GameState
 from mystery_agents.utils.timeline_checks import planned_observation
 
 
@@ -71,6 +71,14 @@ def safe_get_crime_scene_description(state: GameState) -> str:
 def safe_get_crime_scene_room_id(state: GameState) -> str:
     """Safely get crime scene room ID, returning 'N/A' if not available."""
     return state.crime.crime_scene.room_id if state.crime else "N/A"
+
+
+def safe_get_killer(state: GameState) -> CharacterSpec | None:
+    """The selected killer's character, or None if not selected yet."""
+    if not state.killer_selection:
+        return None
+    killer_id = state.killer_selection.killer_id
+    return next((char for char in state.characters if char.id == killer_id), None)
 
 
 def format_global_timeline(state: GameState) -> str:

@@ -111,7 +111,7 @@ uv run mystery-agents game.example.yml --dry-run
 - ✅ **Complete Game Generation** - All materials for a live-action mystery party
 - ✅ **Host-Detective Mode** - Host plays victim in Act 1, detective in Act 2
 - ✅ **Act 1 Objectives** - Each player gets 2-3 goals creating social tension
-- ✅ **Automatic Validation** - Two-stage validation with retry loops
+- ✅ **Automatic Validation** - Three validation stages with retry loops, plus code checks of every sheet
 - ✅ **Print-Ready PDFs** - Professional PDFs ready to print (markdown source optional with `--keep-work-dir`)
 
 ### Customization
@@ -127,7 +127,7 @@ uv run mystery-agents game.example.yml --dry-run
 - 🖼️ **Character Portraits** - AI-generated images with consistent visual style
 - 🎯 **Visual Style Guide** - Unified aesthetic (color palette, lighting, no text overlays)
 - 🔄 **Parallel Generation** - Fast image creation with rate limiting
-- 🤖 **Google Gemini Integration** - gemini-3.6-flash for logic and content, gemini-3.5-flash-lite for simple tasks
+- 🤖 **Google Gemini Integration** - gemini-3.6-flash for logic and content, Nano Banana 2.1 for portraits
 
 ---
 
@@ -250,9 +250,9 @@ Create a `.env` file (or set environment variables):
 GOOGLE_API_KEY=your-api-key-here
 
 # Optional: Override LLM models per tier
-LLM_MODEL_TIER1=gemini-3.6-flash       # Logic/creativity
-LLM_MODEL_TIER2=gemini-3.6-flash       # Content generation
-LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Simple tasks
+LLM_MODEL_TIER1=gemini-3.6-flash       # Plot logic, sheets, written content, reviews
+LLM_MODEL_TIER2=gemini-3.6-flash       # Characters, relationships, timeline
+LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Placeholder: no text agent calls it
 
 # Optional: Override temperatures (unset by default; Gemini 3.6+ models
 # use fixed sampling and ignore them)
@@ -353,28 +353,34 @@ Mystery Agents generates your game in a multi-phase pipeline:
 
 **Phase 2: Characters**
 - Creates suspects with personalities, secrets, and goals
-- Generates AI portraits (optional)
 - Defines relationships between characters
 
 **Phase 3: Crime & Logic**
 - Designs the crime (victim, method, scene)
-- Creates the event timeline
-- Selects the killer and finalizes solution
+- Creates the shared timeline of the evening
+- Selects the killer, their route and the deduction plan
+- Places every suspect in the house (presence grid)
+- Writes each suspect's sheet from the grid (alibis, cover stories, observations)
 - Validates game logic and retries if needed
 
 **Phase 4: Content & Packaging**
-- Writes all game materials (guides, sheets, clues)
+- Writes the clues, the host guide and the solution, in turn
+- Generates AI portraits of the suspects (optional, in parallel)
 - Generates host images (victim/detective portraits)
 - Creates PDFs and packages everything into a ZIP
 
 ### Quality Assurance
 
-The system includes **two automatic validation loops**:
+The system includes **three automatic validation loops**:
 
 1. **World Validation** - Ensures setting coherence (location, culture, period)
-2. **Logic Validation** - Verifies killer logic, timeline consistency, clue quality
+2. **Logic Validation** - Verifies killer logic and that the sheets agree with each other
+3. **Content Validation** - Checks clues, guide and solution against what players hold
 
-If validation fails, the system automatically retries (up to 2-3 times) before giving up.
+Code also checks what it can measure (sightings the floor plan rules out, too many
+witnesses, spoilers) and fixes it or sends it back to its writer. If validation fails,
+the system retries (up to 2-3 times); once the plot is valid, a game whose texts still
+have issues is packaged anyway.
 
 ### Tech Stack
 

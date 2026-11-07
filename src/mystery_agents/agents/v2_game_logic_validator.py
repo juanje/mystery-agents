@@ -16,6 +16,7 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_victim_name,
     safe_get_crime_victim_role,
     safe_get_crime_weapon,
+    safe_get_killer,
 )
 
 from .base import BaseAgent
@@ -25,10 +26,9 @@ class GameLogicValidatorAgent(BaseAgent):
     """
     V2: Game Logic Validator Agent.
 
-    Validates the entire game state for logical consistency.
-    This is a tier 1 agent (logic - most powerful LLM).
-    CRITICAL: This agent controls the retry loop.
-    Runs SECOND in the validation sequence (after A7: Killer Selection).
+    Validates the entire game state for logical consistency, once the suspects'
+    sheets are written (after A7.5). Its report decides whether the timeline or
+    the sheets are written again. This is a tier 1 agent (logic).
     """
 
     def __init__(self) -> None:
@@ -63,11 +63,8 @@ class GameLogicValidatorAgent(BaseAgent):
 
         # Prepare comprehensive context for validation
         victim_name = safe_get_crime_victim_name(state)
-        killer_name = "Unknown"
-        if state.killer_selection:
-            killer_id = state.killer_selection.killer_id
-            killer = next((c for c in state.characters if c.id == killer_id), None)
-            killer_name = killer.name if killer else "Unknown"
+        killer = safe_get_killer(state)
+        killer_name = killer.name if killer else "Unknown"
 
         characters_summary = []
         for char in state.characters:

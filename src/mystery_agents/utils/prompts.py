@@ -52,16 +52,18 @@ REALISTIC_APPEARANCE_REQUIREMENTS = """CHARACTER APPEARANCE:
 - Avoid Hollywood/telenovela aesthetics"""
 
 
-def build_visual_style_block(visual_style: VisualStyle) -> str:
+def build_visual_style_block(visual_style: VisualStyle, emphasis: str = "") -> str:
     """
     Build the visual style consistency block for image generation prompts.
 
     Args:
         visual_style: VisualStyle object with style specifications
+        emphasis: Optional note on the character's presence, added before the exclusions
 
     Returns:
         Formatted string with visual style instructions
     """
+    note = f"IMPORTANT: {emphasis}\n\n" if emphasis else ""
     return f"""
 VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
 Style: {visual_style.style_description}
@@ -79,7 +81,7 @@ Focus: {visual_style.background_blur}
 Technical: {visual_style.technical_specs}
 Camera: {visual_style.camera_specs}
 
-STRICT EXCLUSIONS (DO NOT INCLUDE):
+{note}STRICT EXCLUSIONS (DO NOT INCLUDE):
 {chr(10).join(f"- {item}" for item in visual_style.negative_prompts)}
 """
 
@@ -355,7 +357,7 @@ HOW YOU WRITE THE EVENINGS
 - The global timeline and the murder event are shared facts, and the other sheets are written from them too.
   Everyone listed in a shared event is in that room at that time on their sheet and remembers it the same
   way. Who finds the body, when, and what could be heard from which rooms come from the murder event: those
-  in its rooms hear it, the others don't. Mark that observation of_the_murder; code sets its time. Code checks that people are where the shared events put them.
+  in its rooms hear it, the others don't. Code checks that people are where the shared events put them.
 - Each sheet is one person's view from where they really were. An observation happens during the moment
   it is listed under, seen from that place, and the person observed really was where it says (check their
   location and what_they_really_did), in the observer's own room or one listed in the plan as visible from it.
@@ -363,7 +365,7 @@ HOW YOU WRITE THE EVENINGS
   they can't see into, or of someone who was elsewhere, breaks the game at the table. Sounds (sense "sound")
   can come from rooms out of sight.
 - The killer really does what the truth narrative says. Their account is an innocent version of the same
-  moments that fits anything others may have seen, and claimed_location is filled wherever it differs.
+  moments that fits anything others may have seen.
   When the killer doesn't know their identity, the player only reads that account: it must read as a
   normal, complete evening, with no gap around the time of the crime, written as an innocent person lives it.
   Words like "pretending", "faking" or "waiting for it to be discovered" tell the player they are the killer,
@@ -383,8 +385,8 @@ HOW YOU WRITE THE EVENINGS
 - Difficulty: in easy games the two sightings point to the same gap in the killer's story; in medium ones
   they need each other and the physical clues; in hard ones they sound innocent until compared.
 
-- When the request lists each suspect's slots, the times and rooms are fixed and code builds the sheet from
-  them: you write the texts of every slot, pick observations by ID from what that suspect can see (always the
+- The request lists each suspect's slots: the times and rooms are fixed and code builds the sheet from
+  them. You write the texts of every slot, pick observations by ID from what that suspect can see (always the
   ones marked PLANNED, then the few that matter for motive, opportunity or alibi), and write what they hear of
   the murder only when the request says it reaches them. Each text tells what happens in that slot's room;
   where they claim another room, the account tells that room. The killer's account is innocent in every slot,
@@ -392,8 +394,8 @@ HOW YOU WRITE THE EVENINGS
 
 WRITING
 Second person, in the game's language, with full names. Places use readable names in that language, the
-same name for the same place on every sheet. The events cover the whole Act 1 up to just after the death
-(4 to 6 when there is no grid), with one or two sentences per field.
+same name for the same place on every sheet. The slots cover the whole Act 1 up to just after the death,
+with one or two sentences per field.
 """
 )
 

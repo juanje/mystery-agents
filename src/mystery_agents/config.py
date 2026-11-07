@@ -14,6 +14,14 @@ from mystery_agents.utils.constants import (
     LLM_REQUEST_TIMEOUT,
 )
 
+Tier = Literal["tier1", "tier2", "tier3"]
+
+DEFAULT_MODELS: dict[Tier, str] = {
+    "tier1": LLM_MODEL_TIER1,
+    "tier2": LLM_MODEL_TIER2,
+    "tier3": LLM_MODEL_TIER3,
+}
+
 
 def _optional_temperature(env_var: str) -> float | None:
     """Read an optional temperature override from the environment."""
@@ -35,7 +43,7 @@ class LLMConfig:
     """
 
     @staticmethod
-    def get_model(tier: Literal["tier1", "tier2", "tier3"]) -> BaseChatModel:
+    def get_model(tier: Tier) -> BaseChatModel:
         """
         Get LLM model for the specified tier.
 
@@ -44,9 +52,11 @@ class LLMConfig:
 
         Args:
             tier: Model tier selection
-                - tier1: Logic/creativity
-                - tier2: Content generation
-                - tier3: Validation/simple tasks
+                - tier1: World, crime, plot logic, the suspects' sheets, written content
+                  and its reviews
+                - tier2: World review, visual style, characters, relationships and the
+                  shared timeline
+                - tier3: Placeholder for agents that never call the model (images, packaging)
 
         Returns:
             Configured chat model instance
@@ -65,34 +75,11 @@ class LLMConfig:
             # Use a dummy key that will fail gracefully if actually used
             api_key = DRY_RUN_DUMMY_API_KEY
 
-        # Get model names from environment or use defaults
-        model_tier1 = os.getenv("LLM_MODEL_TIER1", LLM_MODEL_TIER1)
-        model_tier2 = os.getenv("LLM_MODEL_TIER2", LLM_MODEL_TIER2)
-        model_tier3 = os.getenv("LLM_MODEL_TIER3", LLM_MODEL_TIER3)
-
-        # Temperatures are optional overrides (None keeps the model's own default)
-        temp_tier1 = _optional_temperature("LLM_TEMPERATURE_TIER1")
-        temp_tier2 = _optional_temperature("LLM_TEMPERATURE_TIER2")
-        temp_tier3 = _optional_temperature("LLM_TEMPERATURE_TIER3")
-
-        models: dict[str, BaseChatModel] = {
-            "tier1": ChatGoogleGenerativeAI(
-                model=model_tier1,
-                google_api_key=api_key,
-                temperature=temp_tier1,
-                timeout=LLM_REQUEST_TIMEOUT,
-            ),
-            "tier2": ChatGoogleGenerativeAI(
-                model=model_tier2,
-                google_api_key=api_key,
-                temperature=temp_tier2,
-                timeout=LLM_REQUEST_TIMEOUT,
-            ),
-            "tier3": ChatGoogleGenerativeAI(
-                model=model_tier3,
-                google_api_key=api_key,
-                temperature=temp_tier3,
-                timeout=LLM_REQUEST_TIMEOUT,
-            ),
-        }
-        return models[tier]
+        number = tier.removeprefix("tier")
+        return ChatGoogleGenerativeAI(
+            model=os.getenv(f"LLM_MODEL_TIER{number}", DEFAULT_MODELS[tier]),
+            google_api_key=api_key,
+            # None keeps the model's own default
+            temperature=_optional_temperature(f"LLM_TEMPERATURE_TIER{number}"),
+            timeout=LLM_REQUEST_TIMEOUT,
+        )

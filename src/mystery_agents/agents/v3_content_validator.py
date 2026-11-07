@@ -1,7 +1,6 @@
 """V3: Content Validator - Checks the written game material before packaging."""
 
 import re
-import unicodedata
 
 from mystery_agents.models.state import (
     CharacterSpec,
@@ -19,11 +18,14 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_method_description,
     safe_get_crime_time_of_death,
     safe_get_crime_victim_name,
+    safe_get_killer,
 )
 from mystery_agents.utils.timeline_checks import (
     TIME_TOLERANCE_MINUTES,
+    clock,
     find_timeline_violations,
     minutes_in,
+    plain,
 )
 
 from .base import BaseAgent
@@ -107,7 +109,7 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     """
     guide = state.host_guide
     detective = guide.host_act2_detective_role if guide else None
-    killer = _killer(state)
+    killer = safe_get_killer(state)
     if not detective or not killer:
         return []
     # A surname shared with a relative would flag questions about that relative
@@ -170,7 +172,7 @@ def drop_revealing_questions(state: GameState) -> list[str]:
     """
     guide = state.host_guide
     detective = guide.host_act2_detective_role if guide else None
-    killer = _killer(state)
+    killer = safe_get_killer(state)
     if not detective or not killer:
         return []
     shared = _parts_shared_with_others(state, killer.id)
@@ -190,37 +192,6 @@ def drop_revealing_questions(state: GameState) -> list[str]:
     return removed
 
 
-def find_clue_notes_naming_killer(state: GameState) -> list[ValidationIssue]:
-    """
-    Find the detective's clue notes that name the killer.
-
-    The host reads them in Act 2 before the reveal, often aloud; a note saying a
-    clue "contradicts Carmen's alibi" solves the case for the table. Not part of the
-    review: A8 never fixed it in measured runs, and the flags used up the revisions
-    that fix what players do see.
-    """
-    guide = state.host_guide
-    detective = guide.host_act2_detective_role if guide else None
-    killer = _killer(state)
-    if not detective or not killer:
-        return []
-    shared = _parts_shared_with_others(state, killer.id)
-    return [
-        ValidationIssue(
-            type="spoiler",
-            fix_in="solution",
-            description=(
-                f"The detective's note on clue {entry.clue_id} names the killer ({killer.name}): "
-                f"'{entry.how_to_interpret}'. Say what the clue suggests and what it combines with "
-                "without naming who it convicts."
-            ),
-            related_ids=[entry.clue_id, killer.id],
-        )
-        for entry in detective.clues_to_reveal
-        if _mentions(entry.how_to_interpret, killer.name, ignore=shared)
-    ]
-
-
 def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
     """
     Find clue setups that give the killer away without any deduction.
@@ -234,7 +205,7 @@ def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
     Returns:
         over_obvious issues found
     """
-    killer = _killer(state)
+    killer = safe_get_killer(state)
     if not killer or not state.clues:
         return []
 
@@ -281,7 +252,7 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
     Naming them among other suspects keeps it ambiguous. Their initials on an object
     at the scene are just as decisive.
     """
-    killer = _killer(state)
+    killer = safe_get_killer(state)
     if not killer or not state.clues:
         return []
     shared = _parts_shared_with_others(state, killer.id)
@@ -344,11 +315,8 @@ def _single_initial_issues(state: GameState, killer: CharacterSpec) -> list[Vali
     two-letter initials check missed it.
     """
 
-    def plain(letter: str) -> str:
-        return unicodedata.normalize("NFKD", letter).encode("ascii", "ignore").decode().upper()
-
     first_letters = {
-        char.id: plain(_name_parts(char.name)[0][0])
+        char.id: plain(_name_parts(char.name)[0][0]).upper()
         for char in state.characters
         if _name_parts(char.name)
     }
@@ -358,7 +326,7 @@ def _single_initial_issues(state: GameState, killer: CharacterSpec) -> list[Vali
     issues = []
     for number, clue in enumerate(state.clues, 1):
         found = {
-            plain(match.group(1) or match.group(2))
+            plain(match.group(1) or match.group(2)).upper()
             for match in _SINGLE_INITIAL.finditer(clue.description)
         }
         if letter in found:
@@ -383,8 +351,7 @@ MIN_COSTUME_WORD_LENGTH = 5
 
 def _costume_words(text: str) -> set[str]:
     """Distinctive words of a costume or clue, singular, without accents or case."""
-    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
-    words = re.findall(r"[a-z]+", plain)
+    words = re.findall(r"[a-z]+", plain(text))
     return {
         word[:-2] if word.endswith("es") and len(word) > 6 else word.rstrip("s")
         for word in words
@@ -402,7 +369,7 @@ def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
     Matching an innocent's costume isn't flagged: word overlap there was mostly
     noise ("sobre", "madera") and used up A8's revisions.
     """
-    killer = _killer(state)
+    killer = safe_get_killer(state)
     if not killer or not state.clues:
         return []
     wearers: dict[str, set[str]] = {
@@ -477,7 +444,7 @@ def find_solution_times_without_evidence(state: GameState) -> list[ValidationIss
     ]
     if not unknown:
         return []
-    times = ", ".join(f"{m // 60:02d}:{m % 60:02d}" for m in unknown)
+    times = ", ".join(clock(m) for m in unknown)
     return [
         ValidationIssue(
             type="logic_gap",
@@ -489,14 +456,6 @@ def find_solution_times_without_evidence(state: GameState) -> list[ValidationIss
             related_ids=[],
         )
     ]
-
-
-def _killer(state: GameState) -> CharacterSpec | None:
-    """The selected killer, if any."""
-    if not state.killer_selection:
-        return None
-    killer_id = state.killer_selection.killer_id
-    return next((char for char in state.characters if char.id == killer_id), None)
 
 
 def find_rule_violations(state: GameState) -> list[ValidationIssue]:

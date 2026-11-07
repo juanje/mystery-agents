@@ -56,7 +56,6 @@ def test_workflow_dry_run(test_output_dir: Path, tmp_path: Path) -> None:
                     name=HOST_GUIDE_FILENAME,
                     path=str(test_output_dir / HOST_GUIDE_FILENAME),
                 ),
-                index_summary="Test game package",
             )
             return state
 

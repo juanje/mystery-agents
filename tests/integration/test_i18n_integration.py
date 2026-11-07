@@ -5,7 +5,6 @@ from mystery_agents.utils.i18n import (
     get_clue_labels,
     get_document_labels,
     translate_epoch,
-    translate_room_name,
 )
 
 
@@ -52,29 +51,6 @@ class TestI18nIntegration:
             assert es_translation, f"Spanish translation for '{epoch}' should not be empty"
 
             # Verify they're different (except for potentially some edge cases)
-            assert isinstance(en_translation, str)
-            assert isinstance(es_translation, str)
-
-    def test_translate_room_name_integration(self) -> None:
-        """Test room name translation with common rooms."""
-        common_rooms = [
-            "study",
-            "library",
-            "dining_room",
-            "bedroom",
-            "kitchen",
-        ]
-
-        for room in common_rooms:
-            en_translation = translate_room_name(room, "en")
-            assert en_translation, f"English translation for '{room}' should not be empty"
-            assert en_translation != room, "Should format the room name"
-
-            es_translation = translate_room_name(room, "es")
-            assert es_translation, f"Spanish translation for '{room}' should not be empty"
-
-            # Verify they're different (Spanish should be different from English)
-            # (Some might be similar, but most should be different)
             assert isinstance(en_translation, str)
             assert isinstance(es_translation, str)
 
@@ -189,34 +165,6 @@ class TestI18nIntegration:
             # Test epoch translation
             epoch_trans = translate_epoch("1920s", language)
             assert epoch_trans
-
-            # Test room translation
-            room_trans = translate_room_name("study", language)
-            assert room_trans
-
-    def test_all_room_translations_exist(self) -> None:
-        """Test that all common rooms have translations."""
-        common_rooms = [
-            "study",
-            "library",
-            "dining_room",
-            "drawing_room",
-            "lounge",
-            "bedroom",
-            "kitchen",
-            "ballroom",
-            "garden",
-            "office",
-        ]
-
-        for room in common_rooms:
-            for lang in ["en", "es"]:
-                translation = translate_room_name(room, lang)
-                assert translation, f"Room '{room}' should have translation in '{lang}'"
-                # Should not be just the raw key
-                assert not translation.startswith("room."), (
-                    f"Room translation should not be raw key: {translation}"
-                )
 
     def test_language_consistency(self) -> None:
         """Test that language names are consistently defined."""

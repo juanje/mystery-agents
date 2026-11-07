@@ -1,9 +1,8 @@
 """A7.5: Personal Timelines Agent - Alibis, cover stories and observations per suspect."""
 
 import math
-from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field
 
 from mystery_agents.models.state import (
     GameState,
@@ -14,14 +13,13 @@ from mystery_agents.models.state import (
     required_in_schema,
 )
 from mystery_agents.utils.cache import LLMCache
-from mystery_agents.utils.floor_plan import format_floor_plan, room_names
+from mystery_agents.utils.floor_plan import format_floor_plan
 from mystery_agents.utils.presence import (
-    apply_presence,
-    clock,
     format_presence,
     hears_the_murder,
     numbered_sightings,
     planned_piece_for,
+    presence_slots,
     slot_hides,
     slot_spans,
 )
@@ -37,7 +35,7 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_victim_name,
     safe_get_world_location_name,
 )
-from mystery_agents.utils.timeline_checks import minutes_in
+from mystery_agents.utils.timeline_checks import clock, minutes_in
 
 from .base import BaseAgent, StructuredOutputError
 
@@ -45,21 +43,12 @@ from .base import BaseAgent, StructuredOutputError
 SUSPECTS_PER_CALL = 3
 # Calls allowed beyond one per batch, for batches the model returns incomplete
 EXTRA_CALLS = 2
-# Fewer events than this can't cover the evening (the prompt asks for 4 to 6)
-MIN_EVENTS_PER_SUSPECT = 3
 
 
-class A7_5Output(BaseModel):
-    """Output format for A7.5 agent."""
-
-    timelines: list[PersonalTimeline] = Field(
-        description="One personal timeline per suspect, covering the whole Act 1 timeline."
-    )
-
-
-# With a presence grid the writer only writes texts: code already knows each slot's time
-# and room and who can see whom, and builds the sheet from them. Writing events freely, the
-# model kept its own times and places, and the sheets disagreed with the grid and each other.
+# The writer only writes texts: code already knows each slot's time and room from the
+# presence grid, and who can see whom, and builds the sheet from them. Writing events
+# freely, the model kept its own times and places, and the sheets disagreed with the
+# grid and each other.
 
 
 class SlotObservation(BaseModel):
@@ -122,8 +111,7 @@ def build_timeline(state: GameState, sheet: SuspectSheet) -> PersonalTimeline | 
     Returns:
         The timeline, or None when the suspect has no slots in the grid
     """
-    grid = {s.character_id: s.slots for s in state.presence.suspects} if state.presence else {}
-    slots = grid.get(sheet.character_id)
+    slots = presence_slots(state).get(sheet.character_id)
     if not slots:
         return None
     texts = {entry.slot: entry for entry in sheet.slots}
@@ -201,45 +189,6 @@ def build_timeline(state: GameState, sheet: SuspectSheet) -> PersonalTimeline | 
     )
 
 
-def output_schema_for_rooms(rooms: list[str]) -> type[A7_5Output]:
-    """
-    A7_5Output whose places can only be the plan's rooms.
-
-    Asked in the prompt, the model still invented corridors and passages, and the
-    sheets disagreed on who could see whom. An enum in the schema rules that out.
-    """
-    if not rooms:
-        return A7_5Output
-    place = Literal[tuple(rooms)]  # type: ignore[valid-type]
-    claimed = Literal[("", *rooms)]  # type: ignore[valid-type]
-
-    def field_with(model: type[BaseModel], name: str, annotation: Any) -> Any:
-        return (annotation, model.model_fields[name])
-
-    observation = create_model(
-        "Observation",
-        __base__=Observation,
-        location=field_with(Observation, "location", place),
-    )
-    event = create_model(
-        "PersonalEvent",
-        __base__=PersonalEvent,
-        location=field_with(PersonalEvent, "location", place),
-        claimed_location=field_with(PersonalEvent, "claimed_location", claimed),
-        info_they_observed=field_with(PersonalEvent, "info_they_observed", list[observation]),  # type: ignore[valid-type]
-    )
-    timeline = create_model(
-        "PersonalTimeline",
-        __base__=PersonalTimeline,
-        events=field_with(PersonalTimeline, "events", list[event]),  # type: ignore[valid-type]
-    )
-    return create_model(
-        "A7_5Output",
-        __base__=A7_5Output,
-        timelines=field_with(A7_5Output, "timelines", list[timeline]),  # type: ignore[valid-type]
-    )
-
-
 class PersonalTimelinesAgent(BaseAgent):
     """
     A7.5: Personal Timelines Agent.
@@ -250,7 +199,7 @@ class PersonalTimelinesAgent(BaseAgent):
 
     def __init__(self) -> None:
         """Initialize the personal timelines agent."""
-        super().__init__(llm=LLMCache.get_model("tier1"), response_format=A7_5Output)
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=SheetsOutput)
 
     def get_system_prompt(self, state: GameState) -> str:
         """
@@ -264,23 +213,18 @@ class PersonalTimelinesAgent(BaseAgent):
         """
         return A7_5_SYSTEM_PROMPT
 
-    def get_response_format(self, state: GameState) -> type[BaseModel]:
-        """With a grid, texts per slot; without one, whole events limited to this game's rooms."""
-        if state.presence:
-            return SheetsOutput
-        return output_schema_for_rooms(room_names(state))
-
     def run(self, state: GameState) -> GameState:
         """
         Generate a personal timeline for every suspect.
 
         Args:
-            state: Current game state with characters, timeline and killer selection
+            state: Current game state with characters, timeline, killer selection and presence grid
 
         Returns:
             Updated game state with personal timelines
 
         Raises:
+            ValueError: If the killer or the presence grid is missing
             StructuredOutputError: If a suspect is left without a timeline
         """
         if self._should_use_mock(state):
@@ -288,6 +232,8 @@ class PersonalTimelinesAgent(BaseAgent):
 
         if not state.killer_selection:
             raise ValueError("Killer selection is required for personal timelines")
+        if not state.presence:
+            raise ValueError("A presence grid is required for personal timelines")
 
         killer_id = state.killer_selection.killer_id
         # The killer goes first: their real movements are what the others observe
@@ -311,7 +257,7 @@ class PersonalTimelinesAgent(BaseAgent):
         Returns:
             Updated game state with the revised personal timelines
         """
-        if self._should_use_mock(state) or not state.killer_selection:
+        if self._should_use_mock(state) or not state.killer_selection or not state.presence:
             return state
 
         suspect_ids = {char.id for char in state.characters}
@@ -395,14 +341,7 @@ KILLER'S REAL ROUTE (the killer's sheet places them exactly here):
 
 DEDUCTION PLAN (write every observation it assigns on its holder's sheet, at that time):
 {format_deduction_plan(state)}
-{self._presence_section(state)}"""
 
-    @staticmethod
-    def _presence_section(state: GameState) -> str:
-        """Where everyone is, when the grid exists; each suspect's own list comes with the request."""
-        if not state.presence:
-            return ""
-        return f"""
 WHERE EVERYONE REALLY IS (fixed; each sheet tells this evening):
 {format_presence(state)}
 """
@@ -415,70 +354,16 @@ WHERE EVERYONE REALLY IS (fixed; each sheet tells this evening):
         written: dict[str, PersonalTimeline],
     ) -> dict[str, PersonalTimeline]:
         """
-        Write the timelines of the given suspects in small batches.
+        Write the texts of each suspect's slots in small batches, and build the sheets in code.
 
         Args:
-            state: Current game state
+            state: Current game state with the presence grid
             context: Story context for the request
             suspect_ids: Suspects to write, in writing order
             written: Timelines already written, shown as context and kept
 
         Returns:
             The new timelines, keyed by character ID
-
-        Raises:
-            StructuredOutputError: If a suspect is left without a timeline
-        """
-        if state.presence:
-            return self._write_slots(state, context, suspect_ids, written)
-        timelines: dict[str, PersonalTimeline] = {}
-        # Timelines whose events don't match the grid's slots, used only if nothing better comes
-        unaligned: dict[str, PersonalTimeline] = {}
-        slots = {s.character_id: s.slots for s in state.presence.suspects} if state.presence else {}
-        returned: list[str] = []
-        max_calls = math.ceil(len(suspect_ids) / SUSPECTS_PER_CALL) + EXTRA_CALLS
-        for _ in range(max_calls):
-            missing = [char_id for char_id in suspect_ids if char_id not in timelines]
-            if not missing:
-                break
-            batch = missing[:SUSPECTS_PER_CALL]
-            request = context + self._batch_request(state, {**written, **timelines}, batch)
-            result = self.invoke(state, request)
-            returned = [t.character_id for t in result.timelines]
-            for written_timeline in result.timelines:
-                # An empty timeline leaves that player with nothing to say, so ask for it again
-                if (
-                    written_timeline.character_id not in batch
-                    or len(written_timeline.events) < MIN_EVENTS_PER_SUSPECT
-                ):
-                    continue
-                # Store plain models: the narrowed schema classes can't be checkpointed
-                timeline = PersonalTimeline.model_validate(written_timeline.model_dump())
-                grid_slots = slots.get(timeline.character_id)
-                if grid_slots and not apply_presence(timeline, grid_slots):
-                    unaligned[timeline.character_id] = timeline
-                    continue
-                timelines[timeline.character_id] = timeline
-
-        for char_id, timeline in unaligned.items():
-            timelines.setdefault(char_id, timeline)
-        missing = [char_id for char_id in suspect_ids if char_id not in timelines]
-        if missing:
-            # Raising lets the graph retry the node from scratch
-            raise StructuredOutputError(
-                f"No personal timeline for suspects: {missing} (last returned: {returned})"
-            )
-        return timelines
-
-    def _write_slots(
-        self,
-        state: GameState,
-        context: str,
-        suspect_ids: list[str],
-        written: dict[str, PersonalTimeline],
-    ) -> dict[str, PersonalTimeline]:
-        """
-        Write the texts of each suspect's slots in small batches, and build the sheets in code.
 
         Raises:
             StructuredOutputError: If a suspect is left without a sheet
@@ -518,7 +403,7 @@ WHERE EVERYONE REALLY IS (fixed; each sheet tells this evening):
     def _slots_request(state: GameState, batch: list[str]) -> str:
         """Each requested suspect's slots, what they can see, and whether they hear the murder."""
         names = {char.id: char.name for char in state.characters}
-        grid = {s.character_id: s.slots for s in state.presence.suspects} if state.presence else {}
+        grid = presence_slots(state)
         murder = state.timeline_global.murder_event if state.timeline_global else None
         blocks = []
         for char_id in batch:

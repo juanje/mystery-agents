@@ -7,7 +7,6 @@ import pytest
 from mystery_agents.agents.v3_content_validator import (
     ContentValidatorAgent,
     drop_revealing_questions,
-    find_clue_notes_naming_killer,
     find_clue_objects_worn_by_one,
     find_clues_naming_killer,
     find_killer_in_guiding_questions,
@@ -22,7 +21,6 @@ from mystery_agents.graph.workflow import (
 )
 from mystery_agents.models.state import (
     CharacterSpec,
-    ClueSolutionEntry,
     ClueSpec,
     DeductionPlan,
     DetectiveRole,
@@ -331,19 +329,6 @@ def test_questions_citing_the_decisive_sightings_are_dropped() -> None:
     removed = drop_revealing_questions(state)
 
     assert removed == ["¿Quién cruzaba el patio hacia las 22:13?"]
-
-
-def test_clue_notes_naming_the_killer_are_flagged() -> None:
-    """The host reads the notes before the reveal, so they can't say whom a clue convicts."""
-    state = _game_with_killer()
-    state.host_guide.host_act2_detective_role.clues_to_reveal = [
-        ClueSolutionEntry(clue_id="c1", how_to_interpret="Contradice la coartada de Manrique."),
-        ClueSolutionEntry(clue_id="c2", how_to_interpret="Sugiere un motivo económico."),
-    ]
-
-    issues = find_clue_notes_naming_killer(state)
-
-    assert [issue.related_ids[0] for issue in issues] == ["c1"]
 
 
 def test_clues_that_identify_the_killer_alone_are_flagged() -> None:

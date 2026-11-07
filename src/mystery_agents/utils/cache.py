@@ -118,7 +118,7 @@ class AgentFactory:
     @classmethod
     def clear(cls) -> None:
         """Clear the agent cache (useful for testing)."""
-        logger.info("[Cache] Clearing agent cache")
+        logger.debug("Clearing agent cache")
         cls()._cache.clear()
 
     @classmethod
@@ -146,16 +146,3 @@ def clear_all_caches() -> None:
     logger.debug("Clearing all caches")
     LLMCache.clear()
     AgentFactory.clear()
-
-
-def get_cache_stats() -> dict[str, Any]:
-    """
-    Get statistics for all caches.
-
-    Returns:
-        Dictionary with cache statistics
-    """
-    return {
-        "llm_cache": LLMCache.cache_stats(),
-        "agent_cache": AgentFactory.cache_stats(),
-    }

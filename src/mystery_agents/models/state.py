@@ -29,7 +29,6 @@ class MetaInfo(BaseModel):
 
     id: str = Field(default_factory=lambda: str(uuid4()))
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    version: str = "v1.6"
 
 
 class PlayerConfig(BaseModel):
@@ -59,7 +58,7 @@ class GameConfig(BaseModel):
     generate_images: bool = False
     dry_run: bool = False
     debug_model: bool = False
-    config_file: str | None = None  # Path to YAML config file (skips wizard if provided)
+    config_file: str | None = None  # Path to the YAML config file
     keep_work_dir: bool = False  # Keep intermediate markdown files for inspection
     verbosity: int = 0  # Logging verbosity: 0=default (visual), 1=-v (INFO), 2=-vv (DEBUG)
     quiet_mode: bool = False  # Minimal output mode
@@ -589,10 +588,6 @@ class KillerSelection(BaseModel):
         default=None,
         description="Which pieces players will hold and how they solve the case.",
     )
-    modified_events: list[str] = Field(
-        default_factory=list,
-        description="Unused; kept for older saved games.",
-    )
 
 
 # --- Personal Timelines ---
@@ -723,30 +718,10 @@ class ClueSpec(BaseModel):
         default_factory=list,
         description="IDs of the suspects this clue clears on its own.",
     )
-    relates_to_events: list[str] = []
-    assigned_to_character_id: str | None = None
     is_red_herring: bool = Field(
         default=False,
         description="True when the clue points at an innocent suspect.",
     )
-
-
-class RoomSpec(BaseModel):
-    """Room specification."""
-
-    id: str = Field(default_factory=lambda: f"room-{uuid4().hex[:8]}")
-    name: str
-    description: str
-    important_objects: list[str] = []
-
-
-class MapSpec(BaseModel):
-    """Map specification."""
-
-    id: str = Field(default_factory=lambda: f"map-{uuid4().hex[:8]}")
-    location_name: str
-    rooms: list[RoomSpec] = []
-    description: str
 
 
 # --- Host Guide ---
@@ -822,16 +797,6 @@ class HostGuide(BaseModel):
 
 
 # --- Visuals and Packaging ---
-class ImagePromptSpec(BaseModel):
-    """Image generation prompt specification."""
-
-    id: str = Field(default_factory=lambda: f"imgp-{uuid4().hex[:8]}")
-    target: Literal["map", "character_portrait", "object", "cover"]
-    description: str
-    style_tags: list[str] = []
-    related_ids: list[str] = []
-
-
 class VisualStyle(BaseModel):
     """Visual style specifications for consistent image generation across all characters."""
 
@@ -913,7 +878,7 @@ class FileDescriptor(BaseModel):
     """File descriptor for packaging."""
 
     id: str = Field(default_factory=lambda: f"file-{uuid4().hex[:8]}")
-    type: Literal["pdf", "markdown", "txt", "image_prompt"]
+    type: Literal["pdf", "markdown", "txt"]
     name: str
     path: str | None = None
 
@@ -924,7 +889,6 @@ class PackagingInfo(BaseModel):
     host_package: list[FileDescriptor] = []
     host_guide_file: FileDescriptor | None = None
     individual_player_packages: list[FileDescriptor] = []
-    index_summary: str = ""
 
 
 # --- Validation and Root Document ---
@@ -977,7 +941,7 @@ class ValidationReport(BaseModel):
 
 
 class WorldValidation(BaseModel):
-    """World validation report from V2 validator."""
+    """World validation report from the V1 validator."""
 
     is_coherent: bool = Field(
         description="Whether the world is historically, geographically, and culturally coherent."
@@ -1017,7 +981,6 @@ class GameState(BaseModel):
     personal_timelines: PersonalTimelineByCharacter = Field(default_factory=dict)
 
     clues: list[ClueSpec] = []
-    maps: list[MapSpec] = []
 
     host_guide: HostGuide | None = None
     killer_brief_narrative: str | None = (
@@ -1035,8 +998,6 @@ class GameState(BaseModel):
     world_validation: WorldValidation | None = None
 
     packaging: PackagingInfo | None = None
-
-    generated_assets: dict[str, str] = Field(default_factory=dict)
 
     # Retry mechanism for validation loop
     retry_count: int = 0

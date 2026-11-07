@@ -10,7 +10,6 @@ from mystery_agents.utils.i18n import (
     get_document_labels,
     get_language_name,
     translate_epoch,
-    translate_room_name,
 )
 
 
@@ -176,17 +175,6 @@ class TestTranslationManager:
         assert "game_information" in document_section
         assert document_section["host_guide_title"] == "Mystery Party Host Guide"
 
-    def test_get_plural_basic(self) -> None:
-        """Test basic pluralization support."""
-        tm = TranslationManager("en")
-
-        # Currently just returns singular with count
-        result = tm.get_plural("document.players", count=1)
-        assert "Players" in result or "players" in result.lower()
-
-        result = tm.get_plural("document.players", count=5)
-        assert "Players" in result or "players" in result.lower()
-
     def test_caching_works(self) -> None:
         """Test that manual caching improves performance."""
         # Clear singleton cache to ensure fresh instance
@@ -315,60 +303,3 @@ class TestTranslateEpoch:
         """Test handling of unknown epoch."""
         result = translate_epoch("unknown_epoch", "en")
         assert result == "unknown_epoch", "Should return original if not found"
-
-
-class TestTranslateRoomName:
-    """Test suite for translate_room_name function."""
-
-    def test_translate_room_english(self) -> None:
-        """Test room name translation to English."""
-        assert translate_room_name("study", "en") == "Study"
-        assert translate_room_name("dining_room", "en") == "Dining Room"
-        assert translate_room_name("library", "en") == "Library"
-
-    def test_translate_room_spanish(self) -> None:
-        """Test room name translation to Spanish."""
-        assert translate_room_name("study", "es") == "Estudio"
-        assert translate_room_name("dining_room", "es") == "Comedor"
-        assert translate_room_name("library", "es") == "Biblioteca"
-
-    def test_translate_room_with_underscore(self) -> None:
-        """Test that underscores in room names are handled."""
-        # For rooms in translation file
-        assert translate_room_name("master_bedroom", "en") == "Master Bedroom"
-        assert translate_room_name("master_bedroom", "es") == "Dormitorio principal"
-
-    def test_translate_room_unknown(self) -> None:
-        """Test handling of unknown room name."""
-        # Unknown rooms should be formatted nicely
-        result = translate_room_name("unknown_room_name", "en")
-        assert result == "Unknown Room Name"
-
-    def test_translate_room_none(self) -> None:
-        """Test handling of None room name."""
-        result = translate_room_name(None, "en")
-        assert result == "Unknown"  # Should use the "unknown" label
-
-        result_es = translate_room_name(None, "es")
-        assert result_es == "Desconocido"
-
-
-class TestTypeDefinitions:
-    """Test that type definitions are properly structured."""
-
-    def test_type_imports_work(self) -> None:
-        """Test that TypedDict types can be imported."""
-        from mystery_agents.utils.i18n import (
-            ClueLabels,
-            DocumentLabels,
-            LanguageLabels,
-            RoomLabels,
-            TranslationKeys,
-        )
-
-        # Just verify they exist and can be imported
-        assert DocumentLabels is not None
-        assert ClueLabels is not None
-        assert RoomLabels is not None
-        assert LanguageLabels is not None
-        assert TranslationKeys is not None

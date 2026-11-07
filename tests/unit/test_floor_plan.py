@@ -1,6 +1,6 @@
 """Unit tests for the floor plan helpers."""
 
-from mystery_agents.agents.a7_5_personal_timelines import output_schema_for_rooms
+from mystery_agents.agents.a7_4_presence import output_schema_for_rooms
 from mystery_agents.models.state import (
     GameConfig,
     GameState,
@@ -84,8 +84,8 @@ def test_rooms_are_found_ignoring_case_and_accents() -> None:
     assert "Despacho (Planta baja)" in format_floor_plan(state)
 
 
-def test_personal_timeline_places_are_limited_to_the_plan() -> None:
-    """The A7.5 schema only accepts the plan's rooms as places."""
+def test_presence_grid_places_are_limited_to_the_plan() -> None:
+    """The A7.4 schema only accepts the plan's rooms as places."""
     schema = str(output_schema_for_rooms(["Salón", "Despacho"]).model_json_schema())
 
     assert "'enum': ['Salón', 'Despacho']" in schema

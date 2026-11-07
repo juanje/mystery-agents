@@ -17,14 +17,16 @@ region: Las Palmas de Gran Canaria
 # Options: modern, 1920s, victorian, custom
 epoch: modern
 
-# Optional: Custom epoch description (only used if epoch is "custom")
+# Optional: Custom epoch description, meant for epoch "custom"
+# When set, it replaces the epoch's name in the prompts and the host guide
 # custom_epoch_description: "Medieval fantasy realm with magic"
 
 # Theme or setting type
 # Options: family_mansion, corporate_retreat, cruise, train, custom
 theme: family_mansion
 
-# Optional: Custom theme description (only used if theme is "custom")
+# Optional: Custom theme description, meant for theme "custom"
+# When set, it is added to the world prompt whatever the theme
 # custom_theme_description: "Haunted castle on a stormy night"
 
 # Player characters (suspects) configuration

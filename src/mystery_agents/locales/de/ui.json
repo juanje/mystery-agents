@@ -176,37 +176,6 @@
     "type_friendship": "Freundschaft",
     "type_other": "Sonstiges"
   },
-  "room": {
-    "study": "Arbeitszimmer",
-    "library": "Bibliothek",
-    "dining_room": "Esszimmer",
-    "drawing_room": "Salon",
-    "lounge": "Lounge",
-    "bedroom": "Schlafzimmer",
-    "master_bedroom": "Hauptschlafzimmer",
-    "kitchen": "Küche",
-    "parlor": "Empfangszimmer",
-    "ballroom": "Ballsaal",
-    "conservatory": "Wintergarten",
-    "billiard_room": "Billardzimmer",
-    "wine_cellar": "Weinkeller",
-    "gallery": "Galerie",
-    "terrace": "Terrasse",
-    "garden": "Garten",
-    "veranda": "Veranda",
-    "office": "Büro",
-    "deck": "Deck",
-    "cabin": "Kabine",
-    "suite": "Suite",
-    "captains_quarters": "Kapitänskajüte",
-    "main_deck": "Hauptdeck",
-    "observation_deck": "Aussichtsdeck",
-    "bar": "Bar",
-    "restaurant": "Restaurant",
-    "spa": "Spa",
-    "pool": "Pool",
-    "gym": "Fitnessstudio"
-  },
   "language": {
     "en": "Englisch",
     "es": "Spanisch",
@@ -240,4 +209,3 @@
     "Peru": "Peru"
   }
 }
-

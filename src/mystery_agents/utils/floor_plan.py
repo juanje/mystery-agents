@@ -5,9 +5,9 @@ suspects' sheets disagreed on who could see whom from where.
 """
 
 import html
-import unicodedata
 
 from mystery_agents.models.state import GameState, Room, WorldBible
+from mystery_agents.utils.timeline_checks import plain
 
 # Floors with this many rooms need two ways in; a single cellar or tower room doesn't
 MIN_ROOMS_FOR_TWO_WAYS = 3
@@ -15,8 +15,7 @@ MIN_ROOMS_FOR_TWO_WAYS = 3
 
 def _key(name: str) -> str:
     """Comparison key for a room name: no accents, case or surrounding spaces."""
-    plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    return " ".join(plain.casefold().split())
+    return " ".join(plain(name).split())
 
 
 def normalize_floor_plan(world: WorldBible) -> WorldBible:

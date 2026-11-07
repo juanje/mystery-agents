@@ -10,13 +10,26 @@ import yaml
 from mystery_agents.models.state import GameConfig, GameState, PlayerConfig
 from mystery_agents.utils.logging_config import AgentLogger
 
+REQUIRED_FIELDS = {"language", "country", "epoch", "theme", "host_gender"}
+# Left out of the YAML, these keep GameConfig's defaults
+OPTIONAL_FIELDS = (
+    "region",
+    "custom_epoch_description",
+    "custom_theme_description",
+    "duration_minutes",
+    "difficulty",
+    "murder_method",
+    "killer_knows_identity",
+)
+# Players of each gender when the YAML doesn't say
+DEFAULT_PLAYERS_PER_GENDER = 3
+
 
 class ConfigLoaderAgent:
     """
     A1: Config Loader Agent.
 
     Loads game configuration from YAML file and validates it.
-    Designed for both CLI and future web interface use.
     """
 
     def _load_from_yaml(self, yaml_path: str, state: GameState) -> GameConfig:
@@ -44,17 +57,15 @@ class ConfigLoaderAgent:
         if not isinstance(data, dict):
             raise ValueError("YAML file must contain a dictionary")
 
-        # Validate required fields
-        required_fields = {"language", "country", "epoch", "theme", "host_gender"}
-        missing_fields = required_fields - set(data.keys())
+        missing_fields = REQUIRED_FIELDS - set(data.keys())
         if missing_fields:
             raise ValueError(f"Missing required fields in YAML: {', '.join(missing_fields)}")
 
         # Handle players configuration (can be dict or just counts)
         players_config = data.get("players", {})
         if isinstance(players_config, dict):
-            male = players_config.get("male", 3)
-            female = players_config.get("female", 3)
+            male = players_config.get("male", DEFAULT_PLAYERS_PER_GENDER)
+            female = players_config.get("female", DEFAULT_PLAYERS_PER_GENDER)
             total = male + female
         else:
             raise ValueError("'players' must be a dictionary with 'male' and 'female' keys")
@@ -64,19 +75,9 @@ class ConfigLoaderAgent:
 
         # Create GameConfig with values from YAML + CLI flags
         config = GameConfig(
-            language=data["language"],
-            country=data["country"],
-            region=data.get("region"),
-            epoch=data["epoch"],
-            custom_epoch_description=data.get("custom_epoch_description"),
-            theme=data["theme"],
-            custom_theme_description=data.get("custom_theme_description"),
+            **{name: data[name] for name in REQUIRED_FIELDS},
+            **{name: data[name] for name in OPTIONAL_FIELDS if name in data},
             players=players,
-            host_gender=data["host_gender"],
-            duration_minutes=data.get("duration_minutes", 90),
-            difficulty=data.get("difficulty", "medium"),
-            murder_method=data.get("murder_method", "random"),
-            killer_knows_identity=data.get("killer_knows_identity", False),
             # CLI flags override YAML
             generate_images=state.config.generate_images,
             dry_run=state.config.dry_run,

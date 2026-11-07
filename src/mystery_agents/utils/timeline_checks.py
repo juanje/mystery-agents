@@ -39,25 +39,46 @@ def minutes_in(text: str) -> list[int]:
     return [int(hours) * 60 + int(mins) for hours, mins in _TIME_PATTERN.findall(text)]
 
 
-def event_ranges(events: list[PersonalEvent]) -> list[tuple[int, int] | None]:
-    """
-    Time range of each event, in minutes.
+def clock(minute: int) -> str:
+    """HH:MM for minutes since midnight."""
+    return f"{minute // 60:02d}:{minute % 60:02d}"
 
-    A single time lasts until the next event starts. Events without a readable
-    time get None and are skipped by the checks.
+
+def plain(text: str) -> str:
+    """Text without accents or case, for loose comparisons."""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
+
+
+def time_spans(times: list[str]) -> list[tuple[int, int] | None]:
     """
-    starts = [minutes_in(event.time) for event in events]
-    ranges: list[tuple[int, int] | None] = []
-    for index, times in enumerate(starts):
-        if not times:
-            ranges.append(None)
-            continue
-        if len(times) >= 2:
-            ranges.append((times[0], times[1]))
-            continue
-        following = next((later[0] for later in starts[index + 1 :] if later), None)
-        ranges.append((times[0], following if following is not None else times[0]))
-    return ranges
+    Time range of each of a sequence of times ("21:00-21:30" or "21:30"), in minutes.
+
+    A single time lasts until the next one starts. Times without a readable HH:MM
+    get None and are skipped by the checks.
+    """
+    starts = [minutes_in(time) for time in times]
+    spans: list[tuple[int, int] | None] = []
+    for index, found in enumerate(starts):
+        if not found:
+            spans.append(None)
+        elif len(found) >= 2:
+            spans.append((found[0], found[1]))
+        else:
+            following = next((later[0] for later in starts[index + 1 :] if later), found[0])
+            spans.append((found[0], following))
+    return spans
+
+
+def event_ranges(events: list[PersonalEvent]) -> list[tuple[int, int] | None]:
+    """Time range of each event of a sheet, in minutes (see time_spans)."""
+    return time_spans([event.time for event in events])
+
+
+def unaware_killer(state: GameState) -> str | None:
+    """The killer's ID when they don't know their identity: their sheet shows only the account."""
+    if state.killer_selection and not state.config.killer_knows_identity:
+        return state.killer_selection.killer_id
+    return None
 
 
 def _covers(span: tuple[int, int], minute: int) -> bool:
@@ -67,8 +88,7 @@ def _covers(span: tuple[int, int], minute: int) -> bool:
 
 def _place_words(place: str) -> set[str]:
     """Distinctive words of a place name, without accents or case."""
-    plain = unicodedata.normalize("NFKD", place).encode("ascii", "ignore").decode().casefold()
-    return {word for word in re.findall(r"\w+", plain) if len(word) >= MIN_PLACE_WORD_LENGTH}
+    return {word for word in re.findall(r"\w+", plain(place)) if len(word) >= MIN_PLACE_WORD_LENGTH}
 
 
 def same_place(first: str, second: str) -> bool:
@@ -171,16 +191,12 @@ def _impossible_sightings(
         return
     rooms = {room.name: room for room in state.world.rooms}
     # An unaware killer's sheet shows their claimed places, so that's where they look from
-    unaware_killer = (
-        state.killer_selection.killer_id
-        if state.killer_selection and not state.config.killer_knows_identity
-        else None
-    )
+    unaware = unaware_killer(state)
     for char_id, timeline in state.personal_timelines.items():
         for event in timeline.events:
             shown_place = (
                 event.claimed_location
-                if char_id == unaware_killer and event.claimed_location
+                if char_id == unaware and event.claimed_location
                 else event.location
             )
             here = rooms.get(shown_place)
@@ -225,21 +241,27 @@ def plan_pieces(plan: DeductionPlan) -> list[EvidencePiece]:
     ]
 
 
+def observation_pieces(state: GameState) -> list[EvidencePiece]:
+    """The deduction plan's pieces that are observations on someone's sheet."""
+    plan = state.killer_selection.deduction_plan if state.killer_selection else None
+    return [piece for piece in plan_pieces(plan) if piece.kind == "observation"] if plan else []
+
+
+def planned_at(state: GameState, observer_id: str, observed_id: str, minute: int) -> bool:
+    """Whether the deduction plan has this observer see this person around that minute."""
+    return any(
+        piece.holder_id == observer_id
+        and piece.about_id == observed_id
+        and (times := minutes_in(piece.time))
+        and abs(times[0] - minute) <= PLANNED_TIME_SLACK_MINUTES
+        for piece in observation_pieces(state)
+    )
+
+
 def _is_planned(state: GameState, holder_id: str, seen: Observation) -> bool:
     """Whether the deduction plan asks for this observation (same holder, subject and time)."""
-    plan = state.killer_selection.deduction_plan if state.killer_selection else None
     times = minutes_in(seen.time)
-    if not plan or not times:
-        return False
-    pieces = plan_pieces(plan)
-    return any(
-        piece.kind == "observation"
-        and piece.holder_id == holder_id
-        and piece.about_id == seen.observed_character_id
-        and (planned_at := minutes_in(piece.time))
-        and abs(planned_at[0] - times[0]) <= PLANNED_TIME_SLACK_MINUTES
-        for piece in pieces
-    )
+    return bool(times) and planned_at(state, holder_id, seen.observed_character_id, times[0])
 
 
 def drop_impossible_sightings(state: GameState) -> list[str]:
@@ -379,11 +401,7 @@ def place_murder_sounds(state: GameState) -> list[str]:
     if not times:
         return []
     audible = {murder.room, *murder.heard_in}
-    unaware_killer = (
-        state.killer_selection.killer_id
-        if state.killer_selection and not state.config.killer_knows_identity
-        else None
-    )
+    unaware = unaware_killer(state)
     changed = []
     for char_id, timeline in state.personal_timelines.items():
         found = [
@@ -407,7 +425,7 @@ def place_murder_sounds(state: GameState) -> list[str]:
         if then:
             # An unaware killer's sheet shows where they claim to be, so they hear it from there
             shown = then.location
-            if char_id == unaware_killer and then.claimed_location:
+            if char_id == unaware and then.claimed_location:
                 shown = then.claimed_location
             if shown in audible:
                 then.info_they_observed.append(found[0].model_copy(update={"time": murder.time}))
@@ -464,7 +482,7 @@ def _planned_witnesses(state: GameState) -> list[str]:
 
 
 def _witness_limit(state: GameState) -> int:
-    return max(MAX_KILLER_WITNESSES.get(state.config.difficulty, 2), len(_planned_witnesses(state)))
+    return max(MAX_KILLER_WITNESSES[state.config.difficulty], len(_planned_witnesses(state)))
 
 
 def _witnesses_planned_first(state: GameState, witnesses: list[str]) -> list[str]:
@@ -701,7 +719,7 @@ def find_plan_problems(state: GameState) -> list[str]:
         for piece in plan.breaking_pieces
         if piece.kind == "observation" and piece.about_id == killer_id
     }
-    limit = MAX_KILLER_WITNESSES.get(state.config.difficulty, 2)
+    limit = MAX_KILLER_WITNESSES[state.config.difficulty]
     if len(witnesses) > limit:
         problems.append(
             f"{len(witnesses)} suspects see the killer in breaking_pieces "
@@ -873,11 +891,6 @@ KILLER_TELLS = {
 }
 
 
-def _plain(text: str) -> str:
-    """Text without accents or case, for matching stems."""
-    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
-
-
 def find_killer_account_tells(state: GameState) -> list[ValidationIssue]:
     """
     Find words in an unaware killer's account that tell their player they are hiding something.
@@ -903,7 +916,7 @@ def find_killer_account_tells(state: GameState) -> list[ValidationIssue]:
             tell
             for text in texts
             for tell in tells
-            if tell in (text.casefold() if keep else _plain(text))
+            if tell in (text.casefold() if keep else plain(text))
         }
     )
     if not found:
@@ -952,7 +965,7 @@ def drop_killer_tells(state: GameState) -> bool:
         kept = [
             sentence
             for sentence in sentences
-            if not any(t in (sentence.casefold() if keep_case else _plain(sentence)) for t in tells)
+            if not any(t in (sentence.casefold() if keep_case else plain(sentence)) for t in tells)
         ]
         return " ".join(kept) if kept else text
 

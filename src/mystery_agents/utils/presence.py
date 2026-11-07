@@ -12,15 +12,18 @@ from mystery_agents.models.state import (
     EvidencePiece,
     GameState,
     Observation,
-    PersonalTimeline,
     PresenceSlot,
     Room,
 )
 from mystery_agents.utils.timeline_checks import (
     PLANNED_TIME_SLACK_MINUTES,
     TIME_TOLERANCE_MINUTES,
+    clock,
     minutes_in,
-    plan_pieces,
+    observation_pieces,
+    planned_at,
+    time_spans,
+    unaware_killer,
 )
 
 
@@ -36,27 +39,13 @@ class Sighting:
     room: str
 
 
-def clock(minute: int) -> str:
-    """HH:MM for minutes since midnight."""
-    return f"{minute // 60:02d}:{minute % 60:02d}"
-
-
 def slot_spans(slots: list[PresenceSlot]) -> list[tuple[int, int] | None]:
     """Time range of each slot in minutes; a single time lasts until the next slot."""
-    starts = [minutes_in(slot.time) for slot in slots]
-    spans: list[tuple[int, int] | None] = []
-    for index, times in enumerate(starts):
-        if not times:
-            spans.append(None)
-        elif len(times) >= 2:
-            spans.append((times[0], times[1]))
-        else:
-            following = next((later[0] for later in starts[index + 1 :] if later), times[0])
-            spans.append((times[0], following))
-    return spans
+    return time_spans([slot.time for slot in slots])
 
 
-def _slots(state: GameState) -> dict[str, list[PresenceSlot]]:
+def presence_slots(state: GameState) -> dict[str, list[PresenceSlot]]:
+    """Each suspect's slots in the grid, by character ID."""
     return {s.character_id: s.slots for s in state.presence.suspects} if state.presence else {}
 
 
@@ -84,34 +73,14 @@ def rooms_at(slots: list[PresenceSlot], minute: int) -> list[str]:
     ]
 
 
-def _hides(slot: PresenceSlot) -> bool:
+def slot_hides(slot: PresenceSlot) -> bool:
+    """Whether the suspect claims to be somewhere else during this slot."""
     return bool(slot.claimed_room) and slot.claimed_room != slot.room
 
 
 def _visible_from(rooms: dict[str, Room], room: str) -> set[str]:
     known = rooms.get(room)
     return {room, *known.can_see} if known else {room}
-
-
-def _observation_pieces(state: GameState) -> list[EvidencePiece]:
-    plan = state.killer_selection.deduction_plan if state.killer_selection else None
-    return [piece for piece in plan_pieces(plan) if piece.kind == "observation"] if plan else []
-
-
-def _planned_at(state: GameState, observer_id: str, observed_id: str, minute: int) -> bool:
-    return any(
-        piece.holder_id == observer_id
-        and piece.about_id == observed_id
-        and (times := minutes_in(piece.time))
-        and abs(times[0] - minute) <= PLANNED_TIME_SLACK_MINUTES
-        for piece in _observation_pieces(state)
-    )
-
-
-def _unaware_killer(state: GameState) -> str | None:
-    if state.killer_selection and not state.config.killer_knows_identity:
-        return state.killer_selection.killer_id
-    return None
 
 
 def _overlaps(state: GameState) -> list[tuple[Sighting, bool]]:
@@ -123,15 +92,15 @@ def _overlaps(state: GameState) -> list[tuple[Sighting, bool]]:
     says they weren't, so those stretches are left out.
     """
     rooms = {room.name: room for room in state.world.rooms} if state.world else {}
-    grid = _slots(state)
+    grid = presence_slots(state)
     killer_id = state.killer_selection.killer_id if state.killer_selection else None
-    unaware = _unaware_killer(state)
+    unaware = unaware_killer(state)
     found = []
     for observer_id, observer_slots in grid.items():
         for observer_slot, observer_span in zip(
             observer_slots, slot_spans(observer_slots), strict=True
         ):
-            if not observer_span or (observer_id == unaware and _hides(observer_slot)):
+            if not observer_span or (observer_id == unaware and slot_hides(observer_slot)):
                 continue
             visible = _visible_from(rooms, observer_slot.room)
             for observed_id, observed_slots in grid.items():
@@ -145,9 +114,9 @@ def _overlaps(state: GameState) -> list[tuple[Sighting, bool]]:
                         continue
                     unplanned = (
                         observed_id == killer_id
-                        and _hides(slot)
+                        and slot_hides(slot)
                         and not any(
-                            _planned_at(state, observer_id, observed_id, m)
+                            planned_at(state, observer_id, observed_id, m)
                             for m in range(start, end + 1)
                         )
                     )
@@ -182,7 +151,7 @@ def presence_problems(state: GameState) -> list[str]:
         return ["No presence grid."]
     rooms = {room.name: room for room in state.world.rooms}
     names = {char.id: char.name for char in state.characters}
-    grid = _slots(state)
+    grid = presence_slots(state)
     problems = [f"{name} has no slots." for char_id, name in names.items() if not grid.get(char_id)]
 
     for char_id, slots in grid.items():
@@ -208,9 +177,9 @@ def presence_problems(state: GameState) -> list[str]:
                 )
 
     # An unaware killer's sheet shows the rooms they claim, and players check that walk too
-    unaware = _unaware_killer(state)
+    unaware = unaware_killer(state)
     shown = [
-        slot.claimed_room if _hides(slot) else slot.room for slot in grid.get(unaware or "", [])
+        slot.claimed_room if slot_hides(slot) else slot.room for slot in grid.get(unaware or "", [])
     ]
     for from_room, to_room in zip(shown, shown[1:], strict=False):
         start_room = rooms.get(from_room)
@@ -271,7 +240,7 @@ def presence_problems(state: GameState) -> list[str]:
                 )
         murder_at = minutes_in(timeline.murder_event.time) if timeline else []
         at_murder = slot_at(killer_slots, murder_at[0]) if murder_at else None
-        if at_murder and not _hides(at_murder):
+        if at_murder and not slot_hides(at_murder):
             problems.append(
                 f"At the time of the murder the killer's slot {at_murder.time} has no claimed_room: "
                 "say where they will claim to have been."
@@ -288,7 +257,7 @@ def presence_problems(state: GameState) -> list[str]:
                 "without a view of the killer's route then."
             )
 
-    for piece in _observation_pieces(state):
+    for piece in observation_pieces(state):
         times = minutes_in(piece.time)
         holder = rooms_at(grid.get(piece.holder_id, []), times[0]) if times else []
         observed = rooms_at(grid.get(piece.about_id, []), times[0]) if times else []
@@ -298,7 +267,7 @@ def presence_problems(state: GameState) -> list[str]:
                 f"The plan has {holder_name} seeing something from {piece.from_room} at "
                 f"{piece.time}, but the grid has them in {' / '.join(holder)}."
             )
-        if piece.holder_id == _unaware_killer(state) and times:
+        if piece.holder_id == unaware_killer(state) and times:
             # Their sheet only shows the account, so they can only see from where it says
             hiding = [
                 slot
@@ -307,7 +276,7 @@ def presence_problems(state: GameState) -> list[str]:
                     slot_spans(grid.get(piece.holder_id, [])),
                     strict=True,
                 )
-                if span and span[0] <= times[0] <= span[1] and _hides(slot)
+                if span and span[0] <= times[0] <= span[1] and slot_hides(slot)
             ]
             if hiding:
                 problems.append(
@@ -336,37 +305,10 @@ def format_presence(state: GameState) -> str:
             f"{names.get(suspect.character_id, suspect.character_id)} ({suspect.character_id}):"
         ]
         for slot in suspect.slots:
-            claim = f" [claims: {slot.claimed_room}]" if _hides(slot) else ""
+            claim = f" [claims: {slot.claimed_room}]" if slot_hides(slot) else ""
             lines.append(f"- {slot.time} @ {slot.room}{claim}: {slot.doing}")
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks)
-
-
-def apply_presence(timeline: PersonalTimeline, slots: list[PresenceSlot]) -> bool:
-    """
-    Give a sheet's events the grid's times and places.
-
-    The writer is asked for one event per slot; when it returns that, the grid wins
-    over whatever it wrote for times and places. When the counts differ, each event
-    still takes the place of the slot it starts in: a measured game kept the
-    writer's own places on those sheets, and their sightings broke the floor plan.
-
-    Returns:
-        Whether the events matched the slots one to one
-    """
-    if len(timeline.events) == len(slots):
-        for event, slot in zip(timeline.events, slots, strict=True):
-            event.time = slot.time
-            event.location = slot.room
-            event.claimed_location = slot.claimed_room if _hides(slot) else ""
-        return True
-    for event in timeline.events:
-        start = minutes_in(event.time)
-        covering = slot_at(slots, start[0]) if start else None
-        if covering:
-            event.location = covering.room
-            event.claimed_location = covering.claimed_room if _hides(covering) else ""
-    return False
 
 
 def _matching_sighting(
@@ -444,7 +386,7 @@ def planned_piece_for(state: GameState, sighting: Sighting) -> EvidencePiece | N
     return next(
         (
             piece
-            for piece in _observation_pieces(state)
+            for piece in observation_pieces(state)
             if piece.holder_id == sighting.observer_id
             and piece.about_id == sighting.observed_id
             and (times := minutes_in(piece.time))
@@ -466,14 +408,9 @@ def hears_the_murder(state: GameState, char_id: str) -> str | None:
     murder_at = minutes_in(timeline.murder_event.time) if timeline else []
     if not timeline or not murder_at:
         return None
-    slot = slot_at(_slots(state).get(char_id, []), murder_at[0])
+    slot = slot_at(presence_slots(state).get(char_id, []), murder_at[0])
     if not slot:
         return None
-    room = slot.claimed_room if char_id == _unaware_killer(state) and _hides(slot) else slot.room
+    room = slot.claimed_room if char_id == unaware_killer(state) and slot_hides(slot) else slot.room
     murder = timeline.murder_event
     return room if room in {murder.room, *murder.heard_in} else None
-
-
-def slot_hides(slot: PresenceSlot) -> bool:
-    """Whether the suspect claims to be somewhere else during this slot."""
-    return _hides(slot)

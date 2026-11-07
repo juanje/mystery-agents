@@ -176,37 +176,6 @@
     "type_friendship": "ידידות",
     "type_other": "אחר"
   },
-  "room": {
-    "study": "חדר עבודה",
-    "library": "ספרייה",
-    "dining_room": "חדר אוכל",
-    "drawing_room": "סלון",
-    "lounge": "טרקלין",
-    "bedroom": "חדר שינה",
-    "master_bedroom": "חדר שינה ראשי",
-    "kitchen": "מטבח",
-    "parlor": "חדר קבלה",
-    "ballroom": "אולם נשפים",
-    "conservatory": "חממה",
-    "billiard_room": "חדר ביליארד",
-    "wine_cellar": "מרתף יין",
-    "gallery": "גלריה",
-    "terrace": "מרפסת",
-    "garden": "גן",
-    "veranda": "מרפסת מקורה",
-    "office": "משרד",
-    "deck": "סיפון",
-    "cabin": "תא",
-    "suite": "סוויטה",
-    "captains_quarters": "תא הקפטן",
-    "main_deck": "סיפון ראשי",
-    "observation_deck": "סיפון תצפית",
-    "bar": "בר",
-    "restaurant": "מסעדה",
-    "spa": "ספא",
-    "pool": "בריכה",
-    "gym": "חדר כושר"
-  },
   "language": {
     "en": "אנגלית",
     "es": "ספרדית",
@@ -240,4 +209,3 @@
     "Peru": "פרו"
   }
 }
-

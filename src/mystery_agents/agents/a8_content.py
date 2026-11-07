@@ -44,6 +44,7 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_victim_role,
     safe_get_crime_victim_secrets,
     safe_get_crime_weapon,
+    safe_get_killer,
     safe_get_world_epoch,
     safe_get_world_location_name,
     safe_get_world_visual_keywords,
@@ -196,21 +197,15 @@ class ContentGenerationAgent(BaseAgent):
         if self._should_use_mock(state):
             return self._mock_output(state)
 
-        killer = self._killer(state)
+        requests = {
+            "clues": self._clues_request,
+            "guide": self._guide_request,
+            "solution": self._solution_request,
+        }
         for part in self._parts_to_write(state):
-            request = {
-                "clues": self._clues_request,
-                "guide": self._guide_request,
-                "solution": self._solution_request,
-            }[part](state)
-            result = self.writers[part].invoke(state, request + self._revision(state, part))
-            self._store(state, part, result, killer)
+            request = requests[part](state) + self._revision(state, part)
+            self._store(state, part, self.writers[part].invoke(state, request))
         return state
-
-    @staticmethod
-    def _killer(state: GameState) -> Any:
-        killer_id = state.killer_selection.killer_id if state.killer_selection else None
-        return next((c for c in state.characters if c.id == killer_id), None)
 
     @staticmethod
     def _parts_to_write(state: GameState) -> tuple[ContentPart, ...]:
@@ -296,7 +291,7 @@ class ContentGenerationAgent(BaseAgent):
         ).model_dump_json(indent=1)
 
     @staticmethod
-    def _store(state: GameState, part: ContentPart, result: Any, killer: Any) -> None:
+    def _store(state: GameState, part: ContentPart, result: Any) -> None:
         if part == "clues":
             state.clues = result.clues
             state.costume_additions = {
@@ -336,7 +331,7 @@ class ContentGenerationAgent(BaseAgent):
     # Requests: each writer gets what it needs, not everything
 
     def _game_block(self, state: GameState) -> str:
-        killer = self._killer(state)
+        killer = safe_get_killer(state)
         return f"""GAME:
 - Language: {state.config.language}
 - Tone: {GAME_TONE_STYLE}
@@ -381,7 +376,7 @@ CRIME:
         )
 
     def _clues_request(self, state: GameState) -> str:
-        killer = self._killer(state)
+        killer = safe_get_killer(state)
         return f"""Write the clues for this game.
 
 {self._game_block(state)}
@@ -494,13 +489,6 @@ TESTIMONY PLAYERS HOLD (the only observations the solution may cite):
 
     def _mock_output(self, state: GameState) -> GameState:
         """Generate mock data for dry run mode."""
-        from mystery_agents.models.state import (
-            ClueSolutionEntry,
-            ClueSpec,
-            DetectiveRole,
-            HostGuide,
-        )
-
         # Mock host guide
         state.host_guide = HostGuide(
             spoiler_free_intro=f"Welcome to {MOCK_WORLD_NAME}! A mystery awaits...",

@@ -29,7 +29,7 @@ Mystery Agents uses a **pipeline architecture** built on LangGraph with conditio
 
 **Key Principles:**
 - **Sequential pipeline**: Each agent builds on previous work
-- **Validation loops**: Two retry mechanisms (V1 for world coherence, V2 for game logic)
+- **Validation loops**: Three retry mechanisms (V1 for world coherence, V2 for game logic, V3 for the written content)
 - **Immutable state flow**: Each agent receives state, returns modified state
 - **Fail-fast**: Critical errors stop the pipeline, minor issues get retried
 
@@ -132,25 +132,34 @@ graph TD
 
 ```
 src/mystery_agents/
-├── agents/              # Pipeline agents (A1-A9, V1-V2)
-│   ├── a1_config.py    # Config loader
-│   ├── a2_world.py     # World generation
+├── agents/                  # Pipeline agents (A1-A9, V1-V3)
+│   ├── base.py             # BaseAgent: prompts, structured output, mocks
+│   ├── a1_config.py        # Config loader
+│   ├── a2_world.py         # World and floor plan
 │   ├── v1_world_validator.py
-│   ├── a3_characters.py
-│   ├── a3_5_character_images.py
-│   ├── a9_packaging.py # PDF generation & ZIP
+│   ├── a7_4_presence.py    # Presence grid
+│   ├── a7_5_personal_timelines.py
+│   ├── a8_content.py       # Clue, guide and solution writers
+│   ├── v3_content_validator.py
+│   ├── a9_packaging.py     # PDF generation & ZIP
 │   └── ...
-├── graph/              # LangGraph workflow
-│   └── workflow.py     # Pipeline definition & routing
-├── models/             # Pydantic models
-│   ├── state.py        # GameState, GameConfig
-│   └── game_models.py  # World, Character, Crime, etc.
-├── utils/              # Shared utilities
-│   ├── cache.py        # LLM & agent caching
+├── graph/                  # LangGraph workflow
+│   ├── workflow.py         # Pipeline definition & routing
+│   └── checkpoints.py      # SQLite checkpoints for --resume
+├── models/
+│   └── state.py            # GameState and every Pydantic model in it
+├── locales/<code>/ui.json  # Labels of the printed documents
+├── utils/                  # Shared utilities
+│   ├── prompts.py          # System prompts
+│   ├── floor_plan.py       # The shared floor plan
+│   ├── presence.py         # Presence grid checks and the sightings it allows
+│   ├── timeline_checks.py  # Deterministic checks and fixes of the sheets
+│   ├── state_helpers.py    # Safe state access and prompt formatting
+│   ├── cache.py            # LLM & agent caching
 │   ├── logging_config.py
-│   ├── i18n.py         # Translation system
+│   ├── i18n.py             # Translation system
 │   └── image_generation.py
-└── cli.py              # CLI entry point
+└── cli.py                  # CLI entry point
 ```
 
 ---
@@ -164,46 +173,36 @@ All agents follow a consistent pattern:
 ```python
 class ExampleAgent(BaseAgent):
     """Agent description."""
-    
-    def __init__(self):
-        # Use cached LLM from AgentFactory
-        llm = LLMCache.get_model("tier1")  # tier1, tier2, or tier3
-        super().__init__(
-            llm=llm,
-            system_prompt=self._get_system_prompt(),
-            response_format=ExpectedOutput,  # Pydantic model
-        )
-    
-    def _get_system_prompt(self) -> str:
-        """Static system prompt (can use templates)."""
-        return "You are an AI that..."
-    
+
+    def __init__(self) -> None:
+        # Cached LLM shared by every agent of the same tier
+        super().__init__(llm=LLMCache.get_model("tier1"), response_format=ExpectedOutput)
+
+    def get_system_prompt(self, state: GameState) -> str:
+        """System prompt from utils/prompts.py."""
+        return EXAMPLE_SYSTEM_PROMPT
+
     def run(self, state: GameState) -> GameState:
         """Main entry point - modifies and returns state."""
-        log = AgentLogger(__name__, state)
-        
-        # Mock mode for testing
-        if state.config.dry_run:
-            log.info("Using mock data")
+        # Mock mode for --dry-run and tests
+        if self._should_use_mock(state):
             return self._mock_output(state)
-        
-        # Build user message from state
-        user_message = self._build_user_message(state)
-        
-        # Call LLM (structured output via BaseAgent)
-        result = self.invoke(user_message, state.config)
-        
-        # Update state
+
+        # Structured output via BaseAgent; raises StructuredOutputError if it doesn't parse
+        result = self.invoke(state, self._request(state))
+
         state.some_field = result.some_value
-        log.info("✓ Agent completed")
-        
         return state
-    
+
     def _mock_output(self, state: GameState) -> GameState:
         """Mock data for --dry-run mode."""
         state.some_field = "mock_value"
         return state
 ```
+
+`BaseAgent.invoke()` prepends `FICTION_CONTEXT` and, for non-English games, the language
+instructions to the system prompt. An agent can override `get_response_format()` to narrow
+the schema to the current game (A7.4 only accepts the floor plan's rooms).
 
 ### Agent Lifecycle
 
@@ -229,25 +228,30 @@ class ExampleAgent(BaseAgent):
 The entire game generation is captured in `GameState`:
 
 ```python
-@dataclass
-class GameState:
-    meta: MetaInfo                    # Game ID, timestamps
-    config: GameConfig                # User configuration
-    world: World | None = None        # A2 output
-    visual_style: VisualStyle | None  # A2.5 output
-    characters: list[Character]       # A3 output
-    crime: Crime | None               # A5 output
-    timeline: Timeline | None         # A6 output
-    killer_id: str | None             # A7 output
-    presence: PresenceGrid | None     # A7.4 output
-    content: GameContent | None       # A8 output
-    packaging: PackagingResult | None # A9 output
-    
+class GameState(BaseModel):
+    meta: MetaInfo                                  # Game ID, timestamp
+    config: GameConfig                              # User configuration
+    world: WorldBible | None                        # A2 output (with the floor plan)
+    visual_style: VisualStyle | None                # A2.5 output
+    characters: list[CharacterSpec]                 # A3 output
+    relationships: list[RelationshipSpec]           # A4 output
+    crime: CrimeSpec | None                         # A5 output
+    timeline_global: GlobalTimeline | None          # A6 output
+    killer_selection: KillerSelection | None        # A7 output (route, deduction plan)
+    presence: PresenceGrid | None                   # A7.4 output
+    personal_timelines: dict[str, PersonalTimeline] # A7.5 output, by character ID
+    clues: list[ClueSpec]                           # A8 output
+    host_guide: HostGuide | None                    # A8 output (with the solution)
+    character_image_paths: dict[str, str]           # A3.5 output
+    packaging: PackagingInfo | None                 # A9 output
+
     # Validation state
-    world_validation: WorldValidation | None
-    validation: ValidationResult | None
+    world_validation: WorldValidation | None        # V1
+    validation: ValidationReport | None             # V2
+    content_validation: ValidationReport | None     # V3
     world_retry_count: int = 0
     retry_count: int = 0
+    content_retry_count: int = 0
 ```
 
 ### Design Decisions
@@ -320,44 +324,33 @@ Loaded via `python-dotenv` in `cli.py`, accessed via `os.getenv()` in `config.py
 
 ## Validation & Retry Loops
 
-### Two Validation Points
+### Three Validation Points
 
-**V1: World Validation (after A2)**
-```python
-def should_retry_world_validation(state: dict) -> str:
-    """Route back to A2 if world validation fails."""
-    validation = state.get("world_validation")
-    retry_count = state.get("world_retry_count", 0)
-    max_retries = state.get("max_world_retries", 2)  # Default: 2
-    
-    if validation and not validation.is_coherent:
-        if retry_count < max_retries:
-            return "retry_world"  # Go back to A2
-    
-    return "continue"  # Proceed to A2.5
-```
+Routing lives in `graph/workflow.py`:
 
-**V2: Game Logic Validation (after A7)**
-```python
-def should_retry_validation(state: dict) -> str:
-    """Route back to A6 if game logic is inconsistent."""
-    validation = state.get("validation")
-    retry_count = state.get("retry_count", 0)
-    max_retries = state.get("max_retries", 3)  # Default: 3
-    
-    if validation and not validation.is_consistent:
-        if retry_count < max_retries:
-            return "retry"  # Go back to A6
-    
-    return "continue"  # Proceed to A8
-```
+- **V1: World validation (after A2)** - `should_retry_world_validation()` sends an
+  incoherent world back to A2, at most `max_world_retries` (2) times, then ends the run.
+- **V2: Game logic validation (after A7.5)** - `route_after_game_validation()` sends
+  issues inside the suspects' sheets (`fix_in="timelines"`) back to A7.5's revision and
+  anything else back to A6, at most `max_retries` (3) times. When retries run out and
+  only the sheets still have issues, the game continues; otherwise the run ends.
+- **V3: Content validation (after A8)** - `should_retry_content_validation()` sends
+  sheet issues to A7.5's revision and then A8, and other issues back to A8, which
+  rewrites from the first flagged part on, at most `max_content_retries` (2) times.
+  After that the last version is packaged anyway.
 
-### Why Two Loops?
+Before V2, code checks and fixes what it can measure (`utils/timeline_checks.py`,
+`utils/presence.py`): sightings the grid or the floor plan rules out, too many killer
+witnesses, words that give an unaware killer away. A7.5 rewrites the flagged suspects
+once before V2 sees the sheets.
+
+### Why Three Loops?
 
 - **World validation**: Catches location/setting issues early
-- **Logic validation**: Ensures killer logic, timeline, clues are consistent
+- **Logic validation**: Ensures killer logic, timeline and sheets are consistent
+- **Content validation**: Checks clues, guide and solution against what players hold
 - **Performance**: Fix issues before generating expensive content
-- **Max retries**: Prevents infinite loops (2 for world, 3 for logic)
+- **Max retries**: Prevents infinite loops
 
 ### What Gets Validated?
 
@@ -368,9 +361,12 @@ def should_retry_validation(state: dict) -> str:
 
 **V2 (Game Logic)**:
 - Killer has motive, means, opportunity
-- Timeline is consistent
-- Clues lead to killer
-- No plot holes or contradictions
+- Timeline and sheets are consistent
+- The deduction plan makes the case solvable and not obvious
+
+**V3 (Content)**:
+- Clues, guide and solution agree with the sheets
+- No spoilers, unsupported evidence or single clue that solves the case
 
 ---
 
@@ -394,7 +390,7 @@ from mystery_agents.utils.cache import LLMCache
 llm = LLMCache.get_model("tier1")  # Cached, reused
 ```
 
-**Result**: Only 3 LLM instances total (tier1, tier2, tier3)
+**Result**: At most 3 LLM instances (tier1, tier2, tier3)
 
 ### Level 2: Agent Cache
 
@@ -405,7 +401,7 @@ from mystery_agents.utils.cache import AgentFactory
 agent = AgentFactory.get_agent(WorldAgent)  # Cached, reused in retries
 ```
 
-**Result**: Only 11 agent instances (one per agent class)
+**Result**: One instance per agent class
 
 ### Performance Impact
 
@@ -441,14 +437,13 @@ We use **tiered LLMs** based on task complexity:
 
 | Tier | Default Model | Use Case | Examples |
 |------|--------------|----------|----------|
-| **Tier 1** | gemini-3.6-flash | Complex reasoning | World, crime, killer selection, personal timelines, clues and guides (A8), V2, V3 |
-| **Tier 2** | gemini-3.6-flash | Content generation | Style guide, characters, relationships, timeline, V1 |
-| **Tier 3** | gemini-3.5-flash-lite | Quick tasks | Packaging |
+| **Tier 1** | gemini-3.6-flash | Complex reasoning | World, crime, killer selection, presence grid, personal timelines, clues, guide and solution (A8), V2, V3 |
+| **Tier 2** | gemini-3.6-flash | Content generation | Visual style, characters, relationships, timeline, V1 |
+| **Tier 3** | gemini-3.5-flash-lite | Never called | Placeholder for the image agents and packaging, which don't call a text model |
 
 ### Why Tiered?
 
 - **Cost optimization**: Use faster/cheaper models where possible
-- **Performance**: Tier3 for quick validation checks
 - **Flexibility**: Easy to upgrade specific tiers
 - **Override**: Set via environment variables
 
@@ -467,7 +462,7 @@ class WorldOutput(BaseModel):
     epoch_description: str
 
 # In agent
-result = self.invoke(user_message, state.config)
+result = self.invoke(state, user_message)
 # result is type-safe WorldOutput, not raw text
 ```
 
@@ -481,8 +476,9 @@ it ignores `const`, which Pydantic emits for single-value `Literal` fields. Use 
 plain default (not an LLM-facing field) for fixed values; multi-value `Literal`
 enums work fine.
 
-If the response can't be parsed, `BaseAgent.invoke()` raises `ValueError` with the
-parsing error.
+If the response can't be parsed, `BaseAgent.invoke()` raises `StructuredOutputError`
+(a `ValueError`) with the parsing error, and the graph retries the node up to
+`NODE_MAX_ATTEMPTS` times.
 
 ### Debug Output
 
@@ -591,13 +587,13 @@ async def _generate_all_images_async(
 ### PDF Generation (A9)
 
 ```python
-with ProcessPoolExecutor(max_workers=12) as executor:
+with ProcessPoolExecutor(max_workers=PDF_MAX_WORKERS) as executor:
     futures = [
         executor.submit(_generate_pdf_worker, task)
-        for task in pdf_tasks
+        for task in tasks_with_settings
     ]
     for future in futures:
-        result = future.result(timeout=30)
+        result = future.result(timeout=PDF_TIMEOUT_SECONDS)
 ```
 
 **Key patterns**:
@@ -619,28 +615,28 @@ with ProcessPoolExecutor(max_workers=12) as executor:
 ### Architecture
 
 ```
-TranslationManager (Singleton)
-  ├── locales/en.json  # Source language
-  ├── locales/es.json  # Spanish
-  └── locales/...      # Future languages
+TranslationManager (one instance per language)
+  ├── locales/en/ui.json  # Source language and fallback
+  ├── locales/es/ui.json  # Spanish
+  └── locales/<code>/ui.json  # it, de, he
 ```
 
 ### Usage
 
 ```python
-from mystery_agents.utils.i18n import TranslationManager
+from mystery_agents.utils.i18n import TranslationManager, get_document_labels
 
-tm = TranslationManager(language="es")
+tm = TranslationManager("es")
 
-# Simple key
-label = tm.get("documents.character_sheet")  # "Hoja de Personaje"
+# Dot-notation key
+label = tm.get("document.host_guide_title")
 
 # With variables
-text = tm.get("welcome.message", {"name": "Elena"})  # "Bienvenida, Elena"
+text = tm.get("document.some_key", name="Elena")
 
-# Get entire section
-labels = tm.get_section("documents")
-# Returns: {"character_sheet": "...", "host_guide": "..."}
+# Entire section, as the document writers use it
+labels = get_document_labels("es")
+# Returns: {"host_guide_title": "...", ...}
 ```
 
 ### Design Decisions
@@ -666,15 +662,16 @@ labels = tm.get_section("documents")
 For non-English games, we inject special instructions into LLM prompts:
 
 ```python
-def _get_language_injection(language: str) -> str:
-    if language == "en":
+# BaseAgent._get_language_injection(), simplified
+def _get_language_injection(self, state: GameState) -> str:
+    if state.config.language == "en":
         return ""
-    
+    target_lang = get_language_name(state.config.language)
     return f"""
-CRITICAL: Generate ALL content in {language}.
-- Character names must be culturally appropriate for {language}
-- Dialogue, clues, descriptions: ALL in {language}
-- Maintain JSON structure but content in {language}
+CRITICAL LANGUAGE REQUIREMENTS (HIGHEST PRIORITY):
+1. Output Language: ALL creative and narrative content MUST be written in {target_lang}.
+2. JSON Structure Integrity: Keep ALL JSON keys in English.
+...
 """
 ```
 

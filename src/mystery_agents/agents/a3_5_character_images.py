@@ -10,10 +10,11 @@ from langchain_core.language_models import BaseChatModel
 
 from mystery_agents.agents.base import BaseAgent
 from mystery_agents.models.state import CharacterSpec, GameState
-from mystery_agents.utils.constants import IMAGE_GENERATION_MAX_CONCURRENT
+from mystery_agents.utils.constants import GAME_ID_LENGTH, IMAGE_GENERATION_MAX_CONCURRENT
 from mystery_agents.utils.image_generation import (
     generate_image_with_gemini,
     get_character_image_output_dir,
+    portrait_filename,
 )
 from mystery_agents.utils.prompts import (
     PORTRAIT_COMPOSITION_REQUIREMENTS,
@@ -174,8 +175,7 @@ class CharacterImageAgent(BaseAgent):
             output_dir: Directory to save image
         """
         prompt = self._build_image_prompt(character, state)
-        image_filename = f"{character.id}_{character.name.lower().replace(' ', '_')}.png"
-        image_path = output_dir / image_filename
+        image_path = output_dir / portrait_filename(character.id, character.name)
 
         logger.info(f"🎨 Generating image for {character.name}")
 
@@ -256,8 +256,7 @@ COSTUME:
         Returns:
             Path to images directory
         """
-        # Use game_id from meta
-        game_id = state.meta.id[:8] if state.meta else "default"
+        game_id = state.meta.id[:GAME_ID_LENGTH]
         return get_character_image_output_dir(game_id, state.config.output_dir)
 
     def _mock_output(self, state: GameState) -> GameState:
@@ -275,7 +274,7 @@ COSTUME:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         for character in state.characters:
-            mock_filename = f"{character.id}_{character.name.lower().replace(' ', '_')}.png"
+            mock_filename = portrait_filename(character.id, character.name)
             character.image_path = str((output_dir / mock_filename).absolute())
             logger.info(f"🎭 Mock image: {character.name} -> {mock_filename}")
 

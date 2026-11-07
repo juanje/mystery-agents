@@ -8,14 +8,17 @@ from langchain_core.language_models import BaseChatModel
 
 from mystery_agents.agents.base import BaseAgent
 from mystery_agents.models.state import DetectiveRole, GameState, VictimSpec
+from mystery_agents.utils.constants import GAME_ID_LENGTH
 from mystery_agents.utils.image_generation import (
     generate_image_with_gemini,
     get_character_image_output_dir,
+    portrait_filename,
 )
 from mystery_agents.utils.prompts import (
     PORTRAIT_COMPOSITION_REQUIREMENTS,
     REALISTIC_APPEARANCE_REQUIREMENTS,
     build_fallback_style_requirements,
+    build_visual_style_block,
 )
 from mystery_agents.utils.state_helpers import (
     safe_get_world_epoch,
@@ -87,8 +90,7 @@ class HostImageAgent(BaseAgent):
             return state
 
         # Create output directory for images
-        game_id = state.meta.id[:8] if state.meta else "default"
-        output_dir = get_character_image_output_dir(game_id, state.config.output_dir)
+        output_dir = self._output_dir(state)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate victim image
@@ -119,8 +121,7 @@ class HostImageAgent(BaseAgent):
 
         async def generate() -> None:
             prompt = self._build_victim_image_prompt(victim, state)
-            image_filename = f"{victim.id}_{victim.name.lower().replace(' ', '_')}.png"
-            image_path = output_dir / image_filename
+            image_path = output_dir / portrait_filename(victim.id, victim.name)
 
             success = await generate_image_with_gemini(prompt, image_path)
 
@@ -146,12 +147,7 @@ class HostImageAgent(BaseAgent):
 
         async def generate() -> None:
             prompt = self._build_detective_image_prompt(detective, state)
-            # Use a unique ID for detective
-            detective_id = f"detective-{state.meta.id[:8]}"
-            image_filename = (
-                f"{detective_id}_{detective.character_name.lower().replace(' ', '_')}.png"
-            )
-            image_path = output_dir / image_filename
+            image_path = output_dir / self._detective_filename(detective, state)
 
             success = await generate_image_with_gemini(prompt, image_path)
 
@@ -210,30 +206,10 @@ COSTUME:
 
         # Add visual style consistency if available
         if state.visual_style:
-            vs = state.visual_style
-
-            prompt += f"""
-VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
-Style: {vs.style_description}
-Art Direction: {vs.art_direction}
-
-Color Palette: {", ".join(vs.color_palette) if vs.color_palette else "natural colors"}
-Color Grading: {vs.color_grading}
-
-Lighting: {vs.lighting_setup}
-Mood: {vs.lighting_mood}
-
-Background: {vs.background_aesthetic}
-Focus: {vs.background_blur}
-
-Technical: {vs.technical_specs}
-Camera: {vs.camera_specs}
-
-IMPORTANT: This is the VICTIM - a central, authoritative figure with commanding presence
-
-STRICT EXCLUSIONS (DO NOT INCLUDE):
-{chr(10).join(f"- {item}" for item in vs.negative_prompts)}
-"""
+            prompt += build_visual_style_block(
+                state.visual_style,
+                emphasis="This is the VICTIM - a central, authoritative figure with commanding presence",
+            )
         else:
             # Fallback if no visual style
             prompt += build_fallback_style_requirements(epoch, country, personality, "victim")
@@ -287,35 +263,29 @@ COSTUME:
 
         # Add visual style consistency if available
         if state.visual_style:
-            vs = state.visual_style
-
-            prompt += f"""
-VISUAL STYLE CONSISTENCY (CRITICAL - Apply to this character):
-Style: {vs.style_description}
-Art Direction: {vs.art_direction}
-
-Color Palette: {", ".join(vs.color_palette) if vs.color_palette else "natural colors"}
-Color Grading: {vs.color_grading}
-
-Lighting: {vs.lighting_setup}
-Mood: {vs.lighting_mood}
-
-Background: {vs.background_aesthetic}
-Focus: {vs.background_blur}
-
-Technical: {vs.technical_specs}
-Camera: {vs.camera_specs}
-
-IMPORTANT: This is the DETECTIVE - sharp, intelligent, investigative presence with perceptive gaze
-
-STRICT EXCLUSIONS (DO NOT INCLUDE):
-{chr(10).join(f"- {item}" for item in vs.negative_prompts)}
-"""
+            prompt += build_visual_style_block(
+                state.visual_style,
+                emphasis="This is the DETECTIVE - sharp, intelligent, investigative presence with perceptive gaze",
+            )
         else:
             # Fallback if no visual style
             prompt += build_fallback_style_requirements(epoch, country, personality, "detective")
 
         return prompt
+
+    @staticmethod
+    def _output_dir(state: GameState) -> Path:
+        """Directory for the host portraits, shared with the suspects' portraits."""
+        return get_character_image_output_dir(
+            state.meta.id[:GAME_ID_LENGTH], state.config.output_dir
+        )
+
+    @staticmethod
+    def _detective_filename(detective: DetectiveRole, state: GameState) -> str:
+        """The detective has no ID of their own, so the game's names their portrait."""
+        return portrait_filename(
+            f"detective-{state.meta.id[:GAME_ID_LENGTH]}", detective.character_name
+        )
 
     def _mock_output(self, state: GameState) -> GameState:
         """
@@ -327,24 +297,20 @@ STRICT EXCLUSIONS (DO NOT INCLUDE):
         Returns:
             State with mock image paths
         """
-        game_id = state.meta.id[:8] if state.meta else "default"
-        output_dir = get_character_image_output_dir(game_id, state.config.output_dir)
+        output_dir = self._output_dir(state)
         # Create directory structure even in dry-run mode for consistency
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Mock victim image
         if state.crime and state.crime.victim:
             victim = state.crime.victim
-            mock_filename = f"{victim.id}_{victim.name.lower().replace(' ', '_')}.png"
+            mock_filename = portrait_filename(victim.id, victim.name)
             victim.image_path = str((output_dir / mock_filename).absolute())
 
         # Mock detective image
         if state.host_guide and state.host_guide.host_act2_detective_role:
             detective = state.host_guide.host_act2_detective_role
-            detective_id = f"detective-{state.meta.id[:8]}"
-            mock_filename = (
-                f"{detective_id}_{detective.character_name.lower().replace(' ', '_')}.png"
-            )
+            mock_filename = self._detective_filename(detective, state)
             detective.image_path = str((output_dir / mock_filename).absolute())
 
         return state

@@ -1,12 +1,11 @@
 """Internationalization (i18n) labels and translations for the mystery game generator.
 
-This module provides a modern TranslationManager for managing multilingual content
-using external JSON resources with type safety, caching, and pluralization support.
+The labels of the printed documents live in JSON files under locales/<code>/ui.json;
+TranslationManager loads them with an English fallback and caching.
 
 Example:
     >>> tm = TranslationManager("es")
     >>> title = tm.get("document.host_guide_title")
-    >>> players = tm.get_plural("document.players", count=5)
 """
 
 from __future__ import annotations
@@ -14,190 +13,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, TypedDict
-
-from babel import Locale
-from babel.support import Format
+from typing import Any
 
 from mystery_agents.utils.constants import LANG_CODE_ENGLISH
 
 logger = logging.getLogger(__name__)
-
-
-# Type definitions for translation keys (enables IDE autocomplete and mypy validation)
-class DocumentLabels(TypedDict, total=False):
-    """Type definition for document-related translation keys."""
-
-    host_guide_title: str
-    game_information: str
-    game_id: str
-    created: str
-    players: str
-    duration: str
-    minutes: str
-    language: str
-    era: str
-    location: str
-    gathering_reason: str
-    introduction: str
-    setup_instructions: str
-    your_role_act1: str
-    see_victim_sheet: str
-    victim_sheet_includes: str
-    full_background: str
-    public_persona: str
-    costume_suggestions: str
-    character_portrait: str
-    quick_summary: str
-    no_description: str
-    runtime_tips: str
-    murder_event: str
-    no_murder_guide: str
-    act2_detective: str
-    intro_script: str
-    no_act2_intro: str
-    detective_role: str
-    see_detective_sheet: str
-    detective_sheet_includes: str
-    character_description: str
-    clues_list: str
-    guiding_questions: str
-    solution_script: str
-    quick_tip: str
-    keep_sheet_handy: str
-    solution_title: str
-    the_killer: str
-    unknown: str
-    rationale: str
-    no_rationale: str
-    truth_narrative: str
-    no_truth_narrative: str
-    timeline_events: str
-    no_timeline: str
-    murder_event_title: str
-    time: str
-    what_happened: str
-    characters_involved: str
-    epoch_modern: str
-    epoch_1920s: str
-    epoch_victorian: str
-    epoch_custom: str
-    invitation_title: str
-    you_are_invited: str
-    role: str
-    event_details: str
-    date_time: str
-    see_you_there: str
-    what_you_receive: str
-    invitation: str
-    character_sheet_full: str
-    portrait_if_enabled: str
-    character_sheet_title: str
-    your_character: str
-    personality_traits: str
-    backstory: str
-    public_description: str
-    personal_secrets: str
-    personal_goals: str
-    motive: str
-    no_motive: str
-    costume: str
-    no_costume: str
-    act1_objectives: str
-    no_objectives: str
-    no_traits: str
-    no_secrets: str
-    no_goals: str
-    no_relationships: str
-    relation_to_victim: str
-    relationships: str
-    remember_secrets: str
-    victim_sheet_title: str
-    host_act1_role: str
-    important_note: str
-    died_before_act2: str
-    embody_character: str
-    create_tension: str
-    follow_timing: str
-    detective_sheet_title: str
-    host_act2_role: str
-    clues_to_reveal: str
-    how_to_interpret: str
-    final_solution: str
-    solution_timing: str
-    see_host_guide: str
-    clue_reference_title: str
-    clue_overview: str
-    total_clues: str
-    host_only_warning: str
-    players_get_clean: str
-    no_image: str
-
-
-class ClueLabels(TypedDict, total=False):
-    """Type definition for clue-related translation keys."""
-
-    clue: str
-    type: str
-    description: str
-    related_info: str
-    incriminates: str
-    exonerates: str
-    red_herring: str
-    metadata: str
-    none: str
-    yes: str
-    no: str
-
-
-class RoomLabels(TypedDict, total=False):
-    """Type definition for room name translation keys."""
-
-    study: str
-    library: str
-    dining_room: str
-    drawing_room: str
-    lounge: str
-    bedroom: str
-    master_bedroom: str
-    kitchen: str
-    parlor: str
-    ballroom: str
-    conservatory: str
-    billiard_room: str
-    wine_cellar: str
-    gallery: str
-    terrace: str
-    garden: str
-    veranda: str
-    office: str
-    deck: str
-    cabin: str
-    suite: str
-    captains_quarters: str
-    main_deck: str
-    observation_deck: str
-    bar: str
-    restaurant: str
-    spa: str
-    pool: str
-    gym: str
-
-
-class LanguageLabels(TypedDict):
-    """Type definition for language name translation keys."""
-
-    en: str
-    es: str
-
-
-class TranslationKeys(TypedDict):
-    """Root type definition combining all translation sections."""
-
-    document: DocumentLabels
-    clue: ClueLabels
-    room: RoomLabels
-    language: LanguageLabels
 
 
 class TranslationManager:
@@ -211,7 +31,6 @@ class TranslationManager:
     - Dot notation for nested key access (e.g., "document.host_guide_title")
     - Variable interpolation (e.g., "Hello {name}")
     - Manual caching for performance
-    - Babel integration for pluralization
 
     Example:
         >>> tm = TranslationManager("es")
@@ -265,15 +84,6 @@ class TranslationManager:
             if lang_code != LANG_CODE_ENGLISH
             else self.fallback_translations
         )
-
-        # Initialize Babel locale for pluralization
-        try:
-            self.locale = Locale.parse(lang_code)
-            self.format = Format(self.locale)
-        except Exception as e:
-            logger.warning(f"Could not initialize Babel locale for '{lang_code}': {e}")
-            self.locale = Locale.parse("en")
-            self.format = Format(self.locale)
 
         # Manual cache for get() method to avoid lru_cache memory leak with singleton
         self._get_cache: dict[tuple[str, tuple[tuple[str, Any], ...]], str] = {}
@@ -384,38 +194,9 @@ class TranslationManager:
                 return None
         return current
 
-    def get_plural(self, key: str, count: int, **kwargs: Any) -> str:
-        """
-        Get a translated string with plural handling using Babel.
-
-        This is a placeholder for full pluralization support. Currently returns
-        the singular form with count interpolation. Full ICU MessageFormat support
-        can be added in the future.
-
-        Args:
-            key: Translation key
-            count: Number for pluralization
-            **kwargs: Additional variables for interpolation
-
-        Returns:
-            Translated string with count
-
-        Example:
-            >>> tm.get_plural("document.players", count=5)
-            'Jugadores'
-        """
-        # Get the base translation
-        text = self.get(key, count=count, **kwargs)
-
-        # For now, simple count-based pluralization
-        # Future: implement full ICU MessageFormat support
-        return text
-
     def _get_section(self, section: str) -> dict[str, str]:
         """
         Get all translations for a specific section as a flat dictionary.
-
-        Used by backward compatibility functions.
 
         Args:
             section: Section name (e.g., "document", "clue")
@@ -434,13 +215,9 @@ class TranslationManager:
         return dict(section_data)
 
 
-# Backward compatibility functions - maintain existing API
 def get_document_labels(language: str) -> dict[str, str]:
     """
     Get translated labels for document templates.
-
-    Legacy function maintained for backward compatibility.
-    New code should use TranslationManager directly.
 
     Args:
         language: Language code (e.g., "en", "es")
@@ -455,9 +232,6 @@ def get_document_labels(language: str) -> dict[str, str]:
 def get_clue_labels(language: str) -> dict[str, str]:
     """
     Get translated labels for clue metadata.
-
-    Legacy function maintained for backward compatibility.
-    New code should use TranslationManager directly.
 
     Args:
         language: Language code (e.g., "en", "es")
@@ -531,34 +305,6 @@ def translate_epoch(epoch: str, language: str) -> str:
 
     # Return original if no translation found
     return epoch
-
-
-def translate_room_name(room_id: str | None, language: str) -> str:
-    """
-    Translate room identifier to human-readable name in target language.
-
-    Args:
-        room_id: Room identifier (e.g., "study", "dining_room")
-        language: Target language code
-
-    Returns:
-        Translated room name or formatted original
-    """
-    if not room_id:
-        tm = TranslationManager(language)
-        return tm.get("document.unknown")
-
-    # Try to get translation from JSON
-    tm = TranslationManager(language)
-    key = f"room.{room_id}"
-    translated = tm.get(key)
-
-    # If translation found (not equal to key), return it
-    if translated != key:
-        return translated
-
-    # For unknown rooms, format nicely: "captains_quarters" -> "Captains Quarters"
-    return room_id.replace("_", " ").title()
 
 
 def translate_clue_type(clue_type: str, language: str) -> str:

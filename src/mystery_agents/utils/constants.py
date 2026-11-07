@@ -1,15 +1,8 @@
 """Constants used throughout the mystery agents system."""
 
-# File and directory names
-HOST_DIR = "game"  # Renamed from "host" for clarity
-PLAYERS_DIR = "characters"  # Renamed from "players" and flattened
-CLUES_DIR = "clues"
-
-# File names
+# Directory and file names are translated per language (see the "filenames" section of
+# the locales); this English name is only used by tests
 HOST_GUIDE_FILENAME = "host_guide.md"
-SOLUTION_FILENAME = "solution.md"
-INVITATION_FILENAME = "invitation.txt"
-CHARACTER_SHEET_FILENAME = "character_sheet.md"
 
 # File extensions
 MARKDOWN_EXT = ".md"
@@ -23,8 +16,6 @@ GAME_ID_LENGTH = 8
 
 # Directory name patterns
 GAME_DIR_PREFIX = "game_"
-PLAYER_DIR_PREFIX = "player_"
-CLUE_FILE_PREFIX = "clue_"
 ZIP_FILE_PREFIX = "mystery_game_"
 
 # LangGraph configuration
@@ -34,36 +25,19 @@ NODE_MAX_ATTEMPTS = 3  # Attempts per node when the LLM output doesn't fit the s
 # Default output directory
 DEFAULT_OUTPUT_DIR = "./output"
 
-# Timeline display limits
-MAX_TIMELINE_EVENTS_DISPLAY = 50
-
 # Clue generation
 MIN_CLUES_PER_GAME = 5
 
 # Language configuration
 LANG_CODE_ENGLISH = "en"
-LANG_CODE_SPANISH = "es"
-LANG_CODE_ITALIAN = "it"
-LANG_CODE_GERMAN = "de"
-LANG_CODE_HEBREW = "he"
-LANG_NAME_ENGLISH = "English"
-LANG_NAME_SPANISH = "Spanish"
-LANG_NAME_ITALIAN = "Italian"
-LANG_NAME_GERMAN = "German"
-LANG_NAME_HEBREW = "Hebrew"
-DEFAULT_COUNTRY_EN = "United States"
 DEFAULT_COUNTRY_ES = "Spain"
-DEFAULT_COUNTRY_IT = "Italy"
-DEFAULT_COUNTRY_DE = "Germany"
-DEFAULT_COUNTRY_HE = "Israel"
 
 # Game tone (fixed - not user configurable)
 GAME_TONE_DESCRIPTION = (
     "an elegant mystery with wit, balancing classic mystery elements "
     "(à la Agatha Christie) with modern cleverness (à la Knives Out)"
 )
-GAME_TONE_SHORT = "Cluedo meets Knives Out"
-GAME_TONE_STYLE = "mystery_party"  # Internal identifier (legacy)
+GAME_TONE_STYLE = "mystery_party"  # Short tone label for prompts
 
 # LLM model configuration
 # gemini-3.8-flash was tried for tier 1, but in real runs it took minutes per call and

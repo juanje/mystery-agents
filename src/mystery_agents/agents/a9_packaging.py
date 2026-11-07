@@ -14,7 +14,6 @@ from mystery_agents.utils.constants import (
     DEFAULT_OUTPUT_DIR,
     GAME_DIR_PREFIX,
     GAME_ID_LENGTH,
-    GAME_TONE_STYLE,
     JPG_EXT,
     MARKDOWN_EXT,
     PDF_EXT,
@@ -32,8 +31,8 @@ from mystery_agents.utils.i18n import (
     translate_relationship_type,
 )
 from mystery_agents.utils.logging_config import AgentLogger
-from mystery_agents.utils.state_helpers import safe_get_world_location_name
-from mystery_agents.utils.timeline_checks import event_ranges, planned_observation
+from mystery_agents.utils.state_helpers import safe_get_killer, safe_get_world_location_name
+from mystery_agents.utils.timeline_checks import clock, event_ranges, planned_observation
 
 from .base import BaseAgent
 
@@ -48,6 +47,14 @@ class PdfTask(NamedTuple):
 
 # Clues are handed to players one by one, so they are printed as cards
 CLUE_CARD_PAGE_SIZE: Literal["A6"] = "A6"
+# Parallel PDF renderers (WeasyPrint is CPU-bound; tuned on a 16-CPU machine)
+PDF_MAX_WORKERS = 12
+# Seconds to wait for one PDF before reporting it as failed
+PDF_TIMEOUT_SECONDS = 30
+# Log progress every this many PDFs
+PDF_PROGRESS_EVERY = 4
+# PDF errors listed in the log; the rest are only counted
+PDF_ERRORS_SHOWN = 3
 
 
 def _generate_pdf_worker(
@@ -110,10 +117,6 @@ class ToldSlot(NamedTuple):
     observed: list[Any]
 
 
-def _clock(minute: int) -> str:
-    return f"{minute // 60:02d}:{minute % 60:02d}"
-
-
 def told_slots(events: list[Any]) -> list[ToldSlot]:
     """
     A suspect's account, with consecutive moments in the same claimed place merged.
@@ -139,7 +142,7 @@ def told_slots(events: list[Any]) -> list[ToldSlot]:
             last = slots[-1]
             merged = (previous[0], span[1])
             slots[-1] = ToldSlot(
-                f"{_clock(merged[0])}-{_clock(merged[1])}",
+                f"{clock(merged[0])}-{clock(merged[1])}",
                 place,
                 last.text,
                 [*last.observed, *event.info_they_observed],
@@ -156,7 +159,7 @@ class PackagingAgent(BaseAgent):
     A9: Packaging Agent.
 
     Organizes all generated materials into the final deliverable structure.
-    This is a tier 3 agent (simple tasks, fast LLM).
+    Code only: it never calls the model.
     """
 
     def __init__(self) -> None:
@@ -210,7 +213,7 @@ class PackagingAgent(BaseAgent):
         pdf_tasks: list[PdfTask],
         log: AgentLogger,
         language: str = "en",
-        max_workers: int = 12,
+        max_workers: int = PDF_MAX_WORKERS,
     ) -> int:
         """
         Generate all PDFs in parallel using process pool.
@@ -219,7 +222,7 @@ class PackagingAgent(BaseAgent):
             pdf_tasks: Markdown files to render
             log: Logger instance
             language: Language code for RTL support
-            max_workers: Maximum parallel workers (optimized for 16 CPUs)
+            max_workers: Maximum parallel workers
 
         Returns:
             Number of successfully generated PDFs
@@ -249,18 +252,17 @@ class PackagingAgent(BaseAgent):
             for i, future in enumerate(futures):
                 try:
                     # Use timeout to avoid hanging indefinitely
-                    success, error_msg = future.result(timeout=30)
+                    success, error_msg = future.result(timeout=PDF_TIMEOUT_SECONDS)
                     completed += 1
 
-                    # Show progress every 4 PDFs
-                    if completed % 4 == 0 or completed == len(futures):
+                    if completed % PDF_PROGRESS_EVERY == 0 or completed == len(futures):
                         log.info(f"      Progress: {completed}/{len(futures)} PDFs")
 
                     if not success:
                         errors.append(error_msg)
 
                 except FutureTimeoutError:
-                    error_msg = f"Timeout after 30s: {pdf_tasks[i][0].name}"
+                    error_msg = f"Timeout after {PDF_TIMEOUT_SECONDS}s: {pdf_tasks[i].md_path.name}"
                     log.error(f"      ✗ {error_msg}")
                     errors.append(error_msg)
 
@@ -271,7 +273,7 @@ class PackagingAgent(BaseAgent):
 
             if errors:
                 log.warning(f"      ⚠ {len(errors)} PDFs failed to generate:")
-                for err in errors[:3]:  # Show first 3 errors
+                for err in errors[:PDF_ERRORS_SHOWN]:
                     log.warning(f"        - {err}")
 
         success_count = len(pdf_tasks) - len(errors)
@@ -380,7 +382,7 @@ class PackagingAgent(BaseAgent):
         )
 
         # 4. Player packages - flat structure (all files in /characters/)
-        for _idx, character in enumerate(state.characters, 1):
+        for character in state.characters:
             char_name_clean = character.name.replace(" ", "_")
 
             # Invitation (markdown for PDF generation, will be removed later)
@@ -442,14 +444,10 @@ class PackagingAgent(BaseAgent):
             )
         )
 
-        log.info(f"  ✓ Wrote {len(state.characters) + len(state.clues) + 4} markdown files")
+        log.info(f"  ✓ Wrote {len(pdf_tasks)} markdown files")
 
         # 7. Generate ALL PDFs in parallel
-        pdf_success_count = 0
-        if pdf_tasks:
-            pdf_success_count = self._generate_all_pdfs(
-                pdf_tasks, log, language=state.config.language, max_workers=12
-            )
+        pdf_success_count = self._generate_all_pdfs(pdf_tasks, log, language=state.config.language)
 
         # 8. Organize final package (PDFs only, move markdown + images + txt to work dir if requested)
         # If no PDFs were generated, keep markdown and images as fallback
@@ -462,24 +460,6 @@ class PackagingAgent(BaseAgent):
         zip_path = Path(output_dir) / f"{ZIP_FILE_PREFIX}{game_id}.zip"
         self._create_zip(game_dir, zip_path)
         log.info(f"  ✓ ZIP created: {zip_path.name}")
-
-        # Create index summary
-        packaging.index_summary = f"""Mystery Party Game Package
-Generated: {state.meta.created_at}
-Game ID: {game_id}
-Players: {len(state.characters)}
-Language: {state.config.language}
-Theme: {state.config.theme}
-Tone: {GAME_TONE_STYLE}
-
-Files included:
-- Host guide with complete game instructions
-- {len(state.characters)} individual player packages
-- {len(state.clues)} clues for Act 2
-- Complete solution for the host
-
-ZIP file: {zip_path}
-"""
 
         state.packaging = packaging
         return state
@@ -584,10 +564,7 @@ ZIP file: {zip_path}
         # Get translated labels
         labels = get_document_labels(state.config.language)
 
-        killer = None
-        if state.killer_selection:
-            killer_id = state.killer_selection.killer_id
-            killer = next((c for c in state.characters if c.id == killer_id), None)
+        killer = safe_get_killer(state)
 
         content = f"""# {labels["solution_title"]}
 
