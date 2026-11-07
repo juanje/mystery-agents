@@ -48,6 +48,7 @@ from mystery_agents.utils.state_helpers import (
     safe_get_world_location_name,
     safe_get_world_visual_keywords,
 )
+from mystery_agents.utils.timeline_checks import plan_pieces
 
 from .base import BaseAgent
 
@@ -126,6 +127,25 @@ class SolutionOutput(BaseModel):
         default=None,
         description="Only when the killer knows their identity, otherwise null: two or three paragraphs in second person telling the killer player what they did, when and how, and which cover story to keep, without revealing the clues.",
     )
+
+
+def _may_get_accessories(state: GameState) -> set[str]:
+    """
+    Suspects whose costume may gain an accessory: those a planned clue must fit.
+
+    Asked to make a clue's object fit several suspects, the writer gave red silk to
+    five of them, and the clue pointed at nobody. Without fits_ids in the plan, any
+    suspect may get one.
+    """
+    suspect_ids = {char.id for char in state.characters}
+    plan = state.killer_selection.deduction_plan if state.killer_selection else None
+    fits = {
+        char_id
+        for piece in (plan_pieces(plan) if plan else [])
+        if piece.kind == "clue"
+        for char_id in piece.fits_ids
+    }
+    return fits & suspect_ids if fits else suspect_ids
 
 
 class _PartWriter(BaseAgent):
@@ -279,11 +299,10 @@ class ContentGenerationAgent(BaseAgent):
     def _store(state: GameState, part: ContentPart, result: Any, killer: Any) -> None:
         if part == "clues":
             state.clues = result.clues
-            suspect_ids = {char.id for char in state.characters}
             state.costume_additions = {
                 addition.character_id: addition.item
                 for addition in result.costume_additions
-                if addition.character_id in suspect_ids
+                if addition.character_id in _may_get_accessories(state)
             }
             return
         guide = state.host_guide or HostGuide(spoiler_free_intro="")

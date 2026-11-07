@@ -668,8 +668,10 @@ def find_impossible_planned_sightings(state: GameState) -> list[str]:
     return problems
 
 
-# Clues that settle the case point at one suspect; a fair one fits at least this many
+# Clues that settle the case point at one suspect; a fair one fits at least this many,
+# and one fitting more than this (red silk on five costumes) points at nobody
 MIN_SUSPECTS_A_CLUE_FITS = 2
+MAX_SUSPECTS_A_CLUE_FITS = 3
 
 
 def find_plan_problems(state: GameState) -> list[str]:
@@ -716,6 +718,30 @@ def find_plan_problems(state: GameState) -> list[str]:
                 f"The clue '{piece.description}' fits only {names.get(piece.about_id, piece.about_id)}, "
                 "so it names them by itself. Make it something several suspects could own, use or "
                 "wear, and list them all in fits_ids."
+            )
+        elif len(fits) > MAX_SUSPECTS_A_CLUE_FITS:
+            problems.append(
+                f"The clue '{piece.description}' fits {len(fits)} suspects, so it points at nobody. "
+                f"Make it fit {MIN_SUSPECTS_A_CLUE_FITS} or {MAX_SUSPECTS_A_CLUE_FITS}, the killer "
+                "among them."
+            )
+
+    murder_time = state.timeline_global.murder_event.time if state.timeline_global else ""
+    murder_at = minutes_in(murder_time)[:1]
+    for entry in plan.red_herrings if murder_at else []:
+        clearing = entry.clearing
+        times = minutes_in(clearing.time)
+        # Seen ten minutes before the murder still leaves time to get there
+        if (
+            clearing.kind == "observation"
+            and times
+            and abs(times[0] - murder_at[0]) > TIME_TOLERANCE_MINUTES
+        ):
+            problems.append(
+                f"{names.get(entry.character_id, entry.character_id)} is cleared by a sighting at "
+                f"{clearing.time}, but the murder is at {murder_time}: "
+                "it leaves them time to get there. Clear them with someone who sees them elsewhere "
+                "within five minutes of the murder."
             )
 
     pieces = plan_pieces(plan)
@@ -807,6 +833,97 @@ def find_killer_sheet_thin(state: GameState) -> list[ValidationIssue]:
     ]
 
 
+# Phrases that tell an unaware killer's player they hide something, by language. Written
+# as stems without accents or case; the prompt forbade them and measured sheets still had
+# "simulando conmoción", "consternación fingida", "jamás entraste al despacho".
+KILLER_TELLS = {
+    "es": (
+        "fingi",
+        "fingid",
+        "finjas",
+        "simuland",
+        "simulad",
+        "simulaste",
+        "disimul",
+        "aparentand",
+        "haciendote pasar",
+        "jamas entraste",
+        "nunca entraste",
+        "nada que ver con",
+        "tu coartada",
+        "sostuviste que",
+        "aseguraste haber",
+        "afirmaste que",
+    ),
+    "en": (
+        "pretend",
+        "faking",
+        "fake ",
+        "feign",
+        "act as if",
+        "never went into",
+        "nothing to do with",
+        "your alibi",
+        "you insisted",
+        "you maintained",
+    ),
+    "it": ("fingend", "fingest", "simuland", "dissimul", "il tuo alibi", "niente a che fare"),
+    "de": ("vortausch", "gespielt", "heuchel", "dein alibi", "nichts zu tun"),
+    "he": ("העמד", "התחזי", "אליבי"),
+}
+
+
+def _plain(text: str) -> str:
+    """Text without accents or case, for matching stems."""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
+
+
+def find_killer_account_tells(state: GameState) -> list[ValidationIssue]:
+    """
+    Find words in an unaware killer's account that tell their player they are hiding something.
+
+    That player reads only the innocent-looking account; "faking shock" or "you never
+    went into the study" gives the role away before Act 2 starts.
+    """
+    if not state.killer_selection or state.config.killer_knows_identity:
+        return []
+    killer_id = state.killer_selection.killer_id
+    timeline = state.personal_timelines.get(killer_id)
+    tells = KILLER_TELLS.get(state.config.language, ())
+    if not timeline or not tells:
+        return []
+    texts = [
+        timeline.subjective_narrative,
+        *(e.what_they_will_tell_others for e in timeline.events),
+    ]
+    # Hebrew has no accents to strip, so it is compared as written
+    keep = state.config.language == "he"
+    found = sorted(
+        {
+            tell
+            for text in texts
+            for tell in tells
+            if tell in (text.casefold() if keep else _plain(text))
+        }
+    )
+    if not found:
+        return []
+    names = {char.id: char.name for char in state.characters}
+    return [
+        ValidationIssue(
+            type="spoiler",
+            description=(
+                f"{names.get(killer_id, killer_id)} doesn't know they are the killer, but their sheet "
+                f"says {', '.join(repr(t) for t in found)}, which tells their player they are hiding "
+                "something. Write their account as an innocent person lives that evening: what they "
+                "did and noticed, with no faking, denials or claims."
+            ),
+            related_ids=[killer_id],
+            fix_in="timelines",
+        )
+    ]
+
+
 def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
     """Run every deterministic personal timeline check."""
     return [
@@ -820,4 +937,5 @@ def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
         *find_too_many_killer_witnesses(state),
         *find_killer_sheet_stands_out(state),
         *find_killer_sheet_thin(state),
+        *find_killer_account_tells(state),
     ]

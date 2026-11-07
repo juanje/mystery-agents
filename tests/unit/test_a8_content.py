@@ -451,3 +451,42 @@ def test_red_herring_material_lists_innocents_hidden_moments(
     killer = complete_game_state.characters[1]
     assert f"- {innocent.name}: 22:10 @ Cellar: really You hid a letter." in material
     assert killer.name not in material
+
+
+def test_costume_additions_only_go_to_suspects_a_clue_must_fit(
+    complete_game_state: GameState,
+) -> None:
+    """The plan says the clue fits Carlos and Elena; an accessory for anyone else is dropped."""
+    from mystery_agents.agents.a8_content import CostumeAddition
+    from mystery_agents.models.state import DeductionPlan, EvidencePiece
+
+    complete_game_state.config.dry_run = False
+    clue = EvidencePiece(
+        kind="clue",
+        holder_id="",
+        about_id="char-002",
+        time="21:30",
+        fits_ids=["char-002"],
+        description="A red silk thread",
+    )
+    assert complete_game_state.killer_selection is not None
+    complete_game_state.killer_selection.deduction_plan = DeductionPlan(
+        breaking_pieces=[clue], means_piece=clue, red_herrings=[]
+    )
+    agent = ContentGenerationAgent()
+    outputs = _outputs()
+    clues = outputs["clues"]
+    assert isinstance(clues, CluesOutput)
+    clues.costume_additions = [
+        CostumeAddition(character_id="char-002", item="red silk tie"),
+        CostumeAddition(character_id="char-001", item="red silk scarf"),
+    ]
+
+    with patch.object(agent.writers["clues"], "invoke", return_value=clues):
+        with patch.object(agent.writers["guide"], "invoke", return_value=outputs["guide"]):
+            with patch.object(
+                agent.writers["solution"], "invoke", return_value=outputs["solution"]
+            ):
+                agent.run(complete_game_state)
+
+    assert complete_game_state.costume_additions == {"char-002": "red silk tie"}

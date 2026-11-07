@@ -24,6 +24,7 @@ from mystery_agents.utils.timeline_checks import (
     find_absent_from_shared_events,
     find_impossible_planned_sightings,
     find_impossible_sightings,
+    find_killer_account_tells,
     find_killer_sheet_stands_out,
     find_killer_sheet_thin,
     find_misplaced_observations,
@@ -648,3 +649,61 @@ def test_unaware_killer_with_fewer_observations_than_anyone_is_flagged(state: Ga
         _seen("21:10", "ana", "Dining room")
     ]
     assert find_killer_sheet_thin(state) == []
+
+
+def test_unaware_killer_account_with_revealing_words_is_flagged(state: GameState) -> None:
+    """'Simulando conmoción' tells the player they are the killer; 'simultáneamente' doesn't."""
+    state.config.killer_knows_identity = False
+    state.config.language = "es"
+    killer = state.personal_timelines["killer"]
+    killer.events[1].what_they_will_tell_others = "Saliste simultáneamente al jardín."
+    assert find_killer_account_tells(state) == []
+
+    killer.events[1].what_they_will_tell_others = "Acudiste al patio simulando conmoción."
+    issues = find_killer_account_tells(state)
+
+    assert [issue.related_ids for issue in issues] == [["killer"]]
+    assert "simuland" in issues[0].description
+
+
+def test_plan_clearings_must_cover_the_murder_and_clues_fit_a_few(state: GameState) -> None:
+    """A sighting ten minutes early leaves time to kill; a clue fitting all four fits nobody."""
+    from mystery_agents.models.state import GlobalTimeline, MurderEvent
+
+    state.timeline_global = GlobalTimeline(
+        time_blocks=[],
+        murder_event=MurderEvent(
+            time="22:00",
+            room="Study",
+            what_happens="x",
+            heard_elsewhere="x",
+            heard_in=[],
+            scene_when_found="x",
+            discovered_at="22:10",
+            discovered_by=[],
+        ),
+    )
+    assert state.killer_selection is not None
+    plan = _plan(["ana"])
+    plan.means_piece.fits_ids = ["killer", "ana", "berta", "carla"]
+    plan.red_herrings = [
+        RedHerringPlan(
+            character_id="berta",
+            suspicion=EvidencePiece(
+                kind="clue", holder_id="", about_id="berta", time="21:30", description="x"
+            ),
+            clearing=EvidencePiece(
+                kind="observation", holder_id="ana", about_id="berta", time="21:50", description="x"
+            ),
+        )
+    ]
+    state.killer_selection.deduction_plan = plan
+
+    problems = find_plan_problems(state)
+
+    assert any("fits 4 suspects" in p for p in problems)
+    assert any("leaves them time" in p for p in problems)
+
+    plan.means_piece.fits_ids = ["killer", "ana"]
+    plan.red_herrings[0].clearing.time = "22:03"
+    assert not any("fits 4" in p or "leaves them time" in p for p in find_plan_problems(state))

@@ -294,12 +294,14 @@ THE DEDUCTION PLAN
 - A clue piece fits several suspects on its own: no name, initials or personal item only the killer has
   (their monogrammed handkerchief, a photo of them with the weapon), and nothing only their job, skill or
   costume explains (a surgical scalpel when one suspect is a doctor, pearls only the killer wears). List in
-  fits_ids everyone it could point to. What singles the killer out is the combination of pieces, never one.
+  fits_ids the two or three suspects it could point to: fitting everyone, it points at nobody. What singles
+  the killer out is the combination of pieces, never one.
 - The killer holds an observation too, about someone else and from a moment they are with the others: a
   sheet with nothing seen near the crime stands out among sheets that all have some.
 - red_herrings: one for every innocent suspect. suspicion is means or opportunity players will hold (their
   hidden moment, their access to the means), not only motive. clearing is a later piece that clears them,
-  held by another player or a clue, never their own word.
+  held by another player or a clue, never their own word: someone who sees them elsewhere at the time of the
+  murder, because a sighting ten minutes earlier still leaves them time to get there.
 - Difficulty: easy games need two pieces that point at the same gap; medium ones three that need each
   other; hard ones pieces that sound innocent until compared.
 
