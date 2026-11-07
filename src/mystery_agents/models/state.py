@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import operator
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from uuid import uuid4
@@ -85,8 +86,30 @@ class HostCharacter(BaseModel):
     )
 
 
+def required_in_schema(*names: str) -> Callable[[dict[str, Any]], None]:
+    """
+    Make fields required in the schema the model sees, while code can still omit them.
+
+    Fields with a default are optional in the JSON schema, and the model leaves them
+    out or empty: prompts used to repeat "MANDATORY, never leave this empty" for
+    each. Required in the schema, the model fills them; Python keeps the defaults
+    for mocks and tests.
+    """
+
+    def edit(schema: dict[str, Any]) -> None:
+        props = schema["properties"]
+        for name in names:
+            props[name].pop("default", None)
+        required = set(schema.get("required", [])) | set(names)
+        schema["required"] = [name for name in props if name in required]
+
+    return edit
+
+
 class Room(BaseModel):
     """A place in the setting where people can be or be seen."""
+
+    model_config = ConfigDict(json_schema_extra=required_in_schema("can_see"))
 
     name: str = Field(
         description="Readable name in the game's language, unique in the plan (e.g., 'Biblioteca'). Every document uses exactly this name."
@@ -108,6 +131,8 @@ class Room(BaseModel):
 
 class WorldBible(BaseModel):
     """World and setting definition."""
+
+    model_config = ConfigDict(json_schema_extra=required_in_schema("visual_keywords"))
 
     epoch: str = Field(
         description="The historical period or era (e.g., 'Modern', '1920s', 'Victorian', 'Custom'). Must match the config epoch."
@@ -150,6 +175,10 @@ class TimeWindow(BaseModel):
 
 class VictimSpec(BaseModel):
     """Victim specification (the host in Act 1)."""
+
+    model_config = ConfigDict(
+        json_schema_extra=required_in_schema("personality_traits", "secrets", "costume_suggestion")
+    )
 
     id: str = Field(
         default_factory=lambda: f"victim-{uuid4().hex[:8]}",
@@ -249,6 +278,8 @@ class MeansAccess(BaseModel):
 class CrimeSpec(BaseModel):
     """Complete crime specification."""
 
+    model_config = ConfigDict(json_schema_extra=required_in_schema("means_access"))
+
     victim: VictimSpec = Field(
         description="The victim character specification. This is the character the HOST will roleplay in Act 1 before the murder."
     )
@@ -278,6 +309,18 @@ class CrimeSpec(BaseModel):
 # --- Characters (Suspects) ---
 class CharacterSpec(BaseModel):
     """Character/suspect specification."""
+
+    model_config = ConfigDict(
+        json_schema_extra=required_in_schema(
+            "personality_traits",
+            "personal_secrets",
+            "personal_goals",
+            "act1_objectives",
+            "motive_for_crime",
+            "costume_suggestion",
+            "physical_appearance",
+        )
+    )
 
     id: str = Field(
         default_factory=lambda: f"char-{uuid4().hex[:8]}",

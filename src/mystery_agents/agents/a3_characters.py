@@ -43,10 +43,9 @@ class CharactersAgent(BaseAgent):
             state: Current game state
 
         Returns:
-            System prompt string with player count filled in
+            System prompt string
         """
-        num_players = state.config.players.total
-        return A3_SYSTEM_PROMPT.format(num_players=num_players)
+        return A3_SYSTEM_PROMPT
 
     def run(self, state: GameState) -> GameState:
         """
@@ -82,31 +81,13 @@ WORLD:
 
 VICTIM (the host's Act 1 character, not a suspect):
 - {state.world.host.name if state.world else "The host"}, {state.world.host.age if state.world else "?"} years old, {state.config.host_gender}: {state.world.host.role_in_setting if state.world else ""}
-Every relation_to_victim, secret and motive refers to this person, with gendered terms that fit a {state.config.host_gender} victim (e.g. a former fiancée of a male victim, a former fiancé of a female victim), and ages that fit the victim's age.
+Every relation_to_victim, secret and motive refers to this person, with gendered terms that fit a {state.config.host_gender} victim (a former fiancée of a male victim, a former fiancé of a female victim) and ages that fit theirs.
 
 CONSTRAINTS:
 - Tone: {GAME_TONE_STYLE}
 - Total suspects: {state.config.players.total}
 {gender_constraints if gender_constraints else "- No specific gender requirements"}
 
-REQUIREMENTS:
-1. Create exactly {state.config.players.total} characters in the "characters" array
-2. Each character MUST have ALL of these fields:
-   - name, gender, age_range, role, public_description
-   - personality_traits: array of at least 3-5 personality traits (e.g., ["clever", "suspicious", "charming", "manipulative", "loyal"])
-   - relation_to_victim, personal_secrets (at least 2-3 secrets), personal_goals (at least 1-2 goals)
-   - act1_objectives: array of 2-3 specific actionable tasks for Act 1 (REQUIRED)
-   - motive_for_crime, costume_suggestion
-   - physical_appearance: concrete features for the portrait (hair colour and style, face shape, build, facial hair, glasses...). Make every character clearly different from the others, especially those of the same gender and similar age
-3. All character names MUST be appropriate for {state.config.country}
-4. Characters should fit naturally into the world setting ({safe_get_world_location_name(state)}) and epoch ({safe_get_world_epoch(state)})
-5. Relationships between characters will be created by a separate agent later
-6. FAMILY TREE: relation_to_victim is always relative to the victim. Words like "the host", "the patriarch" or "the
-   head of the family" always mean the victim, never someone else (no "late patriarch" who is not the victim).
-   Relatives must be consistent with each other: siblings share the same relation to the victim (if one is the
-   victim's niece, her brother is the victim's nephew), and ages must fit each relation.
-
-Return the response in the exact JSON format specified in the system prompt.
 """
 
         # Invoke LLM with structured output

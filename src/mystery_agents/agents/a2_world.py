@@ -59,12 +59,6 @@ class WorldAgent(BaseAgent):
             return self._mock_output(state)
 
         # Prepare context for LLM with emphasis on cultural details
-        region_context = f" in {state.config.region}" if state.config.region else ""
-        location_spec = (
-            f"{state.config.region}, {state.config.country}"
-            if state.config.region
-            else state.config.country
-        )
         epoch_desc = (
             state.config.custom_epoch_description
             if state.config.custom_epoch_description
@@ -79,51 +73,24 @@ class WorldAgent(BaseAgent):
             else ""
         )
 
-        user_message = f"""Generate a rich, detailed mystery party game world based on these preferences:
+        user_message = f"""Create the world for this game:
 
-CONFIGURATION:
-- Target language: {state.config.language}
+- Language of every name and text: {state.config.language}
 - Country: {state.config.country}
-{f"- Region: {state.config.region} (CRITICAL: The setting MUST be located in this specific region{region_context}, not in other parts of {state.config.country})" if state.config.region else ""}
-- Epoch: {epoch_desc} (CRITICAL: Use this EXACT value for the "epoch" field, and ALL world elements must be historically accurate for this time period)
+{f"- Region: {state.config.region}. The setting is in this region, with its own culture, not elsewhere in {state.config.country}" if state.config.region else ""}
+- Epoch: {epoch_desc}
 - Theme: {state.config.theme}
-{f"- Custom theme description: {state.config.custom_theme_description}" if state.config.custom_theme_description else ""}
+{f"- Theme description: {state.config.custom_theme_description}" if state.config.custom_theme_description else ""}
 - Tone: {GAME_TONE_STYLE}
-- Number of suspects: {state.config.players.total}
+- Suspects: {state.config.players.total}, plus the victim, who is {state.config.host_gender}
 - Difficulty: {state.config.difficulty}
-
-HISTORICAL & CULTURAL REQUIREMENTS (ALL MUST BE SATISFIED):
-1. **Location Authenticity**: The setting MUST be in {location_spec} - use the specific geography, climate, and landscape of this region
-2. **Epoch Accuracy**: ALL elements (technology, transportation, currency, social norms, fashion) MUST be appropriate for {epoch_desc}
-3. **Regional Culture**: Cultural details (foods, drinks, customs) MUST be authentic to {location_spec} as it was during {epoch_desc}
-4. **Architecture**: Building style and visual elements MUST reflect {location_spec}'s architecture during {epoch_desc}
-5. **Fashion & Dress**: Clothing and social dress codes appropriate for {location_spec} during {epoch_desc}
-6. **Items & Weapons**: Only include items/weapons that would have existed and been culturally appropriate in {location_spec} during {epoch_desc}
-7. **Local Traditions**: Festivals, customs, and social practices specific to {location_spec} during {epoch_desc}
-8. **Historical Context**: Consider major historical events or social conditions affecting {location_spec} during {epoch_desc}
-9. **NO Anachronisms**: Do not include technology, terms, or concepts that didn't exist in {epoch_desc}
-10. **NO Regional Mixing**: If a region is specified, do NOT use cultural elements from other regions of {state.config.country}
-
-REQUIREMENTS:
-1. Create a "world" object with epoch, location_type, location_name, summary, host, gathering_reason, visual_keywords, constraints and rooms
-2. The "epoch" field MUST be EXACTLY: {epoch_desc} (copy this value exactly, do NOT modify, expand, or translate it)
-3. The world should be rich in detail and feel authentic to {state.config.country} in the {epoch_desc} era
-4. The gathering_reason must explain WHY all these people are at this location tonight (e.g., family event, memorial service, celebration, business meeting, ceremony)
-   The host (victim) is {state.config.host_gender}, with a name authentic to {location_spec}.
-5. Include cultural elements that will inform character creation, costume suggestions, and crime details later
-6. The location should be suitable for a mystery party with {state.config.players.total} suspects
-7. All string fields must have values - do not leave any empty
-8. Visual keywords should reflect the cultural and historical atmosphere
-
-{retry_feedback}
-Return the response in the exact JSON format specified in the system prompt.
-"""
+{retry_feedback}"""
 
         # Invoke LLM with structured output
         result = self.invoke(state, user_message)
 
-        # Update state
-        state.world = normalize_floor_plan(result.world)
+        # Later agents and V1 compare against the configured epoch, so it is copied, not asked for
+        state.world = normalize_floor_plan(result.world.model_copy(update={"epoch": epoch_desc}))
 
         return state
 

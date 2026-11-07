@@ -110,28 +110,7 @@ WORLD CONTEXT:
 CHARACTERS:
 {characters_info}
 
-REQUIREMENTS:
-1. **CRITICAL**: Create AT LEAST {min_relationships} relationships (minimum 2-3 per character)
-2. **MANDATORY**: Every character MUST appear in at least 2 relationships (either as from_character_id or to_character_id)
-3. Create diverse relationship types: family, romantic, professional, rivalry, friendship, other
-4. At least 50% of relationships should have tension_level 2 or 3 (high drama)
-5. Consider the setting, epoch, and character roles when creating relationships
-6. Make relationships that will create interesting dynamics and potential conflicts during the mystery
-7. Each relationship needs:
-   - from_character_id: ID of first character (must match a character ID above EXACTLY)
-   - to_character_id: ID of second character (must match a character ID above EXACTLY)
-   - type: "family" | "romantic" | "professional" | "rivalry" | "friendship" | "other"
-   - description: Specific, evocative description (e.g., "Former business partners who had a bitter falling out over a failed shipping deal", NOT just "business partners")
-   - tension_level: 1 (low), 2 (medium), or 3 (high) - prefer 2 or 3 for better gameplay
-8. Relationships should reveal character depth and create natural conflicts
-9. Mix symmetric relationships (mutual) with asymmetric ones (one-sided feelings or power dynamics)
-10. Ensure no character is isolated - all must be connected to the social web
-11. **FAMILY TIES must agree with each character's relation to the victim** (two siblings are both the victim's nephews, a "half-brother" must share a parent, etc.). Don't invent family ties that contradict them
-12. **ONE relationship per pair**: A-B and B-A are the same pair. If two characters share several ties (e.g., business partners AND rivals), describe them all in a single relationship and use the dominant type
-
-**IMPORTANT**: The richer the relationship network, the more engaging the mystery party will be. Aim for depth and complexity.
-
-Return the response in the exact JSON format specified in the system prompt.
+Create about {min_relationships} relationships.
 """
 
         result = self.invoke(state, user_message)

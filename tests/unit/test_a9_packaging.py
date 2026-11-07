@@ -111,16 +111,6 @@ def test_packaging_agent_initialization() -> None:
     assert agent.llm is not None
 
 
-def test_get_system_prompt(basic_game_state: GameState) -> None:
-    """Test that system prompt is returned."""
-    agent = PackagingAgent()
-    prompt = agent.get_system_prompt(basic_game_state)
-
-    assert prompt is not None
-    assert isinstance(prompt, str)
-    assert len(prompt) > 0
-
-
 def test_get_game_context_with_custom_epoch() -> None:
     """Test _get_game_context with custom epoch description."""
     state = GameState(

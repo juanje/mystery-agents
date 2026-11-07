@@ -74,10 +74,10 @@ class CrimeAgent(BaseAgent):
         method = choose_murder_method(state)
 
         # Prepare context for LLM
-        user_message = f"""Generate a mystery party game crime based on the world and characters:
+        user_message = f"""Design the crime for this game:
 
-WORLD CONTEXT:
-- Country: {state.config.country} (use culturally appropriate weapons, methods, and items)
+WORLD:
+- Country: {state.config.country}
 - Epoch: {safe_get_world_epoch(state)}
 - Location: {safe_get_world_location_name(state)} ({safe_get_world_location_type(state)})
 - Setting: {state.world.summary if state.world else "Mystery party setting"}
@@ -96,28 +96,10 @@ MURDER METHOD (decided for this game; build the crime around it):
 CHARACTERS ({len(state.characters)} suspects):
 {chr(10).join(characters_summary)}
 
-CONFIGURATION:
-- Target language: {state.config.language}
-- Host gender: {state.config.host_gender} (victim MUST be this gender)
+GAME:
+- Language: {state.config.language}
 - Tone: {GAME_TONE_STYLE}
 - Difficulty: {state.config.difficulty}
-
-REQUIREMENTS:
-1. Create a "crime" object with victim, murder_method, crime_scene, time_of_death_approx, possible_weapons, and possible_opportunities
-2. The victim MUST be the HOST's Act 1 character - design them as someone central to the setting
-3. The victim's gender MUST be "{state.config.host_gender}" to match the host
-4. The victim should have a clear role (e.g., mansion owner, CEO, ship captain) and interesting secrets
-5. IMPORTANT: The victim's name MUST be appropriate for {state.config.country}. Use authentic names from that country's culture and naming conventions.
-6. The murder method must be one of: "stabbing", "poison", "shooting", "blunt_force", or "other"
-7. The weapon and method should be culturally and historically appropriate for {state.config.country} in {safe_get_world_epoch(state)}
-8. Consider the characters' relationships and motives when designing the crime
-9. The crime should create interesting dynamics between the suspects
-10. The time_of_death_approx must be in HH:MM format (e.g., "22:30")
-11. All string fields must have values - do not leave any empty
-12. For possible_opportunities: You can now create opportunities using character IDs from the characters list, or use an empty array []
-13. For possible_weapons: Include weapons found at the scene that are culturally appropriate
-
-Return the response in the exact JSON format specified in the system prompt.
 """
 
         # Invoke LLM with structured output

@@ -76,84 +76,25 @@ class WorldValidatorAgent(BaseAgent):
             else state.config.epoch
         )
 
-        # Build critical validation checks
-        critical_checks = []
-        if state.config.region:
-            critical_checks.append(f"""
-**CRITICAL REGION CHECK**:
-- Configuration specifies: {state.config.region}
-- The world MUST be set in {state.config.region}, NOT in other regions of {state.config.country}
-- Cultural elements MUST be specific to {state.config.region}, not borrowed from other regions
-- Check if summary/location/culture reference regions OTHER than {state.config.region}
-- Flag as is_coherent=false if geographical mismatch detected""")
-
-        critical_checks.append(f"""
-**CRITICAL EPOCH CHECK**:
-- Configuration specifies: {epoch_desc}
-- ALL elements must be historically accurate for this period
-- Check for anachronisms: technology, currency, transportation, social concepts that didn't exist yet
-- Verify cultural practices, fashion, and customs match the time period
-- Flag as is_coherent=false if historical inaccuracies detected""")
-
-        critical_section = "\n".join(critical_checks)
-
-        user_message = f"""Validate the coherence and consistency of this game world:
+        user_message = f"""Check this world against its place and time:
 
 CONFIGURATION:
 - Country: {state.config.country}{region_info}
-- Epoch: {state.config.epoch}
-{f"- Custom epoch description: {state.config.custom_epoch_description}" if state.config.custom_epoch_description else ""}
+- Epoch: {epoch_desc}
 - Theme: {state.config.theme}
 - Tone: {GAME_TONE_STYLE}
 
-GENERATED WORLD:
-- Location Name: {state.world.location_name}
-- Location Type: {state.world.location_type}
-- Epoch: {state.world.epoch}
+WORLD:
+- Location: {state.world.location_name} ({state.world.location_type})
 - Summary: {state.world.summary}
-- Visual Keywords: {", ".join(state.world.visual_keywords)}
+- Visual keywords: {", ".join(state.world.visual_keywords)}
 - Constraints: {", ".join(state.world.constraints)}
-- Victim (host's role): {state.world.host.name}, {state.world.host.age}, {state.world.host.role_in_setting}
+- Victim (the host's role): {state.world.host.name}, {state.world.host.age}, {state.world.host.role_in_setting}
 - Gathering reason: {state.world.gathering_reason}
 
 FLOOR PLAN:
 {format_floor_plan(state)}
-{critical_section}
-
-VALIDATION CRITERIA:
-
-0. **Victim and occasion**: Does the gathering reason fit the victim's name and age (an 80th birthday needs an
-   80-year-old)? Is the floor plan enough to stage a dinner, a private murder and people moving unseen?
-
-1. **Historical Accuracy** (CRITICAL):
-   - Does the location/setting exist or could it have existed in {epoch_desc}?
-   - Are ALL references to technology, currency, transportation appropriate for {epoch_desc}?
-   - Are social customs, norms, and class structures appropriate for {epoch_desc}?
-   - Are there any anachronisms (modern terms, concepts, or items that didn't exist)?
-
-2. **Geographical Consistency** (CRITICAL if region specified):
-   - Is the location geographically plausible for {state.config.country}{region_info}?
-   - If it's a specific place (train, ship, building), could it realistically exist there in {epoch_desc}?
-   - Are geographical references accurate to {state.config.country}{region_info}?
-   - Does it avoid mixing cultural/geographical elements from different regions?
-
-3. **Cultural Authenticity** (CRITICAL):
-   - Does the setting reflect the cultural identity of {state.config.country}{region_info} during {epoch_desc}?
-   - Are architectural styles, foods, drinks, customs appropriate for the location AND time period?
-   - Does it respect regional differences within the country (if region specified)?
-   - Are festivals, traditions, and social practices historically and culturally accurate?
-
-4. **Internal Consistency**:
-   - Do all elements (location_type, location_name, epoch, summary) align with each other?
-   - Are there contradictions between different parts of the world description?
-
-IMPORTANT:
-- Be thorough but reasonable
-- Flag CRITICAL issues (historical impossibilities, geographical errors, major cultural misrepresentations)
-- Minor creative liberties are acceptable if they don't break immersion
-- If is_coherent=False, provide specific, actionable suggestions for fixes
-
-Return the validation result in JSON format."""
+"""
 
         result = self.invoke(state, user_message)
 

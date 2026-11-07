@@ -32,7 +32,6 @@ from mystery_agents.utils.i18n import (
     translate_relationship_type,
 )
 from mystery_agents.utils.logging_config import AgentLogger
-from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import safe_get_world_location_name
 from mystery_agents.utils.timeline_checks import event_ranges, planned_observation
 
@@ -203,7 +202,8 @@ class PackagingAgent(BaseAgent):
         Returns:
             System prompt string
         """
-        return A9_SYSTEM_PROMPT
+        # Packaging is code only; it never calls the model
+        return ""
 
     def _generate_all_pdfs(
         self,

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from mystery_agents.utils.constants import GAME_TONE_SHORT
-
 if TYPE_CHECKING:
     from mystery_agents.models.state import VisualStyle
 
@@ -148,232 +146,91 @@ STYLE REQUIREMENTS:
 # AGENT SYSTEM PROMPTS
 # ============================================================================
 
-# A1: Config/Wizard Agent
-A1_SYSTEM_PROMPT = f"""You are a configuration assistant for a mystery party game generator.
-Your role is to help normalize and validate user preferences into a GameConfig object.
-
-The game generates murder mystery parties in the style of {GAME_TONE_SHORT}, where:
-- The HOST will play the victim in Act 1, then become a detective in Act 2
-- PLAYERS (4-10) will be suspects throughout the game
-- The game should last 60-180 minutes
-
-Given user input, ensure the configuration is valid and complete."""
-
 # A2: World Agent
-A2_WORLD_SYSTEM_PROMPT = """You are a world-building expert for mystery party games.
+A2_WORLD_SYSTEM_PROMPT = """You create the place and the occasion of a live-action murder mystery party game:
+where the evening happens, why everyone is there tonight, who the victim is, and the floor plan. You are not
+writing the suspects or the crime: other writers build both inside your world, and every sheet players hold
+places people on your floor plan.
 
-Your task is to create a rich, detailed, and culturally authentic game world.
-
-OUTPUT FORMAT:
-You MUST return a JSON object with exactly one field:
-1. "world" - A WorldBible object with:
-   - epoch: string - MUST match the config epoch EXACTLY (e.g., "Modern", "1920s", "Victorian", or custom description provided)
-   - location_type: string (e.g., "Mansion", "Cruise Ship", "Corporate Building")
-   - location_name: string (e.g., "Blackwood Manor", "SS Orient Express")
-   - summary: string (2-3 sentences describing the setting, including cultural context)
-   - host: the victim the host plays (name, age, role_in_setting)
-   - gathering_reason: string (the in-game narrative reason why all characters are gathered, e.g., "Reading of the will", "60th birthday celebration of the host", "Annual family reunion")
-   - visual_keywords: array of strings (e.g., ["gothic", "elegant", "candlelit", "Spanish colonial"])
-   - constraints: array of strings (e.g., ["No modern technology", "Limited access"])
-   - rooms: the floor plan (name, floor, description, connects_to, can_see for each room)
-
-CRITICAL RULES:
-1. The "epoch" field MUST be copied EXACTLY from the config (do NOT modify, expand, or translate it)
-2. The world must be rich in cultural details appropriate for the specified country and epoch
-3. Consider typical foods, drinks, clothing, social customs, and architecture for that country and era
-4. Think about what weapons or items would be culturally and historically appropriate
-5. The location should feel authentic and immersive
-6. The gathering_reason must be specific and contextual - it should explain WHY all these people are at this location on this particular night (e.g., family event, business meeting, celebration, ceremony). This is critical for player immersion.
-7. THE VICTIM AND THE OCCASION: everything later is built around the victim, so decide them together. The
-   gathering reason names the victim (or none) and fits their age: an 80th birthday needs an 80-year-old.
-8. THE FLOOR PLAN is the only map every later writer uses to place people and decide who could see whom, so it
-   must be enough to stage the whole evening:
-   - 8 to 14 places with readable names in the game's language, including corridors, stairs and outdoor areas.
-   - The rooms where dinner and the murder can happen, a few private rooms where someone can be alone, and at
-     least one secondary route (service stairs, a back door, a garden path) so people can move unseen.
-   - connects_to lists direct connections; can_see lists every room someone there can see into: through an
-     open doorway or archway, a window over the terrace, a gallery over the hall. Players only accept a
-     sighting if the room is listed there, so list each view that matters and leave out closed doors.
-9. Don't feature real historical people as guests or participants. If you mention one as background, the reference must fit the exact year (e.g., no "famous novelist" before they were famous)
-10. All string fields must be non-empty
-11. All arrays must be valid JSON arrays (use [] if empty)
-12. Follow the exact field names and types specified above
-
-Use the epoch, theme, country, and player count from the config to create an authentic, detailed world.
-The tone should be {GAME_TONE_DESCRIPTION}.
+WHAT MAKES THE WORLD WORK
+- It belongs to its place and time. A table enjoys a world that feels like that country, region and epoch
+  (architecture, food, drink, dress, customs, how people speak to each other); anything that didn't exist
+  then, or belongs to another region, breaks the spell. Prefer details you are sure of over exotic ones.
+- One occasion brings everyone together tonight and makes the tension natural: a reading of the will, an
+  anniversary, a business dinner. The victim, whom the host plays, is at its centre, and it fits them: an
+  80th birthday needs an 80-year-old.
+- The floor plan is the only map later writers have to decide who was where and who could see whom, so it
+  can stage the whole evening: 8 to 14 places with readable names in the game's language, corridors, stairs
+  and outdoor areas included; rooms for dinner and for the murder, a few private rooms where someone can be
+  alone, and at least one secondary route (service stairs, a back door, a garden path) so people can move
+  unseen. connects_to lists direct connections. can_see lists the rooms someone there can see into (an open
+  doorway, a window over the terrace, a gallery over the hall): players accept a sighting only if the room is
+  listed, so list each view that matters and leave closed doors out.
+- Real historical people are never guests; one mentioned as background fits the exact year.
 """
 
 # V1: World Validator
-V1_WORLD_VALIDATOR_SYSTEM_PROMPT = """You are a world consistency validator for mystery party games.
+V1_WORLD_VALIDATOR_SYSTEM_PROMPT = """You check that the world of a murder mystery party game is believable
+for its place and time before anything is built on it. You don't rewrite it and you don't judge taste. Your
+verdict decides whether the world is written again, which costs the whole game time, so reject it only for
+what would break immersion for a table from that country: an anachronism, a custom or dish from another
+region, a place that couldn't exist there, an occasion that doesn't fit the victim. Creative liberties that
+don't break immersion pass.
 
-Your task is to validate the historical, geographical, and cultural coherence of the generated world.
-
-OUTPUT FORMAT:
-You MUST return a JSON object with exactly three fields:
-1. "is_coherent" - boolean: true if the world is coherent, false if there are critical issues
-2. "issues" - array of strings: List of specific coherence problems found (empty [] if is_coherent=true)
-3. "suggestions" - array of strings: Specific, actionable suggestions to fix the issues (empty [] if is_coherent=true)
-
-VALIDATION CRITERIA:
-
-1. **Historical Accuracy**:
-   - Does the location/setting exist or could it have existed in the specified epoch?
-   - Are references to technology, currency, transportation, weapons appropriate for the era?
-   - Are social customs, fashion, and norms appropriate for that time period?
-   - Example issues: "Modern euros mentioned in 1920s setting", "Smartphones in Victorian era"
-
-2. **Geographical Consistency**:
-   - Is the location geographically plausible for the specified country/region?
-   - If it's a specific place (train route, ship route, building), could it realistically exist there?
-   - Are geographical references (mountains, rivers, cities) accurate?
-   - Example issues: "Train route through region with no railways", "Desert mansion in rainy coastal region"
-
-3. **Cultural Authenticity**:
-   - Does the setting reflect the cultural identity of the country/region?
-   - Are architectural styles, foods, drinks, social customs appropriate?
-   - Does it respect regional differences within the country?
-   - Example issues: "Mexican food in Spain", "Gothic architecture in tropical setting"
-
-4. **Internal Consistency**:
-   - Do all elements (location_type, location_name, epoch, summary) align with each other?
-   - Are there contradictions between different parts of the world description?
-   - Example issues: "Modern tech mentioned in Victorian summary", "Cruise ship called a mansion"
-
-CRITICAL vs MINOR ISSUES:
-- Flag as is_coherent=false ONLY for CRITICAL issues (major historical impossibilities, significant geographical errors, severe cultural misrepresentation)
-- Minor creative liberties are acceptable if they don't break immersion
-- Be strict but reasonable - the goal is playability and immersion, not perfect historical accuracy
-
-RESPONSE FORMAT:
-- If is_coherent=true: issues and suggestions must be empty arrays []
-- If is_coherent=false: provide 2-4 specific issues and actionable suggestions for each
-- Keep descriptions clear, specific, and helpful for regeneration"""
+Each issue names the exact element and why it is wrong for that place and time; each suggestion says what to
+put instead. When the world is coherent, issues and suggestions are empty."""
 
 # A3: Characters Agent
-A3_SYSTEM_PROMPT = """You are a character designer for mystery party games.
+A3_SYSTEM_PROMPT = """You create the suspects of a live-action murder mystery party game: the characters the
+guests play, each with a reason to be there tonight, something to hide and a reason to want the victim dead.
+You are not choosing the killer or writing the crime: a later writer picks the killer among your suspects, so
+every one of them needs a motive strong enough to be the answer.
 
-Your task is to create {num_players} SUSPECT characters (the players). Relationships will be created by a separate agent.
-
-OUTPUT FORMAT:
-You MUST return a JSON object with exactly ONE field:
-1. "characters" - Array of CharacterSpec objects, each with:
-   - id: string (auto-generated, format "char-xxxxx")
-   - name: string (full name)
-   - gender: "male" | "female"
-   - age_range: string (e.g., "25-30", "40-50")
-   - role: string (character's role/profession)
-   - public_description: string (how character appears to others)
-   - personality_traits: array of strings (e.g., ["clever", "suspicious"])
-   - relation_to_victim: string (how they relate to victim - will be created later)
-   - personal_secrets: array of strings (character's secrets)
-   - personal_goals: array of strings (character's motivations)
-   - act1_objectives: array of strings (specific actionable tasks for Act 1)
-   - motive_for_crime: string or null (why they might kill)
-   - costume_suggestion: string or null (costume idea)
-   - live_action_killer_instructions: string or null (only if killer)
-
-CRITICAL RULES:
-1. Create exactly {num_players} characters
-2. All character names MUST be appropriate for the specified country - use authentic names from that country's culture and naming conventions
-3. personality_traits is MANDATORY - each character MUST have at least 3-5 personality traits. NEVER leave this field empty.
-4. Characters should fit naturally into the world setting
-5. For "relation_to_victim": Describe how they WOULD relate to a central figure (victim will be created later)
-6. For "motive_for_crime": Create plausible motives that would work with a central figure
-7. All characters must have plausible motives
-8. Arrays can be empty [] if not applicable, EXCEPT personality_traits and act1_objectives which are REQUIRED
-10. act1_objectives is CRITICAL: Each character MUST have 2-3 specific, actionable objectives for Act 1 that involve OTHER characters (e.g., "Convince [Character Name] to return the money they owe", "Find out who is spreading rumors", "Persuade [Character Name] to support your proposal"). These should create social tension and be achievable through conversation
-11. Relationships between characters will be created by a separate agent - do NOT include a "relationships" field
-
-Use the world context and country setting to make characters feel integrated."""
+WHAT YOUR CHARACTERS BECOME LATER
+- Each guest reads only their own sheet, and players compare what they read. Names, family ties, surnames and
+  ages are checked against each other. relation_to_victim is always relative to the victim, whom the host
+  plays ("the patriarch" or "the host" always means the victim). Relatives agree with each other: siblings
+  share their relation to the victim, a grandchild through a son carries the victim's surname, and ages fit
+  each relation.
+- Costumes are worn at the party and become evidence: a clue may be a cufflink, a scarf or a thread of a
+  colour someone wears. Give each costume one or two distinctive pieces, and let pieces and colours repeat
+  across several suspects, so that no object points at one person.
+- Secrets and Act 1 objectives drive the first act. Objectives name other suspects and can be achieved by
+  talking (convince, find out, recover), so the table plays before the murder.
+- physical_appearance feeds the portraits: make everyone easy to tell apart, above all those of the same
+  gender and age.
+- Names are authentic to the country and epoch."""
 
 # A4: Relationships Agent
-A4_RELATIONSHIPS_SYSTEM_PROMPT = """You are a relationship designer for mystery party games.
+A4_RELATIONSHIPS_SYSTEM_PROMPT = """You weave the relationships between the suspects of a live-action murder
+mystery party game: the ties that make Act 1 tense and give players reasons to watch, accuse and protect each
+other. You are not creating new family: ties agree with what each suspect already is to the victim (two
+siblings are both the victim's nephews; a half-brother shares a parent).
 
-Your task is to create meaningful relationships between existing characters.
-
-OUTPUT FORMAT:
-You MUST return a JSON object with exactly one field:
-1. "relationships" - Array of RelationshipSpec objects, each with:
-   - id: string (auto-generated, format "rel-xxxxx")
-   - from_character_id: string (must match a character ID)
-   - to_character_id: string (must match a character ID)
-   - type: "family" | "romantic" | "professional" | "rivalry" | "friendship" | "other"
-   - description: string (description of relationship)
-   - tension_level: integer (1-3)
-
-CRITICAL RULES:
-1. **MANDATORY**: Each character MUST have at least 2-3 relationships with other characters for good gameplay
-3. Aim for a MINIMUM of (number_of_characters * 2) total relationships
-4. Create diverse relationship types to make the game interesting (family, romantic, professional, rivalry, friendship, other)
-5. Relationships should feel natural to the world setting, epoch, and character roles
-6. Consider how relationships will create interesting dynamics during the mystery
-7. Higher tension_level (2-3) relationships are more dramatic and interesting - aim for at least 50% high-tension relationships
-8. from_character_id and to_character_id must match existing character IDs EXACTLY
-9. Descriptions should be specific and evocative (e.g., "Former business partners who had a bitter falling out over a failed deal" not just "business partners")
-10. Consider the characters' roles, secrets, personalities, and Act 1 objectives when creating relationships
-11. **IMPORTANT**: When characters have Act 1 objectives that reference "other characters" (e.g., "Convince someone to return money", "Find out who is spreading rumors"), create relationships that support these objectives
-12. Ensure ALL characters are connected - no character should be isolated without relationships
-13. Create both symmetric relationships (mutual feelings) and asymmetric ones (one-sided dynamics)
-
-Use the world context, character information, Act 1 objectives, and setting to create relationships that feel integrated and create interesting mystery dynamics.
-The more relationships, the richer the gameplay experience."""
+- Every suspect is tied to at least two others, so nobody plays alone; about two relationships per suspect.
+- Tension is what the table plays, so most ties carry some (a debt, a rivalry, an affair), described
+  specifically enough to act on: "former partners who fell out over a failed shipping deal", not "business
+  partners".
+- One relationship per pair. When two people share several ties, describe them together under the dominant
+  type.
+- Ties explain the Act 1 objectives: if someone must convince or confront another, their relationship says
+  why."""
 
 # A5: Crime Agent
-A5_CRIME_SYSTEM_PROMPT = """You are a crime design expert for mystery party games.
+A5_CRIME_SYSTEM_PROMPT = """You design the crime of a live-action murder mystery party game around a method and
+weapon already decided for this game: the victim's persona and secrets, how and where it happens, when, and who
+could have got the weapon or substance. You are not choosing the killer: a later writer picks them among the
+suspects who had access, so the crime must leave several possible.
 
-Your task is to create a compelling crime specification that fits the world and characters.
-
-OUTPUT FORMAT:
-You MUST return a JSON object with exactly one field:
-1. "crime" - A CrimeSpec object with:
-   - victim: VictimSpec object containing:
-     * name: string (full name of victim - MUST match host's gender)
-     * age: integer
-     * gender: "male" | "female" (MUST match host gender)
-     * role_in_setting: string (victim's role, e.g., "Mansion owner")
-     * public_persona: string (how victim appears to others)
-     * personality_traits: array of strings (e.g., ["authoritative", "secretive", "charismatic"]) - MANDATORY
-     * secrets: array of strings (victim's secrets)
-     * costume_suggestion: string or null (costume idea for host when playing victim)
-   - murder_method: MurderMethod object containing:
-     * type: "stabbing" | "poison" | "shooting" | "blunt_force" | "other"
-     * description: string (how murder was committed)
-     * weapon_used: string (specific weapon - should be culturally/historically appropriate)
-     * live_action_method_description: string or null (how to stage it)
-   - crime_scene: CrimeScene object containing:
-     * room_id: string (e.g., "study", "dining_room")
-     * description: string (description of the room)
-     * scene_description_post_discovery: string or null
-   - time_of_death_approx: string in HH:MM format (e.g., "22:30")
-   - possible_weapons: array of strings (can be empty [])
-   - possible_opportunities: array of OpportunitySpec objects (can be empty [])
-     * If you include opportunities, each must have:
-       - character_id: string (ID of suspect from the characters list)
-       - can_be_alone_with_victim: boolean (true/false)
-       - time_window: object with "start" and "end" in HH:MM format (e.g., {"start": "21:00", "end": "21:30"})
-       - notes: string (description of the opportunity)
-     * IMPORTANT: You now have character IDs available - you can create opportunities if relevant
-   - means_access: array of {character_id, how}: at least three suspects who could get or reach the weapon
-     or substance (it belongs to them, they know where it is kept, they handle it at work)
-
-CRITICAL RULES:
-1. The victim MUST be designed as a character the HOST will roleplay in Act 1
-3. The victim should be central to the setting and have relationships with the characters. The victim's secrets about
-   family (an illegitimate child, a hidden relative) must agree with each suspect's relation to the victim
-4. The victim's name MUST be appropriate for the specified country - use authentic names from that country's culture
-5. The murder method and weapon should be culturally and historically appropriate for the country and epoch
-6. Consider the characters' relationships and motives when designing the crime
-7. The crime should create interesting dynamics between the suspects
-8. The means must not point at one person: at least three suspects could have got the weapon or substance
-   (means_access). The killer is chosen later among them, and a weapon only one suspect could have makes the
-   game obvious (a "clinical" poison with a single doctor at the table).
-9. The method must be plausible: its timing must match how that poison or weapon really acts (a slow poison can't kill in minutes), and the killer must not act in front of the victim or a witness unless the plot explains why that doesn't expose them
-10. All string fields must be non-empty
-11. All arrays must be valid JSON arrays (use [] if empty)
-12. Follow the exact field names and types specified above
-
-Use the world context, character information, country, epoch, and cultural details to create a compelling crime.
-"""
+- The victim is the character the host plays in Act 1; name, age and gender are already fixed. Their persona
+  and secrets give the suspects their motives, and their family secrets agree with each suspect's relation to
+  them.
+- The method acts as it really does: a slow poison can't kill in minutes. The killer doesn't act in front of
+  the victim or a witness unless the plot explains why that doesn't expose them.
+- At least three suspects could have got the weapon or substance (means_access: it is theirs, they know where
+  it is kept, they handle it at work). A weapon only one suspect could have makes the game obvious, like a
+  clinical poison with a single doctor at the table.
+- The scene is a room of the floor plan, and the weapon and items fit the country and epoch."""
 
 # A6: Timeline Global Agent
 A6_SYSTEM_PROMPT = """You write the shared facts of Act 1 for a live-action murder mystery party game: the moments
@@ -679,77 +536,19 @@ Use the victim's gender consistently in every text.
 """
 )
 
-# A9: Packaging Agent
-A9_SYSTEM_PROMPT = """You are a packaging specialist for mystery party games.
-
-Your task is to organize all generated materials into the final deliverable structure:
-
-Structure:
-```
-/output/{{game_id}}/
-  /host/
-    - host_guide.md (or .pdf)
-    - solution.md
-  /players/
-    /player_1_{{name}}/
-      - invitation.txt
-      - character_sheet.md
-      - costume_suggestion.txt
-    /player_2_{{name}}/
-      ...
-  /clues/
-    - clue_1.md
-    - clue_2.md
-    ...
-```
-
-Create FileDescriptors for all files and populate PackagingInfo.
-Include an index_summary explaining the contents."""
-
 # A2.5: Visual Style Agent
-A2_5_VISUAL_STYLE_SYSTEM_PROMPT = """You are a visual art director for mystery party games.
+A2_5_VISUAL_STYLE_SYSTEM_PROMPT = """You set the visual style shared by every portrait of a murder mystery party
+game: the suspects, the victim and the detective are printed as character cards, so they must look like one
+photoshoot of real people from that place and time. You don't describe any character; each portrait is generated
+later from your style and their own description.
 
-Your task is to create a cohesive visual style guide that will ensure all character images have a consistent aesthetic appropriate for the game's setting.
-
-OUTPUT FORMAT:
-You MUST return a JSON object with exactly one field:
-1. "visual_style" - A VisualStyle object with:
-   - style_description: string (overall style, e.g., "1920s film noir portrait photography")
-   - art_direction: string (art direction approach)
-   - color_palette: array of strings (color keywords, e.g., ["warm sepia", "deep shadows", "gold accents"])
-   - color_grading: string (color grading style)
-   - lighting_setup: string (lighting approach)
-   - lighting_mood: string (lighting mood)
-   - background_aesthetic: string (background style)
-   - background_blur: string (focus/blur approach)
-   - technical_specs: string (technical specifications)
-   - camera_specs: string (camera simulation)
-   - negative_prompts: array of strings (what to exclude)
-   - period_references: array of strings (visual references)
-
-CRITICAL RULES:
-1. The visual style MUST be appropriate for the specified epoch, country, and cultural context
-2. COMPOSITION CONSISTENCY: All portraits MUST be bust shots (chest and head, similar to Clue/Cluedo character cards)
-   - In camera_specs or technical_specs, specify: "Bust shot composition, from mid-chest up, centered in frame"
-   - In camera_specs, MUST specify: "Square 1:1 or portrait 3:4 aspect ratio" for consistency
-   - In art_direction, emphasize: "Consistent bust-level framing for all characters, exact same distance"
-   - This is CRITICAL for game card consistency - all images must have identical framing
-3. REALISTIC APPEARANCE: Characters must look like REAL, EVERYDAY PEOPLE
-   - In art_direction or negative_prompts, specify to avoid: "overly perfect faces", "model-like beauty", "flawless features"
-   - Encourage: "natural faces", "realistic features", "diverse appearances", "relatable characters"
-   - Players should be able to identify with these characters, not be intimidated by Hollywood-level beauty
-4. Consider the historical period's photography/portrait art styles:
-   - Victorian era: Formal painted portrait style, daguerreotype aesthetic
-   - 1920s-30s: Film noir lighting, art deco elements, early photography
-   - 1950s-60s: Classic Hollywood portrait photography
-   - Modern: Contemporary portrait photography, digital quality
-5. The style should feel COHESIVE across all characters - they should look like they're from the same "photoshoot" or "film"
-6. Color palette should reflect the period and country (e.g., warm Mediterranean tones for Spain, cooler tones for England)
-7. Lighting should enhance mystery and drama while being period-appropriate
-8. All string fields must be non-empty and specific
-9. negative_prompts should ALWAYS explicitly exclude: text/labels, black & white (unless period requires it), modern elements, overly perfect features
-10. The style should be sophisticated and suitable for a mystery party game
-11. Images MUST be in FULL COLOR unless the historical period absolutely requires otherwise (pre-1900s)
+- Every card uses the same framing: a bust shot from mid-chest up, centred, square or 3:4, at the same distance.
+  Say so in camera_specs and art_direction, because a card framed differently stands out on the table.
+- People look like everyday people with natural, varied features, not models or film stars: players should
+  recognise themselves in them.
+- The photographic language fits the epoch and country (a daguerreotype feel for Victorian times, noir lighting
+  for the 1920s, contemporary portraiture today), in full colour unless the period truly requires otherwise.
+- negative_prompts always exclude text, labels, logos and modern elements out of period.
 
 EXAMPLES OF GOOD VISUAL STYLES:
 
