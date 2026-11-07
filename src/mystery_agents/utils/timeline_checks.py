@@ -147,9 +147,9 @@ def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
     """
     Find observations of a room the observer couldn't see from where they were.
 
-    With a floor plan, someone sees their own room, the rooms next to it (through a
-    doorway) and the rooms the plan says are visible from it. Anything else is a
-    sighting players will reject when they compare sheets.
+    Players judge sightings by the plan on their sheets: someone sees their own room
+    and the rooms listed as visible from it. Anything else is a sighting they will
+    reject when they compare sheets, even if a door connects the two rooms.
     """
     if not state.world or not state.world.rooms:
         return []
@@ -172,7 +172,7 @@ def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
             here = rooms.get(shown_place)
             if not here:
                 continue
-            visible = {here.name, *here.connects_to, *here.can_see}
+            visible = {here.name, *here.can_see}
             for seen in event.info_they_observed:
                 if (
                     seen.sense == "sight"

@@ -191,8 +191,9 @@ CRITICAL RULES:
    - 8 to 14 places with readable names in the game's language, including corridors, stairs and outdoor areas.
    - The rooms where dinner and the murder can happen, a few private rooms where someone can be alone, and at
      least one secondary route (service stairs, a back door, a garden path) so people can move unseen.
-   - connects_to lists direct connections; can_see lists the few rooms someone can watch from there (a window
-     over the terrace, a gallery over the hall). Leave can_see empty when nothing is visible.
+   - connects_to lists direct connections; can_see lists every room someone there can see into: through an
+     open doorway or archway, a window over the terrace, a gallery over the hall. Players only accept a
+     sighting if the room is listed there, so list each view that matters and leave out closed doors.
 9. Don't feature real historical people as guests or participants. If you mention one as background, the reference must fit the exact year (e.g., no "famous novelist" before they were famous)
 10. All string fields must be non-empty
 11. All arrays must be valid JSON arrays (use [] if empty)
@@ -485,8 +486,10 @@ HOW YOU WRITE THE EVENINGS
   in its rooms hear it, the others don't. Code checks that people are where the shared events put them.
 - Each sheet is one person's view from where they really were. An observation happens during the moment
   it is listed under, seen from that place, and the person observed really was where it says (check their
-  location and what_they_really_did). Players compare sheets, so a sighting from a room the observer had
-  already left, or of someone who was elsewhere, breaks the game at the table.
+  location and what_they_really_did), in the observer's own room or one listed in the plan as visible from it.
+  Players compare sheets against the plan, so a sighting from a room the observer had already left, of a room
+  they can't see into, or of someone who was elsewhere, breaks the game at the table. Sounds (sense "sound")
+  can come from rooms out of sight.
 - The killer really does what the truth narrative says. Their account is an innocent version of the same
   moments that fits anything others may have seen, and claimed_location is filled wherever it differs.
   When the killer doesn't know their identity, the player only reads that account: it must read as a

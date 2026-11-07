@@ -218,11 +218,11 @@ def test_excess_killer_sightings_are_removed(state: GameState) -> None:
 
 
 def test_sightings_must_be_visible_from_the_observer_room(state: GameState) -> None:
-    """From the cellar nobody sees the study; from the library, next door, they can."""
+    """From the cellar nobody sees the study; from the library, which overlooks it, they can."""
     from mystery_agents.models.state import HostCharacter, Room, WorldBible
 
     def room(name: str, connects: list[str]) -> Room:
-        return Room(name=name, floor="0", description="x", connects_to=connects)
+        return Room(name=name, floor="0", description="x", connects_to=connects, can_see=connects)
 
     state.world = WorldBible(
         epoch="Modern",
