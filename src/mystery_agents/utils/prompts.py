@@ -636,6 +636,9 @@ testimonies they point to the killer; on their own, they make several suspects l
   two or three clues and observations from at least two players, hard ones three or more clues and several
   observations that only make sense together.
 - A clue the deduction plan says must fit several suspects is written so each of them could explain it.
+  A personal object (a cufflink, a scarf, a brooch) must match what each of them wears or carries: check
+  their costumes, and add the accessory to those that lack it in costume_additions. Never use an object
+  only the victim wears to point at a suspect.
 - A clue never names the killer alone. If one names them, it names other suspects too (a list of debtors,
   a guest list), because a clue that points at one name, or matches only their shoes or clothes, solves
   the case before anyone compares testimonies.

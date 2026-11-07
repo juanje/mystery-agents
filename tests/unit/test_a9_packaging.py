@@ -847,3 +847,16 @@ def test_solution_explains_the_deduction_plan(basic_game_state: GameState) -> No
         in text
     )
     assert "descartado por" in text
+
+
+def test_character_sheet_costume_includes_added_accessories(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """An accessory A8 added so a clue fits shows next to the costume."""
+    character = basic_game_state.characters[0]
+    character.costume_suggestion = "Traje azul"
+    basic_game_state.costume_additions = {character.id: "gemelos de oro"}
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "Traje azul, gemelos de oro" in content

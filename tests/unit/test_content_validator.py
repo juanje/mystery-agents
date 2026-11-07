@@ -8,6 +8,7 @@ from mystery_agents.agents.v3_content_validator import (
     ContentValidatorAgent,
     drop_revealing_questions,
     find_clue_notes_naming_killer,
+    find_clue_objects_worn_by_one,
     find_clues_naming_killer,
     find_killer_in_guiding_questions,
     find_over_obvious_clues,
@@ -356,3 +357,45 @@ def test_clues_that_identify_the_killer_alone_are_flagged() -> None:
     named = [issue for issue in issues if "names the killer" in issue.description]
     assert [issue.related_ids[0] for issue in named] == [state.clues[0].id]
     assert any("initials" in issue.description for issue in issues)
+
+
+def test_clue_objects_only_one_costume_explains_are_flagged() -> None:
+    """Cufflinks only the killer wears name them; once others wear them too, they don't."""
+    state = _game_with_killer()
+    state.characters[0].costume_suggestion = "Traje gris con gemelos de oro"
+    state.characters[1].costume_suggestion = "Vestido largo de seda"
+    state.clues[0].description = "Un gemelo de oro junto al cuerpo."
+
+    issues = find_clue_objects_worn_by_one(state)
+
+    assert [issue.related_ids for issue in issues] == [["c1"]]
+    assert "gemelo" in issues[0].description
+
+    state.costume_additions = {"char-2": "gemelos de oro"}
+    assert find_clue_objects_worn_by_one(state) == []
+
+
+def test_incriminating_clue_with_an_object_only_the_victim_wears_is_flagged() -> None:
+    """The victim's own cufflink at the scene can't point at a suspect."""
+    from mystery_agents.models.state import CrimeScene, CrimeSpec, MurderMethod, VictimSpec
+
+    state = _game_with_killer()
+    state.crime = CrimeSpec(
+        victim=VictimSpec(
+            name="Don Tomás",
+            age=70,
+            gender="male",
+            role_in_setting="Host",
+            public_persona="x",
+            costume_suggestion="Frac con gemelos grabados",
+        ),
+        murder_method=MurderMethod(type="other", description="x", weapon_used="x"),
+        crime_scene=CrimeScene(room_id="Study", description="x"),
+        time_of_death_approx="22:00",
+    )
+    state.clues[0].description = "Un gemelo grabado en el balcón."
+    state.clues[0].incriminates = ["char-0"]
+
+    issues = find_clue_objects_worn_by_one(state)
+
+    assert len(issues) == 1 and "victim" in issues[0].description

@@ -65,7 +65,8 @@ class KillerSelectionAgent(BaseAgent):
         suspects_info = [
             f"- {char.name} (ID: {char.id}): {char.role}, {char.relation_to_victim}\n"
             f"  Motive: {char.motive_for_crime or 'None'}\n"
-            f"  Secrets: {'; '.join(char.personal_secrets) or 'None'}"
+            f"  Secrets: {'; '.join(char.personal_secrets) or 'None'}\n"
+            f"  Costume: {char.costume_suggestion or 'Not specified'}"
             for char in state.characters
         ]
         means_access = [
@@ -77,6 +78,7 @@ class KillerSelectionAgent(BaseAgent):
 
 VICTIM (HOST - NOT A SUSPECT):
 - {state.crime.victim.name}: {state.crime.victim.role_in_setting}
+  Costume: {state.crime.victim.costume_suggestion or "Not specified"}
 
 SUSPECTS (CHOOSE ONE AS KILLER):
 {chr(10).join(suspects_info)}

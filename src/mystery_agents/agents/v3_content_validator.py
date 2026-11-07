@@ -1,6 +1,7 @@
 """V3: Content Validator - Checks the written game material before packaging."""
 
 import re
+import unicodedata
 
 from mystery_agents.models.state import (
     CharacterSpec,
@@ -314,6 +315,75 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+# Words shorter than this ("de", "con", "oro") say nothing about who owns an object
+MIN_COSTUME_WORD_LENGTH = 5
+
+
+def _costume_words(text: str) -> set[str]:
+    """Distinctive words of a costume or clue, singular, without accents or case."""
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().casefold()
+    words = re.findall(r"[a-z]+", plain)
+    return {
+        word[:-2] if word.endswith("es") and len(word) > 6 else word.rstrip("s")
+        for word in words
+        if len(word) >= MIN_COSTUME_WORD_LENGTH
+    }
+
+
+def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
+    """
+    Find clues whose personal object only one costume explains, against the case.
+
+    In measured games the key clue was a crest cufflink only the victim wore, or a
+    handkerchief from an innocent's costume the solution gave the killer. Flagged:
+    an incriminating clue whose object only the victim wears, any clue whose object
+    only the killer wears, and an object only one innocent wears in a clue that
+    incriminates the killer.
+    """
+    killer = _killer(state)
+    if not killer or not state.clues:
+        return []
+    wearers: dict[str, set[str]] = {
+        char.id: _costume_words(
+            f"{char.costume_suggestion or ''} {state.costume_additions.get(char.id, '')}"
+        )
+        for char in state.characters
+    }
+    victim_words = (
+        _costume_words(state.crime.victim.costume_suggestion or "") if state.crime else set()
+    )
+    names = {char.id: char.name for char in state.characters}
+    issues = []
+    for number, clue in enumerate(state.clues, 1):
+        for word in sorted(_costume_words(clue.description)):
+            owners = [char_id for char_id, words in wearers.items() if word in words]
+            only_victim = word in victim_words and not owners
+            if only_victim and clue.incriminates:
+                problem = "only the victim's costume has it, so it can't point at a suspect"
+            elif owners == [killer.id]:
+                problem = f"only {killer.name}'s costume has it, so it names them"
+            elif len(owners) == 1 and killer.id in clue.incriminates:
+                problem = (
+                    f"only {names[owners[0]]}'s costume has it, yet the clue incriminates "
+                    f"{killer.name}"
+                )
+            else:
+                continue
+            issues.append(
+                ValidationIssue(
+                    type="logic_gap",
+                    description=(
+                        f"Clue {number} '{clue.title}' shows '{word}': {problem}. Make the object "
+                        "something several suspects wear, adding it to their costumes in "
+                        "costume_additions."
+                    ),
+                    related_ids=[clue.id],
+                )
+            )
+            break
+    return issues
+
+
 def _killer(state: GameState) -> CharacterSpec | None:
     """The selected killer, if any."""
     if not state.killer_selection:
@@ -330,6 +400,7 @@ def find_rule_violations(state: GameState) -> list[ValidationIssue]:
         *find_clue_notes_naming_killer(state),
         *find_over_obvious_clues(state),
         *find_clues_naming_killer(state),
+        *find_clue_objects_worn_by_one(state),
         *find_timeline_violations(state),
     ]
 

@@ -36,6 +36,15 @@ from mystery_agents.utils.state_helpers import (
 from .base import BaseAgent
 
 
+class CostumeAddition(BaseModel):
+    """An accessory added to a suspect's costume so a clue's object can be theirs."""
+
+    character_id: str = Field(description="ID of the suspect.")
+    item: str = Field(
+        description="The accessory, in the game's language (e.g., 'gold cufflinks with the shipping company crest')."
+    )
+
+
 class A8Output(BaseModel):
     """Output format for A8 agent."""
 
@@ -44,6 +53,10 @@ class A8Output(BaseModel):
     )
     clues: list[ClueSpec] = Field(
         description="Clues for the Act 2 investigation, in the order the detective reveals them."
+    )
+    costume_additions: list[CostumeAddition] = Field(
+        default_factory=list,
+        description="Accessories to add to suspects' costumes so each personal object in a clue (a cufflink, a scarf, a brooch) could belong to every suspect it must fit. Empty if the costumes already cover it.",
     )
     killer_brief_narrative: str | None = Field(
         default=None,
@@ -106,7 +119,8 @@ class ContentGenerationAgent(BaseAgent):
                 f"- {char.name} (ID: {char.id}){is_killer}: {char.role}, age {char.age_range}\n"
                 f"  Relation to victim: {char.relation_to_victim}\n"
                 f"  Motive: {char.motive_for_crime or 'None'}\n"
-                f"  Secrets: {secrets}"
+                f"  Secrets: {secrets}\n"
+                f"  Costume: {char.costume_suggestion or 'Not specified'}"
             )
 
         red_herring_material = self._red_herring_material(state, killer.id if killer else None)
@@ -141,6 +155,7 @@ VICTIM (HOST'S ACT 1 ROLE):
 - Role: {safe_get_crime_victim_role(state)}
 - Public persona: {safe_get_crime_victim_persona(state)}
 - Secrets: {safe_get_crime_victim_secrets(state)}
+- Costume: {state.crime.victim.costume_suggestion if state.crime and state.crime.victim.costume_suggestion else "Not specified"}
 
 CHARACTERS (SUSPECTS) - their sheets are already written; clues must match these facts:
 {chr(10).join(characters_summary) if characters_summary else "No characters"}
@@ -189,6 +204,12 @@ Write at least {max(MIN_CLUES_PER_GAME, len(state.characters))} clues.
         state.host_guide = result.host_guide
         state.clues = result.clues
         state.killer_brief_narrative = result.killer_brief_narrative
+        suspect_ids = {char.id for char in state.characters}
+        state.costume_additions = {
+            addition.character_id: addition.item
+            for addition in result.costume_additions
+            if addition.character_id in suspect_ids
+        }
 
         return state
 

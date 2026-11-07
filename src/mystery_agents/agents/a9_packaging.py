@@ -96,6 +96,12 @@ def _generate_pdf_worker(
         return False, str(e)
 
 
+def costume_of(state: GameState, character: Any) -> str:
+    """A suspect's costume with any accessory A8 added so a clue's object fits them."""
+    added = state.costume_additions.get(character.id, "")
+    return ", ".join(part for part in (character.costume_suggestion, added) if part)
+
+
 class ToldSlot(NamedTuple):
     """One moment of a suspect's own account, as their sheet prints it."""
 
@@ -733,7 +739,7 @@ ZIP file: {zip_path}
 
 {character.public_description}
 
-**{labels["costume"]}**: {character.costume_suggestion or labels["no_costume"]}
+**{labels["costume"]}**: {costume_of(state, character) or labels["no_costume"]}
 
 ## {labels["event_details"]}
 
@@ -967,7 +973,7 @@ ZIP file: {zip_path}
 
 ## {labels["costume"]}
 
-{character.costume_suggestion or labels["no_costume"]}
+{costume_of(state, character) or labels["no_costume"]}
 
 ## {labels["act1_objectives"]}
 

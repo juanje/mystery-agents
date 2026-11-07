@@ -980,6 +980,9 @@ class GameState(BaseModel):
     killer_brief_narrative: str | None = (
         None  # Brief narrative for killer if they know their identity
     )
+    # Accessories A8 adds to suspects' costumes so a clue's personal object fits them,
+    # by character ID. Kept apart from the characters, which the image branch reads in parallel.
+    costume_additions: dict[str, str] = Field(default_factory=dict)
     visual_style: VisualStyle | None = None
     # Portrait paths by character ID. Written by the image branch while other nodes run
     # in parallel, so concurrent writes are merged instead of conflicting.
