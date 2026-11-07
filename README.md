@@ -75,21 +75,20 @@ uv sync
 
 ### 3. Configure API Keys
 
-Text is generated with OpenAI by default (GPT-6 Luna) and portraits with Gemini. Get an
-[OpenAI API key](https://platform.openai.com/api-keys), and a [Google AI Studio key](https://aistudio.google.com/apikey)
-if you want images (not needed with `--no-images`). Then:
+Text and portraits are generated with Gemini by default (Gemini 3.8 Flash and Nano Banana 2.1).
+Get a [Google AI Studio key](https://aistudio.google.com/apikey), then:
 
 ```bash
 # Option 1: Create .env file (recommended)
 cp env.example .env
-nano .env  # Add: OPENAI_API_KEY=... and GOOGLE_API_KEY=...
+nano .env  # Add: GOOGLE_API_KEY=...
 
-# Option 2: Environment variables
-export OPENAI_API_KEY='your-openai-key'
+# Option 2: Environment variable
 export GOOGLE_API_KEY='your-google-key'
 ```
 
-To generate text with Gemini instead, set `LLM_PROVIDER=google` (then only `GOOGLE_API_KEY` is needed).
+To generate text with OpenAI (GPT-6 Luna) instead, set `LLM_PROVIDER=openai` and `OPENAI_API_KEY`
+(portraits still need `GOOGLE_API_KEY`, unless you pass `--no-images`).
 
 ### 4. Generate Your First Game
 
@@ -132,7 +131,7 @@ uv run mystery-agents game.example.yml --dry-run
 - 🖼️ **Character Portraits** - AI-generated images with consistent visual style
 - 🎯 **Visual Style Guide** - Unified aesthetic (color palette, lighting, no text overlays)
 - 🔄 **Parallel Generation** - Fast image creation with rate limiting
-- 🤖 **OpenAI or Gemini for text** - GPT-6 Luna by default (`LLM_PROVIDER=google` for gemini-3.6-flash); Nano Banana 2.1 for portraits
+- 🤖 **Gemini or OpenAI for text** - Gemini 3.8 Flash by default (`LLM_PROVIDER=openai` for GPT-6 Luna); Nano Banana 2.1 for portraits
 
 ---
 
@@ -251,20 +250,18 @@ mystery-agents game.yml -vv --debug
 
 Create a `.env` file (or set environment variables):
 ```bash
-# Text provider: openai (default) or google
-LLM_PROVIDER=openai
-OPENAI_API_KEY=your-openai-key   # Text, when LLM_PROVIDER=openai
-GOOGLE_API_KEY=your-google-key   # Portraits, and text when LLM_PROVIDER=google
+# Text provider: google (default) or openai
+LLM_PROVIDER=google
+GOOGLE_API_KEY=your-google-key   # Text with google, and portraits
+OPENAI_API_KEY=your-openai-key   # Text, only when LLM_PROVIDER=openai
 
 # Optional: Override the provider's model per tier
-LLM_MODEL_TIER1=gpt-6-luna   # Plot logic, sheets, written content, reviews
-LLM_MODEL_TIER2=gpt-6-luna   # Characters, relationships, timeline
-LLM_MODEL_TIER3=gpt-6-luna   # Placeholder: no text agent calls it
-# With LLM_PROVIDER=google the defaults are gemini-3.6-flash (tiers 1-2) and
-# gemini-3.5-flash-lite (tier 3)
+LLM_MODEL_TIER1=gemini-3.8-flash   # Plot logic, sheets, written content, reviews
+LLM_MODEL_TIER2=gemini-3.8-flash   # Characters, relationships, timeline
+LLM_MODEL_TIER3=gemini-3.5-flash-lite  # Placeholder: no text agent calls it
+# With LLM_PROVIDER=openai the default is gpt-6-luna for every tier
 
-# Optional: reasoning effort per tier (OpenAI defaults: medium for tier 1, low for 2-3;
-# Gemini keeps its model's default unless set)
+# Optional: reasoning effort per tier (defaults: medium for tier 1, low for tier 2)
 LLM_REASONING_EFFORT_TIER1=medium
 
 # Optional: Override temperatures (unset by default, so each model keeps its own;
@@ -398,7 +395,7 @@ have issues is packaged anyway.
 ### Tech Stack
 
 - **LangGraph** - Multi-agent workflow orchestration
-- **OpenAI / Google Gemini** - Text (OpenAI by default) and image generation (Gemini)
+- **Google Gemini / OpenAI** - Text (Gemini by default) and image generation (Gemini)
 - **Pydantic** - Data validation
 - **WeasyPrint** - PDF generation
 - **Python 3.12+** with full type annotations
@@ -433,7 +430,7 @@ uv run ruff check . --fix && uv run ruff format . && uv run mypy src/ && uv run 
 - **Python 3.12+** with type annotations
 - **LangGraph** - Multi-agent workflow orchestration
 - **LangChain** - LLM abstraction and tools
-- **OpenAI / Google Gemini** - Text (OpenAI by default) and image generation (Gemini)
+- **Google Gemini / OpenAI** - Text (Gemini by default) and image generation (Gemini)
 - **Pydantic v2** - Data validation and modeling
 - **WeasyPrint** - PDF generation from HTML/Markdown
 - **Click** - CLI framework

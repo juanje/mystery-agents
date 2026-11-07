@@ -52,3 +52,31 @@ def log_model_response(
         print(f"[DEBUG] ✗ Parsing error: {parsing_error}")
 
     print("=" * 80 + "\n")
+
+
+def describe_response(raw: BaseMessage | None) -> str:
+    """
+    Why a model response ended and how long it was, for a failure message.
+
+    A response cut at the output limit (often a model repeating itself) looks like any
+    other parsing failure unless the finish reason and token count are shown.
+    """
+    if raw is None:
+        return "no response"
+    meta = raw.response_metadata or {}
+    reason = (
+        meta.get("finish_reason")
+        or meta.get("stop_reason")
+        or (meta.get("incomplete_details") or {}).get("reason")
+        or meta.get("status")
+        or "unknown"
+    )
+    usage = getattr(raw, "usage_metadata", None) or {}
+    tokens = usage.get("output_tokens")
+    reasoning = (usage.get("output_token_details") or {}).get("reasoning")
+    detail = f"finish reason {reason}"
+    if tokens is not None:
+        detail += f", {tokens} output tokens"
+    if reasoning:
+        detail += f" ({reasoning} reasoning)"
+    return detail

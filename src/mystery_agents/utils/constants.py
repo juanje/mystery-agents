@@ -41,29 +41,29 @@ GAME_TONE_STYLE = "mystery_party"  # Short tone label for prompts
 
 # LLM model configuration: text models per provider and tier (LLM_PROVIDER picks the
 # provider, LLM_MODEL_TIER1..3 override a tier). Images always use Gemini (see below).
-LLM_PROVIDER_DEFAULT = "openai"
+# Measured over batches of four games: Gemini 3.8 Flash with tier 1 on medium reasoning
+# and tier 2 on low gave the best games (3.5 to 4 out of 5, 2 to 6 contradictions, V2
+# passing every game first time); GPT-6 Luna is far cheaper per token but averaged 6 to 11
+# contradictions at the same settings.
+LLM_PROVIDER_DEFAULT = "google"
 LLM_MODELS = {
-    # Fast and cheap enough to iterate on the generator; a tier can move to gpt-6-sol
-    # if a measured batch shows it needs more
     "openai": {"tier1": "gpt-6-luna", "tier2": "gpt-6-luna", "tier3": "gpt-6-luna"},
-    # gemini-3.8-flash was tried for tier 1, but in real runs it took minutes per call and
-    # often refused prompts (block_reason OTHER). Much of the delay was its default thinking,
-    # twice 3.6's; with LLM_REASONING_EFFORT_TIER* set it can be measured again.
+    # gemini-3.8-flash was first dropped for taking minutes per call and refusing prompts
+    # (block_reason OTHER); most of the delay was its default thinking, twice 3.6's, and
+    # at these efforts it ran without refusals
     "google": {
-        "tier1": "gemini-3.6-flash",
-        "tier2": "gemini-3.6-flash",
+        "tier1": "gemini-3.8-flash",
+        "tier2": "gemini-3.8-flash",
         "tier3": "gemini-3.5-flash-lite",
     },
 }
-# Reasoning effort per provider and tier (LLM_REASONING_EFFORT_TIER1..3 override it for
-# either provider; None keeps the model's own default). Measured with GPT-6 Luna: low
-# everywhere was fast but its sheets, clues and solution averaged 11 contradictions per
-# game; medium on tier 1 (plan, grid, sheets, content, reviews) brought that to 6, near
-# Gemini, while the mechanical tier 2 stays fast on low. Gemini's defaults were measured
-# as they are, so it gets none unless overridden.
+# Reasoning effort per provider and tier (LLM_REASONING_EFFORT_TIER1..3 override it;
+# None keeps the model's own default). Tier 1 (plan, grid, sheets, content, reviews)
+# needs medium: at low, Luna's games averaged 11 contradictions. The mechanical tier 2
+# stays fast on low.
 LLM_REASONING_EFFORT: dict[str, dict[str, str | None]] = {
     "openai": {"tier1": "medium", "tier2": "low", "tier3": "low"},
-    "google": {"tier1": None, "tier2": None, "tier3": None},
+    "google": {"tier1": "medium", "tier2": "low", "tier3": None},
 }
 # Environment variable holding each provider's API key
 LLM_API_KEY_VARS = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
@@ -72,6 +72,10 @@ LLM_API_KEY_VARS = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
 # google-genai also sends it as the server deadline (X-Server-Timeout), so it must
 # leave room for long generations: at 180 s Gemini cut them off with 504 errors.
 LLM_REQUEST_TIMEOUT = 600.0
+# Output tokens per request, reasoning included. Gemini has looped repeating text until
+# its own 65k limit (a 25-minute A7.4 attempt in a measured game); half that still leaves
+# several times the largest real answer, and a loop fails sooner so the node retries.
+LLM_MAX_OUTPUT_TOKENS = 32768
 DRY_RUN_DUMMY_API_KEY = "dry-run-dummy-key"
 
 # Image generation configuration

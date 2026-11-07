@@ -310,10 +310,12 @@ def generate(
                 click.echo("\n  Option 2: Set environment variable", err=True)
                 click.echo(f"    export {key_var}='your-api-key-here'", err=True)
                 click.echo(f"\nGet a key at: {key_url}", err=True)
-                click.echo(
-                    "Images always use Gemini: set GOOGLE_API_KEY too unless you pass --no-images.",
-                    err=True,
-                )
+                if key_var != "GOOGLE_API_KEY":
+                    click.echo(
+                        "Images always use Gemini: set GOOGLE_API_KEY too unless you pass "
+                        "--no-images.",
+                        err=True,
+                    )
                 click.echo("\n💡 Tip: Use --dry-run flag to test without API calls:", err=True)
                 click.echo("  mystery-agents game.yml --dry-run", err=True)
                 click.echo("\n" + "=" * 60, err=True)

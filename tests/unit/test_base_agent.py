@@ -156,12 +156,21 @@ def test_invoke_with_debug_mode_logs_response(mock_llm: BaseChatModel) -> None:
 def test_invoke_without_parsed_output_raises_error(
     mock_llm: BaseChatModel, basic_state: GameState
 ) -> None:
-    """Test invoke raises error when the structured output cannot be parsed."""
+    """The error says why the response ended, so a cut-off answer is recognisable."""
     agent = _TestAgent(llm=mock_llm, response_format=_TestOutputFormat)
     agent.runnable = MagicMock()
-    agent.runnable.invoke.return_value = _structured_result(None, ValueError("bad json"))
+    result = _structured_result(None, ValueError("bad json"))
+    result["raw"] = AIMessage(
+        content="{...",
+        response_metadata={"finish_reason": "MAX_TOKENS"},
+        usage_metadata={"input_tokens": 10, "output_tokens": 32768, "total_tokens": 32778},
+    )
+    agent.runnable.invoke.return_value = result
 
-    with pytest.raises(ValueError, match="did not return a valid _TestOutputFormat: bad json"):
+    with pytest.raises(
+        ValueError,
+        match=r"_TestOutputFormat \(finish reason MAX_TOKENS, 32768 output tokens\): bad json",
+    ):
         agent.invoke(basic_state)
 
 

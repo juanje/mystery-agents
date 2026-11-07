@@ -11,8 +11,9 @@ from pydantic import BaseModel
 from mystery_agents.config import structured_output
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.constants import LANG_CODE_ENGLISH
-from mystery_agents.utils.debug_output import log_model_response
+from mystery_agents.utils.debug_output import describe_response, log_model_response
 from mystery_agents.utils.i18n import get_language_name
+from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.prompts import FICTION_CONTEXT
 
 
@@ -186,7 +187,11 @@ These requirements override any language assumptions in the instructions above.
             log_model_response(result["raw"], parsed, parsing_error)
 
         if parsed is None:
-            raise StructuredOutputError(
-                f"The LLM did not return a valid {response_format.__name__}: {parsing_error}"
+            # The graph retries the node silently, so say why before it does
+            message = (
+                f"The LLM did not return a valid {response_format.__name__} "
+                f"({describe_response(result['raw'])}): {parsing_error}"
             )
+            AgentLogger(type(self).__name__, state).warning(f"⚠ {message[:500]}")
+            raise StructuredOutputError(message)
         return parsed

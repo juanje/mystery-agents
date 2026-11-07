@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from mystery_agents.utils.constants import (
     DRY_RUN_DUMMY_API_KEY,
     LLM_API_KEY_VARS,
+    LLM_MAX_OUTPUT_TOKENS,
     LLM_MODELS,
     LLM_PROVIDER_DEFAULT,
     LLM_REASONING_EFFORT,
@@ -125,6 +126,7 @@ class LLMConfig:
                 temperature=temperature,
                 timeout=LLM_REQUEST_TIMEOUT,
                 reasoning_effort=reasoning_effort,
+                max_tokens=LLM_MAX_OUTPUT_TOKENS,  # type: ignore[call-arg]
                 # GPT-6 models are only served by the Responses API: Chat Completions
                 # answers 403 "does not have access to model" for them
                 use_responses_api=True,
@@ -136,4 +138,5 @@ class LLMConfig:
             timeout=LLM_REQUEST_TIMEOUT,
             # Gemini 3.8 Flash thinks much more than 3.6 by default (twice as slow)
             reasoning_effort=reasoning_effort,
+            max_output_tokens=LLM_MAX_OUTPUT_TOKENS,
         )

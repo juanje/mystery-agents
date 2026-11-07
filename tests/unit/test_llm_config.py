@@ -7,7 +7,7 @@ from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel
 
 from mystery_agents.config import LLMConfig, api_key_var, get_provider
-from mystery_agents.utils.constants import LLM_MODELS, LLM_REQUEST_TIMEOUT
+from mystery_agents.utils.constants import LLM_MAX_OUTPUT_TOKENS, LLM_MODELS, LLM_REQUEST_TIMEOUT
 
 
 @pytest.fixture(autouse=True)
@@ -21,51 +21,51 @@ def _default_provider(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(var, raising=False)
 
 
-def test_openai_is_the_default_provider() -> None:
-    """Without LLM_PROVIDER, text tiers use OpenAI's default model."""
+def test_gemini_is_the_default_provider() -> None:
+    """Without LLM_PROVIDER, text tiers use Gemini 3.8 Flash, the best measured."""
     model = LLMConfig.get_model("tier1")
 
-    assert get_provider() == "openai"
-    assert isinstance(model, ChatOpenAI)
-    assert model.model_name == LLM_MODELS["openai"]["tier1"]
-    assert api_key_var() == "OPENAI_API_KEY"
-
-
-def test_openai_reasoning_effort_per_tier(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Medium where the logic is, low for the mechanical tier; each tier can be overridden."""
-    tier1 = LLMConfig.get_model("tier1")
-    tier2 = LLMConfig.get_model("tier2")
-    assert isinstance(tier1, ChatOpenAI) and isinstance(tier2, ChatOpenAI)
-    assert (tier1.reasoning_effort, tier2.reasoning_effort) == ("medium", "low")
-
-    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "high")
-    tier1 = LLMConfig.get_model("tier1")
-    assert isinstance(tier1, ChatOpenAI) and tier1.reasoning_effort == "high"
-
-
-def test_google_provider_and_model_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """LLM_PROVIDER=google switches back to Gemini; LLM_MODEL_TIER* still overrides a tier."""
-    monkeypatch.setenv("LLM_PROVIDER", "Google")
-    monkeypatch.setenv("LLM_MODEL_TIER2", "gemini-custom")
-
-    tier1 = LLMConfig.get_model("tier1")
-    tier2 = LLMConfig.get_model("tier2")
-
-    assert isinstance(tier1, ChatGoogleGenerativeAI)
-    assert tier1.model.endswith(LLM_MODELS["google"]["tier1"])
-    assert tier2.model.endswith("gemini-custom")
+    assert get_provider() == "google"
+    assert isinstance(model, ChatGoogleGenerativeAI)
+    assert model.model.endswith(LLM_MODELS["google"]["tier1"])
     assert api_key_var() == "GOOGLE_API_KEY"
 
 
-def test_gemini_reasoning_effort_only_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Gemini keeps its own default; an override reaches it like it does OpenAI."""
-    monkeypatch.setenv("LLM_PROVIDER", "google")
+@pytest.mark.parametrize("provider", ["openai", "google"])
+def test_reasoning_effort_per_tier(provider: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Medium where the logic is, low for the mechanical tier; each tier can be overridden."""
+    monkeypatch.setenv("LLM_PROVIDER", provider)
     tier1 = LLMConfig.get_model("tier1")
-    assert isinstance(tier1, ChatGoogleGenerativeAI) and tier1.reasoning_effort is None
+    tier2 = LLMConfig.get_model("tier2")
+    assert (tier1.reasoning_effort, tier2.reasoning_effort) == ("medium", "low")  # type: ignore[attr-defined]
 
-    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "low")
+    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "high")
+    assert LLMConfig.get_model("tier1").reasoning_effort == "high"  # type: ignore[attr-defined]
+
+
+def test_openai_provider_and_model_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLM_PROVIDER=openai switches to GPT-6 Luna; LLM_MODEL_TIER* still overrides a tier."""
+    monkeypatch.setenv("LLM_PROVIDER", "OpenAI")
+    monkeypatch.setenv("LLM_MODEL_TIER2", "gpt-custom")
+
     tier1 = LLMConfig.get_model("tier1")
-    assert isinstance(tier1, ChatGoogleGenerativeAI) and tier1.reasoning_effort == "low"
+    tier2 = LLMConfig.get_model("tier2")
+
+    assert isinstance(tier1, ChatOpenAI) and isinstance(tier2, ChatOpenAI)
+    assert tier1.model_name == LLM_MODELS["openai"]["tier1"]
+    assert tier2.model_name == "gpt-custom"
+    assert api_key_var() == "OPENAI_API_KEY"
+
+
+@pytest.mark.parametrize("provider", ["openai", "google"])
+def test_output_is_capped(provider: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A model looping on repeated text fails at the cap instead of running for minutes."""
+    monkeypatch.setenv("LLM_PROVIDER", provider)
+
+    model = LLMConfig.get_model("tier1")
+
+    cap = model.max_tokens if isinstance(model, ChatOpenAI) else model.max_output_tokens  # type: ignore[attr-defined]
+    assert cap == LLM_MAX_OUTPUT_TOKENS
 
 
 def test_unknown_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
