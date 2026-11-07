@@ -13,6 +13,7 @@ from mystery_agents.utils.constants import NODE_MAX_ATTEMPTS
 from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
+    drop_impossible_sightings,
     find_timeline_violations,
 )
 
@@ -183,17 +184,21 @@ def a7_5_personal_timelines_node(state: GameState) -> GameState:
     log.info(f"✓ Personal timelines for {len(result.personal_timelines)} suspects")
 
     # Fix what code can measure before the validators and A8 build on these sheets
+    result = _prune_sheets(cast(GameState, result), log)
     issues = find_timeline_violations(result)
     if issues:
         for issue in issues:
             log.warning(f"  {issue.type}: {issue.description}")
         log.warning("⚠ Personal timelines need fixes - rewriting the flagged suspects")
         result = agent.revise(result, issues)
-    return _limit_killer_witnesses(cast(GameState, result), log)
+    return _prune_sheets(cast(GameState, result), log)
 
 
-def _limit_killer_witnesses(state: GameState, log: AgentLogger) -> GameState:
-    """Enforce the killer witness limit in code; asking the model for it didn't work."""
+def _prune_sheets(state: GameState, log: AgentLogger) -> GameState:
+    """Enforce in code what rewrites kept getting wrong: sightings through walls, too many witnesses."""
+    unseen = drop_impossible_sightings(state)
+    if unseen:
+        log.info(f"Removed sightings the floor plan rules out from: {', '.join(unseen)}")
     trimmed = drop_excess_killer_sightings(state)
     if trimmed:
         log.info(f"Removed killer sightings beyond the limit from: {', '.join(trimmed)}")
@@ -238,10 +243,10 @@ def a8_content_node(state: GameState) -> GameState:
     result = agent.run(state)
     log.info(f"✓ Content generated ({len(result.clues)} clues)")
 
-    from mystery_agents.agents.v3_content_validator import drop_questions_naming_killer
+    from mystery_agents.agents.v3_content_validator import drop_revealing_questions
 
-    for question in drop_questions_naming_killer(result):
-        log.info(f"Removed a guiding question that names the killer: {question}")
+    for question in drop_revealing_questions(result):
+        log.info(f"Removed a guiding question that points at the answer: {question}")
     return cast(GameState, result)
 
 
@@ -284,7 +289,7 @@ def _revise_timelines(state: GameState, issues: list[ValidationIssue]) -> GameSt
     suspects = sorted({char_id for issue in issues for char_id in issue.related_ids})
     log.info(f"Rewriting personal timelines flagged by the review: {', '.join(suspects)}")
     agent = AgentFactory.get_agent(PersonalTimelinesAgent)
-    return _limit_killer_witnesses(cast(GameState, agent.revise(state, issues)), log)
+    return _prune_sheets(cast(GameState, agent.revise(state, issues)), log)
 
 
 def a7_5_revise_timelines_node(state: GameState) -> GameState:

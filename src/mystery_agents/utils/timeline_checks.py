@@ -7,8 +7,17 @@ player witnessing the killer, which makes the game obvious.
 
 import re
 import unicodedata
+from collections.abc import Iterator
 
-from mystery_agents.models.state import GameState, Observation, PersonalEvent, ValidationIssue
+from mystery_agents.models.state import (
+    DeductionPlan,
+    EvidencePiece,
+    GameState,
+    Observation,
+    PersonalEvent,
+    Room,
+    ValidationIssue,
+)
 
 # Minutes of slack around event boundaries: people move between rooms
 TIME_TOLERANCE_MINUTES = 5
@@ -25,7 +34,7 @@ MIN_PLACE_WORD_LENGTH = 4
 _TIME_PATTERN = re.compile(r"(\d{1,2}):(\d{2})")
 
 
-def _minutes(text: str) -> list[int]:
+def minutes_in(text: str) -> list[int]:
     """All HH:MM times in a text, as minutes since midnight."""
     return [int(hours) * 60 + int(mins) for hours, mins in _TIME_PATTERN.findall(text)]
 
@@ -37,7 +46,7 @@ def event_ranges(events: list[PersonalEvent]) -> list[tuple[int, int] | None]:
     A single time lasts until the next event starts. Events without a readable
     time get None and are skipped by the checks.
     """
-    starts = [_minutes(event.time) for event in events]
+    starts = [minutes_in(event.time) for event in events]
     ranges: list[tuple[int, int] | None] = []
     for index, times in enumerate(starts):
         if not times:
@@ -79,7 +88,7 @@ def find_observation_time_errors(state: GameState) -> list[ValidationIssue]:
             if span is None:
                 continue
             for seen in event.info_they_observed:
-                times = _minutes(seen.time)
+                times = minutes_in(seen.time)
                 if times and not _covers(span, times[0]):
                     issues.append(
                         ValidationIssue(
@@ -118,7 +127,7 @@ def find_misplaced_observations(state: GameState) -> list[ValidationIssue]:
         for event in timeline.events:
             for seen in event.info_they_observed:
                 observed = state.personal_timelines.get(seen.observed_character_id)
-                times = _minutes(seen.time)
+                times = minutes_in(seen.time)
                 if not observed or not times or seen.observed_character_id == char_id:
                     continue
                 places = _places_around(observed.events, times[0])
@@ -145,25 +154,28 @@ def find_misplaced_observations(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
-def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
+def _impossible_sightings(
+    state: GameState,
+) -> Iterator[tuple[str, PersonalEvent, Observation, Room]]:
     """
-    Find observations of a room the observer couldn't see from where they were.
+    Observations of a room the observer couldn't see from where they were.
 
     Players judge sightings by the plan on their sheets: someone sees their own room
     and the rooms listed as visible from it. Anything else is a sighting they will
     reject when they compare sheets, even if a door connects the two rooms.
+
+    Yields:
+        (observer ID, the observer's event, the observation, the room they look from)
     """
     if not state.world or not state.world.rooms:
-        return []
+        return
     rooms = {room.name: room for room in state.world.rooms}
-    names = {char.id: char.name for char in state.characters}
     # An unaware killer's sheet shows their claimed places, so that's where they look from
     unaware_killer = (
         state.killer_selection.killer_id
         if state.killer_selection and not state.config.killer_knows_identity
         else None
     )
-    issues = []
     for char_id, timeline in state.personal_timelines.items():
         for event in timeline.events:
             shown_place = (
@@ -181,20 +193,75 @@ def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
                     and seen.location in rooms
                     and seen.location not in visible
                 ):
-                    issues.append(
-                        ValidationIssue(
-                            type="timeline_conflict",
-                            description=(
-                                f"{names.get(char_id, char_id)} is in {here.name} at {event.time} "
-                                f"but observes something in {seen.location} ('{seen.text}'), "
-                                f"which can't be seen from there. From {here.name} they can see: "
-                                f"{', '.join(sorted(visible))}."
-                            ),
-                            related_ids=[char_id],
-                            fix_in="timelines",
-                        )
-                    )
-    return issues
+                    yield char_id, event, seen, here
+
+
+def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
+    """Find observations of a room the observer couldn't see from where they were."""
+    names = {char.id: char.name for char in state.characters}
+    return [
+        ValidationIssue(
+            type="timeline_conflict",
+            description=(
+                f"{names.get(char_id, char_id)} is in {here.name} at {event.time} "
+                f"but observes something in {seen.location} ('{seen.text}'), "
+                f"which can't be seen from there. From {here.name} they can see: "
+                f"{', '.join(sorted({here.name, *here.can_see}))}."
+            ),
+            related_ids=[char_id],
+            fix_in="timelines",
+        )
+        for char_id, event, seen, here in _impossible_sightings(state)
+    ]
+
+
+def _plan_pieces(plan: DeductionPlan) -> list[EvidencePiece]:
+    """Every piece of a deduction plan: breaking, means and each red herring's two."""
+    return [
+        *plan.breaking_pieces,
+        plan.means_piece,
+        *(entry.suspicion for entry in plan.red_herrings),
+        *(entry.clearing for entry in plan.red_herrings),
+    ]
+
+
+def _is_planned(state: GameState, holder_id: str, seen: Observation) -> bool:
+    """Whether the deduction plan asks for this observation (same holder, subject and time)."""
+    plan = state.killer_selection.deduction_plan if state.killer_selection else None
+    times = minutes_in(seen.time)
+    if not plan or not times:
+        return False
+    pieces = _plan_pieces(plan)
+    return any(
+        piece.kind == "observation"
+        and piece.holder_id == holder_id
+        and piece.about_id == seen.observed_character_id
+        and (planned_at := minutes_in(piece.time))
+        and abs(planned_at[0] - times[0]) <= PLANNED_TIME_SLACK_MINUTES
+        for piece in pieces
+    )
+
+
+def drop_impossible_sightings(state: GameState) -> list[str]:
+    """
+    Remove sightings the floor plan rules out, unless the deduction plan needs them.
+
+    Rewrites flagged with these kept them in real runs, and the games shipped with
+    sightings through walls that players reject when they read the house plan. An
+    unplanned sighting adds colour, not proof, so removing it costs the case nothing.
+    Planned ones stay, so the review still asks for them to be made possible.
+
+    Returns:
+        IDs of the suspects whose sightings were removed
+    """
+    found = [
+        (char_id, event, seen)
+        for char_id, event, seen, _ in _impossible_sightings(state)
+        if not _is_planned(state, char_id, seen)
+    ]
+    for _, event, seen in found:
+        event.info_they_observed = [o for o in event.info_they_observed if o is not seen]
+    return list(dict.fromkeys(char_id for char_id, _, _ in found))
 
 
 def _place_at(events: list[PersonalEvent], minute: int) -> list[str]:
@@ -227,7 +294,7 @@ def find_absent_from_shared_events(state: GameState) -> list[ValidationIssue]:
     rooms = {room.name for room in state.world.rooms}
     issues = []
     for time, room, char_ids, description in shared:
-        times = _minutes(time)
+        times = minutes_in(time)
         if not times or room not in rooms:
             continue
         for char_id in char_ids:
@@ -262,7 +329,7 @@ def find_murder_heard_out_of_range(state: GameState) -> list[ValidationIssue]:
     if not state.timeline_global or not state.world or not state.world.rooms:
         return []
     murder = state.timeline_global.murder_event
-    times = _minutes(murder.time)
+    times = minutes_in(murder.time)
     if not times:
         return []
     audible = {murder.room, *murder.heard_in}
@@ -271,7 +338,7 @@ def find_murder_heard_out_of_range(state: GameState) -> list[ValidationIssue]:
     for char_id, timeline in state.personal_timelines.items():
         for event in timeline.events:
             for seen in event.info_they_observed:
-                heard_at = _minutes(seen.time)
+                heard_at = minutes_in(seen.time)
                 if (
                     seen.sense == "sound"
                     and heard_at
@@ -321,7 +388,7 @@ def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
             for event in timeline.events
             for seen in event.info_they_observed
             if seen.observed_character_id == killer_id
-            and (times := _minutes(seen.time))
+            and (times := minutes_in(seen.time))
             and any(_covers(span, times[0]) for span in hidden_spans)
         ]
         if found:
@@ -414,7 +481,7 @@ def find_route_not_followed(state: GameState) -> list[ValidationIssue]:
     rooms = {room.name for room in state.world.rooms}
     issues = []
     for step in selection.route:
-        times = _minutes(step.time)
+        times = minutes_in(step.time)
         if not times or step.room not in rooms:
             continue
         places = _place_at(timeline.events, times[0])
@@ -445,21 +512,16 @@ def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]
     if not plan:
         return []
     names = {char.id: char.name for char in state.characters}
-    pieces = [
-        *plan.breaking_pieces,
-        plan.means_piece,
-        *(entry.suspicion for entry in plan.red_herrings),
-        *(entry.clearing for entry in plan.red_herrings),
-    ]
+    pieces = _plan_pieces(plan)
     issues = []
     for piece in pieces:
         timeline = state.personal_timelines.get(piece.holder_id)
-        planned_at = _minutes(piece.time)
+        planned_at = minutes_in(piece.time)
         if piece.kind != "observation" or not timeline or not planned_at:
             continue
         found = any(
             seen.observed_character_id == piece.about_id
-            and (times := _minutes(seen.time))
+            and (times := minutes_in(seen.time))
             and abs(times[0] - planned_at[0]) <= PLANNED_TIME_SLACK_MINUTES
             for event in timeline.events
             for seen in event.info_they_observed
@@ -510,12 +572,12 @@ def find_impossible_planned_sightings(state: GameState) -> list[str]:
     route = [
         (span, step.room)
         for step in selection.route
-        if (times := _minutes(step.time))
+        if (times := minutes_in(step.time))
         for span in [(times[0], times[1] if len(times) > 1 else times[0])]
     ]
     problems = []
     for piece in plan.breaking_pieces:
-        times = _minutes(piece.time)
+        times = minutes_in(piece.time)
         here = rooms.get(piece.from_room)
         if piece.kind != "observation" or piece.about_id != selection.killer_id:
             continue

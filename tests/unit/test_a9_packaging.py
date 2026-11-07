@@ -704,6 +704,30 @@ def test_evening_section_shows_claimed_location_for_unaware_killer(
     assert "Study" not in content
 
 
+def test_unaware_killer_account_is_one_slot_per_claimed_place(
+    basic_game_state: GameState, tmp_path: Path
+) -> None:
+    """Filler slots cut at the minutes of the sightings would mark the killer's sheet."""
+    _add_evening(basic_game_state, killer=True)
+    basic_game_state.config.killer_knows_identity = False
+    first = basic_game_state.personal_timelines["char-001"].events[0]
+    first.time = "22:05-22:12"
+    second = first.model_copy(
+        update={
+            "time": "22:12-22:16",
+            "location": "Hall",
+            "what_they_will_tell_others": "You kept resting.",
+            "info_they_observed": [],
+        }
+    )
+    basic_game_state.personal_timelines["char-001"].events.append(second)
+
+    content = _sheet(basic_game_state, tmp_path)
+
+    assert "**22:05-22:16** · Cloakroom: You went to fetch your shawl. You kept resting." in content
+    assert "22:12-22:16" not in content
+
+
 def test_character_sheet_shows_the_house(basic_game_state: GameState, tmp_path: Path) -> None:
     """Players get the floor plan so they can check who could have seen what."""
     from mystery_agents.models.state import Room

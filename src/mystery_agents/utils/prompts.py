@@ -596,7 +596,9 @@ testimonies they point to the killer; on their own, they make several suspects l
 - No single clue identifies the killer. Easy games need two clues and one clear observation, medium ones
   two or three clues and observations from at least two players, hard ones three or more clues and several
   observations that only make sense together.
-- At most one clue names the killer, and it is ambiguous on its own (a motive others share, for example).
+- A clue never names the killer alone. If one names them, it names other suspects too (a list of debtors,
+  a guest list), because a clue that points at one name, or matches only their shoes or clothes, solves
+  the case before anyone compares testimonies.
 - Titles name the object neutrally ("Torn letter", "Pharmacy receipt"): players read them first.
 - Red herrings suggest means or opportunity, not only motive, and each can be cleared later with another
   clue or an observation. Motive only is too weak: "Letter threatening to disinherit Laura". Means:
@@ -613,7 +615,10 @@ DETECTIVE AND HOST GUIDE
   culture (a private inquiry agent in Victorian times, a police detective today).
 - Guiding questions help a stuck table compare testimonies. A question only one suspect fits answers
   itself, so each one concerns a place, time or object several suspects are linked to, with facts that
-  match the timelines.
+  match the timelines. They never cite the time or the witness of an observation in the deduction plan's
+  breaking pieces: the table has to find those by comparing sheets.
+- The detective's clue notes say what each clue suggests and what it combines with, never whom it convicts:
+  the host reads them before the reveal.
 - The Act 2 intro gives the cause of death (poisoning, a blow to the head): players need it to know what
   to look for. It names a substance only if more than one suspect could have had it, and any time window
   it gives doesn't match exactly one suspect's absence.

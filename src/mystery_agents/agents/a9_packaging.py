@@ -34,6 +34,7 @@ from mystery_agents.utils.i18n import (
 from mystery_agents.utils.logging_config import AgentLogger
 from mystery_agents.utils.prompts import A9_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import safe_get_world_location_name
+from mystery_agents.utils.timeline_checks import event_ranges
 
 from .base import BaseAgent
 
@@ -93,6 +94,55 @@ def _generate_pdf_worker(
         return True, ""
     except Exception as e:
         return False, str(e)
+
+
+class ToldSlot(NamedTuple):
+    """One moment of a suspect's own account, as their sheet prints it."""
+
+    time: str
+    place: str
+    text: str
+    observed: list[Any]
+
+
+def _clock(minute: int) -> str:
+    return f"{minute // 60:02d}:{minute % 60:02d}"
+
+
+def told_slots(events: list[Any]) -> list[ToldSlot]:
+    """
+    A suspect's account, with consecutive moments in the same claimed place merged.
+
+    The unaware killer's account is a single claim ("I stayed in the kitchen") that
+    the writer cut into filler slots at the exact minutes of the sightings against
+    them ("You kept resting", "You were still resting"), which no innocent sheet has.
+    Printing one slot per place hides that seam.
+    """
+    slots: list[ToldSlot] = []
+    spans: list[tuple[int, int] | None] = []
+    for event, span in zip(events, event_ranges(events), strict=True):
+        told = event.what_they_will_tell_others
+        place = (
+            event.location
+            if told == event.what_they_really_did
+            else event.claimed_location or event.location
+        )
+        previous = spans[-1] if spans else None
+        if slots and span and previous and slots[-1].place == place:
+            last = slots[-1]
+            text = last.text if told in last.text else f"{last.text} {told}"
+            merged = (previous[0], span[1])
+            slots[-1] = ToldSlot(
+                f"{_clock(merged[0])}-{_clock(merged[1])}",
+                place,
+                text,
+                [*last.observed, *event.info_they_observed],
+            )
+            spans[-1] = merged
+            continue
+        slots.append(ToldSlot(event.time, place, told, list(event.info_they_observed)))
+        spans.append(span)
+    return slots
 
 
 class PackagingAgent(BaseAgent):
@@ -732,11 +782,17 @@ ZIP file: {zip_path}
         did_lines: list[str] = []
         will_say_lines: list[str] = []
         saw_lines: list[str] = []
+        if hide_truth:
+            did_lines = [
+                f"- **{slot.time}**{f' · {slot.place}' if slot.place else ''}: {slot.text}"
+                for slot in told_slots(timeline.events)
+            ]
         for event in timeline.events:
-            did = event.what_they_will_tell_others if hide_truth else event.what_they_really_did
-            did_lines.append(f"- **{event.time}**{self._event_place(event, did)}: {did}")
+            did = event.what_they_really_did
+            if not hide_truth:
+                did_lines.append(f"- **{event.time}**{self._event_place(event, did)}: {did}")
             told = event.what_they_will_tell_others
-            if not hide_truth and told != event.what_they_really_did:
+            if not hide_truth and told != did:
                 will_say_lines.append(f"- **{event.time}**{self._event_place(event, told)}: {told}")
             saw_lines.extend(f"- **{seen.time}**: {seen.text}" for seen in event.info_they_observed)
 
@@ -1048,12 +1104,12 @@ ZIP file: {zip_path}
             if not timeline:
                 continue
             lines = []
-            for event in timeline.events:
-                told = event.what_they_will_tell_others
-                lines.append(f"- **{event.time}**{self._event_place(event, told)}: {told}")
+            for slot in told_slots(timeline.events):
+                place = f" · {slot.place}" if slot.place else ""
+                lines.append(f"- **{slot.time}**{place}: {slot.text}")
                 lines.extend(
                     f"  - *{labels['observed']}* ({seen.time}): {seen.text}"
-                    for seen in event.info_they_observed
+                    for seen in slot.observed
                 )
             blocks.append(f"### {character.name}\n\n" + "\n".join(lines))
 

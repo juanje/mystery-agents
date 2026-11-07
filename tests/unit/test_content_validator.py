@@ -6,7 +6,8 @@ import pytest
 
 from mystery_agents.agents.v3_content_validator import (
     ContentValidatorAgent,
-    drop_questions_naming_killer,
+    drop_revealing_questions,
+    find_clue_notes_naming_killer,
     find_clues_naming_killer,
     find_killer_in_guiding_questions,
     find_over_obvious_clues,
@@ -19,8 +20,11 @@ from mystery_agents.graph.workflow import (
 )
 from mystery_agents.models.state import (
     CharacterSpec,
+    ClueSolutionEntry,
     ClueSpec,
+    DeductionPlan,
     DetectiveRole,
+    EvidencePiece,
     GameConfig,
     GameState,
     HostGuide,
@@ -288,7 +292,7 @@ def test_questions_naming_the_killer_are_dropped() -> None:
         "¿Quién pasó por el pasillo entre las 22:10 y las 22:20?",
     ]
 
-    removed = drop_questions_naming_killer(state)
+    removed = drop_revealing_questions(state)
 
     assert removed == ["¿Dónde estaba Manrique a las 22:10?"]
     assert detective.guiding_questions == [
@@ -296,14 +300,60 @@ def test_questions_naming_the_killer_are_dropped() -> None:
     ]
 
 
-def test_clues_that_identify_the_killer_alone_are_flagged() -> None:
-    """Two clues naming the killer, or their unique initials on an object, solve the case."""
+def test_questions_citing_the_decisive_sightings_are_dropped() -> None:
+    """Asking for the witness or the minute of a breaking observation gives the answer away."""
     state = _game_with_killer()
-    state.clues[0].description = "Una foto de Manrique con la corbata del crimen."
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = DeductionPlan(
+        breaking_pieces=[
+            EvidencePiece(
+                kind="observation",
+                holder_id="char-1",
+                about_id="char-0",
+                time="22:12",
+                description="x",
+            )
+        ],
+        means_piece=EvidencePiece(
+            kind="clue", holder_id="", about_id="char-0", time="21:00", description="x"
+        ),
+        red_herrings=[],
+    )
+    detective = state.host_guide.host_act2_detective_role
+    detective.guiding_questions = [
+        "¿Qué vio Elena desde el salón?",
+        "¿Quién cruzaba el patio hacia las 22:13?",
+        "¿Quién tenía llave de la bodega?",
+    ]
+
+    removed = drop_revealing_questions(state)
+
+    assert removed == ["¿Qué vio Elena desde el salón?", "¿Quién cruzaba el patio hacia las 22:13?"]
+    assert detective.guiding_questions == ["¿Quién tenía llave de la bodega?"]
+
+
+def test_clue_notes_naming_the_killer_are_flagged() -> None:
+    """The host reads the notes before the reveal, so they can't say whom a clue convicts."""
+    state = _game_with_killer()
+    state.host_guide.host_act2_detective_role.clues_to_reveal = [
+        ClueSolutionEntry(clue_id="c1", how_to_interpret="Contradice la coartada de Manrique."),
+        ClueSolutionEntry(clue_id="c2", how_to_interpret="Sugiere un motivo económico."),
+    ]
+
+    issues = find_clue_notes_naming_killer(state)
+
+    assert [issue.related_ids[0] for issue in issues] == ["c1"]
+
+
+def test_clues_that_identify_the_killer_alone_are_flagged() -> None:
+    """A clue naming only the killer, or their unique initials on an object, solves the case."""
+    state = _game_with_killer()
+    state.clues[0].description = "La suela coincide con los zapatos de Manrique."
     state.clues[1].description = "Un pañuelo bordado con las iniciales Á.M. junto a la puerta."
-    state.clues[2].description = "Un recibo firmado por Álvaro Manrique."
+    state.clues[2].description = "Una lista de deudores: Manrique, Elena Ojeda y Mateo Suárez."
 
     issues = find_clues_naming_killer(state)
 
-    assert any("name the killer" in issue.description for issue in issues)
+    named = [issue for issue in issues if "names the killer" in issue.description]
+    assert [issue.related_ids[0] for issue in named] == [state.clues[0].id]
     assert any("initials" in issue.description for issue in issues)

@@ -19,7 +19,7 @@ from mystery_agents.utils.state_helpers import (
     safe_get_crime_time_of_death,
     safe_get_crime_victim_name,
 )
-from mystery_agents.utils.timeline_checks import find_timeline_violations
+from mystery_agents.utils.timeline_checks import find_timeline_violations, minutes_in
 
 from .base import BaseAgent
 
@@ -117,12 +117,37 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     ]
 
 
-def drop_questions_naming_killer(state: GameState) -> list[str]:
-    """
-    Remove the detective's guiding questions that name the killer.
+# Minutes around a decisive observation or a route step within which a cited time points at it
+REVEALING_TIME_SLACK_MINUTES = 2
 
-    A8 kept writing them in its revisions even after the review flagged them.
-    The questions are only prompts for a stuck table, so losing one is harmless.
+
+def _decisive_pointers(state: GameState) -> tuple[set[str], list[int]]:
+    """
+    Who holds the observations that break the killer's account, and the times that matter.
+
+    The times are those observations' and the killer's route steps'. A guiding
+    question that cites one of them, or names one of those witnesses, tells the
+    table where the answer is.
+    """
+    selection = state.killer_selection
+    plan = selection.deduction_plan if selection else None
+    if not selection or not plan:
+        return set(), []
+    pieces = [piece for piece in plan.breaking_pieces if piece.kind == "observation"]
+    holders = [piece.holder_id for piece in pieces]
+    times = [m for piece in pieces for m in minutes_in(piece.time)[:1]]
+    times += [m for step in selection.route for m in minutes_in(step.time)]
+    return set(holders), times
+
+
+def drop_revealing_questions(state: GameState) -> list[str]:
+    """
+    Remove the detective's guiding questions that point at the answer.
+
+    In real runs they named the killer, or asked "what did Sofía see at 22:12 and
+    Guillermo at 22:16?", the exact two sightings that convict, and A8 kept writing
+    them after the review flagged them. The questions are only prompts for a stuck
+    table, so losing one is harmless.
 
     Returns:
         The removed questions
@@ -133,9 +158,54 @@ def drop_questions_naming_killer(state: GameState) -> list[str]:
     if not detective or not killer:
         return []
     shared = _parts_shared_with_others(state, killer.id)
-    removed = [q for q in detective.guiding_questions if _mentions(q, killer.name, ignore=shared)]
+    holders, times = _decisive_pointers(state)
+
+    def reveals(question: str) -> bool:
+        if _mentions(question, killer.name, ignore=shared):
+            return True
+        if any(
+            _mentions(question, char.name, ignore=_parts_shared_with_others(state, char.id))
+            for char in state.characters
+            if char.id in holders
+        ):
+            return True
+        return any(
+            abs(cited - decisive) <= REVEALING_TIME_SLACK_MINUTES
+            for cited in minutes_in(question)
+            for decisive in times
+        )
+
+    removed = [q for q in detective.guiding_questions if reveals(q)]
     detective.guiding_questions = [q for q in detective.guiding_questions if q not in removed]
     return removed
+
+
+def find_clue_notes_naming_killer(state: GameState) -> list[ValidationIssue]:
+    """
+    Find the detective's clue notes that name the killer.
+
+    The host reads them in Act 2 before the reveal, often aloud; a note saying a
+    clue "contradicts Carmen's alibi" solves the case for the table.
+    """
+    guide = state.host_guide
+    detective = guide.host_act2_detective_role if guide else None
+    killer = _killer(state)
+    if not detective or not killer:
+        return []
+    shared = _parts_shared_with_others(state, killer.id)
+    return [
+        ValidationIssue(
+            type="spoiler",
+            description=(
+                f"The detective's note on clue {entry.clue_id} names the killer ({killer.name}): "
+                f"'{entry.how_to_interpret}'. Say what the clue suggests and what it combines with "
+                "without naming who it convicts."
+            ),
+            related_ids=[entry.clue_id, killer.id],
+        )
+        for entry in detective.clues_to_reveal
+        if _mentions(entry.how_to_interpret, killer.name, ignore=shared)
+    ]
 
 
 def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
@@ -190,9 +260,11 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
     """
     Find clues that identify the killer by themselves.
 
-    One clue may name the killer if it's ambiguous on its own (a motive others
-    share). Several clues naming them, or their initials on an object at the scene,
-    settle the case before anyone compares testimonies.
+    A clue that names the killer and nobody else settles the case before anyone
+    compares testimonies (in real runs: "the sole matches the shoes Dora wears", a
+    letter about "Ricardo's embezzlement" setting a meeting at the time of death).
+    Naming them among other suspects keeps it ambiguous. Their initials on an object
+    at the scene are just as decisive.
     """
     killer = _killer(state)
     if not killer or not state.clues:
@@ -202,22 +274,26 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
     others_initials = {_initials(c.name) for c in state.characters if c.id != killer.id}
     issues = []
 
-    naming = [
-        number
-        for number, clue in enumerate(state.clues, 1)
-        if _mentions(clue.description, killer.name, ignore=shared)
-    ]
-    if len(naming) > 1:
-        issues.append(
-            ValidationIssue(
-                type="over_obvious",
-                description=(
-                    f"Clues {', '.join(map(str, naming))} name the killer ({killer.name}). At most one "
-                    "clue may, and it must be ambiguous alone; describe the others without names."
-                ),
-                related_ids=[killer.id],
-            )
+    for number, clue in enumerate(state.clues, 1):
+        if not _mentions(clue.description, killer.name, ignore=shared):
+            continue
+        others_named = any(
+            _mentions(clue.description, char.name, ignore=_parts_shared_with_others(state, char.id))
+            for char in state.characters
+            if char.id != killer.id
         )
+        if not others_named:
+            issues.append(
+                ValidationIssue(
+                    type="over_obvious",
+                    description=(
+                        f"Clue {number} '{clue.title}' names the killer ({killer.name}) and no other "
+                        "suspect, so it points at one person. Describe it without names, or make it "
+                        "fit several suspects."
+                    ),
+                    related_ids=[clue.id, killer.id],
+                )
+            )
     if initials and initials not in others_initials:
         for number, clue in enumerate(state.clues, 1):
             compact = re.sub(r"\s", "", clue.description)
@@ -248,6 +324,7 @@ def find_rule_violations(state: GameState) -> list[ValidationIssue]:
     return [
         *find_suspect_names_in_titles(state),
         *find_killer_in_guiding_questions(state),
+        *find_clue_notes_naming_killer(state),
         *find_over_obvious_clues(state),
         *find_clues_naming_killer(state),
         *find_timeline_violations(state),

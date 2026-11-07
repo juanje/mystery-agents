@@ -18,6 +18,7 @@ from mystery_agents.models.state import (
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
+    drop_impossible_sightings,
     event_ranges,
     find_absent_from_shared_events,
     find_impossible_planned_sightings,
@@ -256,6 +257,34 @@ def test_sightings_must_be_visible_from_the_observer_room(state: GameState) -> N
     issues = find_impossible_sightings(state)
 
     assert [issue.related_ids for issue in issues] == [["berta"]]
+
+
+def test_unplanned_sightings_through_walls_are_removed(state: GameState) -> None:
+    """Berta's sighting from the cellar goes; Carla's, which the plan needs, stays for review."""
+    from mystery_agents.models.state import HostCharacter, Room, WorldBible
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name=n, floor="0", description="x", connects_to=[])
+            for n in ("Study", "Cellar", "Garden", "Library", "Dining room", "Terrace")
+        ],
+    )
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = _plan(["carla"])
+    for witness in ("berta", "carla"):
+        state.personal_timelines[witness].events[1].info_they_observed = [
+            _seen("22:00", "killer", "Study")
+        ]
+
+    assert drop_impossible_sightings(state) == ["berta"]
+    assert state.personal_timelines["berta"].events[1].info_they_observed == []
+    assert [issue.related_ids for issue in find_impossible_sightings(state)] == [["carla"]]
 
 
 def test_sounds_can_come_from_rooms_out_of_sight(state: GameState) -> None:
