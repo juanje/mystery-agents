@@ -954,9 +954,9 @@ class ValidationIssue(BaseModel):
         default_factory=list,
         description="List of IDs related to this issue (character IDs, event IDs, etc.). Can be empty.",
     )
-    fix_in: Literal["content", "timelines"] = Field(
+    fix_in: Literal["content", "timelines", "clues", "guide", "solution"] = Field(
         default="content",
-        description="Where the fix belongs: 'timelines' when the problem lies inside the suspects' personal timelines (a suspect's own sheet contradicts itself or another sheet, or too many sheets give the killer away), so only rewriting those timelines can fix it; 'content' for clues, host guide, detective material and solution. For 'timelines', put the IDs of the suspects whose timelines must change in related_ids.",
+        description="Where the fix belongs: 'timelines' when the problem lies inside the suspects' personal timelines (a sheet contradicts itself or another sheet, or too many sheets give the killer away), with the IDs of the suspects whose timelines must change in related_ids; 'clues' for the clue cards; 'guide' for the host guide, the Act 2 intro, the detective and the guiding questions; 'solution' for the final solution, the detective's clue notes and the killer's brief; 'content' when it is unclear which of those, or for the crime and global timeline.",
     )
 
 

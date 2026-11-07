@@ -74,12 +74,15 @@ Config (YAML)
 ┌───────────────────────────────────────────────────────┐
 │ PHASE 4: Content & Packaging                          │
 ├───────────────────────────────────────────────────────┤
-│  A8: Content Generation  ║ A3.5: Character Images     │
-│  V3: Content Validator   ║   (optional, same step     │
-│    ├─ sheet issues →     ║    as A8)                  │
+│  A8: Content             ║ A3.5: Character Images     │
+│    clues → guide →       ║   (optional, same step     │
+│    solution, in turn     ║    as A8)                  │
+│  V3: Content Validator   ║                            │
+│    ├─ sheet issues →     ║                            │
 │    │  A7.5, then A8      ║                            │
 │    └─ fail → A8 edits    ║                            │
-│       its last version   ║                            │
+│       from the first     ║                            │
+│       flagged part on    ║                            │
 │       (max 2 retries)    ║                            │
 │  A8.5: Host Images       ║                            │
 │  A9: Packaging (waits for both branches; PDF + ZIP)   │
@@ -108,7 +111,7 @@ graph TD
     A7 --> A7_4[A7.4: Presence]
     A7_4 --> A7_5[A7.5: Personal Timelines]
     A7_5 --> V2[V2: Game Logic Validator]
-    V2 -->|pass| A8[A8: Content Generation]
+    V2 -->|pass| A8[A8: Content - clues, guide, solution]
     V2 -->|pass| A3_5[A3.5: Character Images]
     V2 -->|retry| A6
     V2 -->|retry, sheet issues| R1[A7.5: Revise Timelines]

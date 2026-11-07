@@ -83,6 +83,7 @@ def find_suspect_names_in_titles(state: GameState) -> list[ValidationIssue]:
                 issues.append(
                     ValidationIssue(
                         type="spoiler",
+                        fix_in="clues",
                         description=f"Clue title '{clue.title}' names suspect {char.name}. Titles must describe the object neutrally.",
                         related_ids=[clue.id, char.id],
                     )
@@ -114,6 +115,7 @@ def find_killer_in_guiding_questions(state: GameState) -> list[ValidationIssue]:
     return [
         ValidationIssue(
             type="spoiler",
+            fix_in="guide",
             description=f"Guiding question names the killer ({killer.name}): '{question}'. Ask about times, places or testimonies instead.",
             related_ids=[killer.id],
         )
@@ -206,6 +208,7 @@ def find_clue_notes_naming_killer(state: GameState) -> list[ValidationIssue]:
     return [
         ValidationIssue(
             type="spoiler",
+            fix_in="solution",
             description=(
                 f"The detective's note on clue {entry.clue_id} names the killer ({killer.name}): "
                 f"'{entry.how_to_interpret}'. Say what the clue suggests and what it combines with "
@@ -243,6 +246,7 @@ def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
             issues.append(
                 ValidationIssue(
                     type="over_obvious",
+                    fix_in="clues",
                     description=f"Clue {number} '{clue.title}' points only at the killer and clears most other suspects, so it solves the case alone.",
                     related_ids=[clue.id, killer.id],
                 )
@@ -253,6 +257,7 @@ def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
         issues.append(
             ValidationIssue(
                 type="over_obvious",
+                fix_in="clues",
                 description=f"{against_killer} of {len(state.clues)} clues point at the killer. Most clues should support red herrings or context.",
                 related_ids=[killer.id],
             )
@@ -296,6 +301,7 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
             issues.append(
                 ValidationIssue(
                     type="over_obvious",
+                    fix_in="clues",
                     description=(
                         f"Clue {number} '{clue.title}' names the killer ({killer.name}) and no other "
                         "suspect, so it points at one person. Describe it without names, or make it "
@@ -311,6 +317,7 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
                 issues.append(
                     ValidationIssue(
                         type="over_obvious",
+                        fix_in="clues",
                         description=(
                             f"Clue {number} '{clue.title}' shows the initials {initials}, which only "
                             f"{killer.name} has. Remove them or make them fit several suspects."
@@ -358,6 +365,7 @@ def _single_initial_issues(state: GameState, killer: CharacterSpec) -> list[Vali
             issues.append(
                 ValidationIssue(
                     type="over_obvious",
+                    fix_in="clues",
                     description=(
                         f"Clue {number} '{clue.title}' shows the initial {letter}, and only "
                         f"{killer.name}'s name starts with it. Remove it or use one several "
@@ -420,6 +428,7 @@ def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
             issues.append(
                 ValidationIssue(
                     type="logic_gap",
+                    fix_in="clues",
                     description=(
                         f"Clue {number} '{clue.title}' shows '{word}': {problem}. Make the object "
                         "something several suspects wear, adding it to their costumes in "
@@ -472,6 +481,7 @@ def find_solution_times_without_evidence(state: GameState) -> list[ValidationIss
     return [
         ValidationIssue(
             type="logic_gap",
+            fix_in="solution",
             description=(
                 f"The final solution cites {times}, which no sheet, clue or shared event has. "
                 "Use the times players hold, from the testimony list and the clues."

@@ -4,7 +4,13 @@ from unittest.mock import patch
 
 import pytest
 
-from mystery_agents.agents.a8_content import A8Output, ContentGenerationAgent
+from mystery_agents.agents.a8_content import (
+    PARTS,
+    CluesOutput,
+    ContentGenerationAgent,
+    GuideOutput,
+    SolutionOutput,
+)
 from mystery_agents.models.state import (
     CharacterSpec,
     CrimeScene,
@@ -113,24 +119,64 @@ def complete_game_state() -> GameState:
     )
 
 
-def test_content_agent_initialization() -> None:
-    """Test that ContentGenerationAgent initializes correctly."""
+def _outputs() -> dict[str, object]:
+    """One plausible output per writer."""
+    from mystery_agents.models.state import ClueSpec
+
+    return {
+        "clues": CluesOutput(
+            clues=[ClueSpec(id="c1", type="note", title="Torn letter", description="A letter.")]
+        ),
+        "guide": GuideOutput(
+            spoiler_free_intro="Intro",
+            host_act1_role_description="Role",
+            setup_instructions=["Print"],
+            runtime_tips=["Relax"],
+            live_action_murder_event_guide="Scream",
+            act_2_intro_script="Ladies and gentlemen",
+            detective={
+                "character_name": "Inspector Ruiz",
+                "public_description": "Sharp",
+                "personality_traits": ["calm"],
+                "costume_suggestion": "Coat",
+                "guiding_questions": ["Who was in the hall?"],
+            },
+        ),
+        "solution": SolutionOutput(clues_to_reveal=[], final_solution_script="It was Carlos."),
+    }
+
+
+def _run(agent: ContentGenerationAgent, state: GameState) -> dict[str, str]:
+    """Run A8 with fake writers; returns the request each writer received."""
+    outputs = _outputs()
+    requests: dict[str, str] = {}
+    patches = []
+    for part, writer in agent.writers.items():
+
+        def fake(_state: GameState, message: str, part: str = part) -> object:
+            requests[part] = message
+            return outputs[part]
+
+        patches.append(patch.object(writer, "invoke", side_effect=fake))
+    for p in patches:
+        p.start()
+    try:
+        agent.run(state)
+    finally:
+        for p in patches:
+            p.stop()
+    return requests
+
+
+def test_writers_have_their_own_prompts(complete_game_state: GameState) -> None:
+    """Each writer gets its own system prompt with the tone filled in."""
     agent = ContentGenerationAgent()
 
-    assert agent is not None
-    assert agent.response_format == A8Output
+    prompts = {part: w.get_system_prompt(complete_game_state) for part, w in agent.writers.items()}
 
-
-def test_get_system_prompt(complete_game_state: GameState) -> None:
-    """Test that system prompt is generated correctly."""
-    agent = ContentGenerationAgent()
-    prompt = agent.get_system_prompt(complete_game_state)
-
-    assert prompt is not None
-    assert isinstance(prompt, str)
-    assert len(prompt) > 0
-    # Should include language
-    assert "en" in prompt or "language" in prompt.lower()
+    assert "clues" in prompts["clues"] and "host's guide" in prompts["guide"]
+    assert "final solution" in prompts["solution"]
+    assert all("{" not in prompt for prompt in prompts.values())
 
 
 def test_mock_output_dry_run(complete_game_state: GameState) -> None:
@@ -168,47 +214,23 @@ def test_mock_output_with_characters(complete_game_state: GameState) -> None:
             assert len(clue_with_character.incriminates) > 0
 
 
-def test_run_with_llm_invocation(complete_game_state: GameState) -> None:
-    """Test that run invokes LLM when not in dry run mode."""
+def test_writers_run_in_order_and_fill_the_guide(complete_game_state: GameState) -> None:
+    """Clues, then guide, then solution; the host guide is assembled from all three."""
     complete_game_state.config.dry_run = False
     agent = ContentGenerationAgent()
 
-    # Mock the invoke method
-    from mystery_agents.models.state import DetectiveRole, HostGuide
+    requests = _run(agent, complete_game_state)
 
-    mock_host_guide = HostGuide(
-        spoiler_free_intro="Test intro",
-        host_act1_role_description="Test role",
-        setup_instructions=[],
-        runtime_tips=[],
-        live_action_murder_event_guide="Test guide",
-        act_2_intro_script="Test script",
-        host_act2_detective_role=DetectiveRole(
-            character_name="Test Detective",
-            public_description="Test description",
-            clues_to_reveal=[],
-            guiding_questions=[],
-            final_solution_script="Test solution",
-        ),
-    )
-
-    mock_output = A8Output(
-        host_guide=mock_host_guide,
-        clues=[],
-    )
-
-    with patch.object(agent, "invoke", return_value=mock_output) as mock_invoke:
-        agent.run(complete_game_state)
-
-        # Should have called invoke
-        assert mock_invoke.called
-        # Should have passed user message
-        call_args = mock_invoke.call_args
-        assert call_args is not None
-        user_message = call_args[0][1] if len(call_args[0]) > 1 else None
-        assert user_message is not None
-        assert isinstance(user_message, str)
-        assert len(user_message) > 0
+    assert list(requests) == list(PARTS)
+    assert [clue.id for clue in complete_game_state.clues] == ["c1"]
+    guide = complete_game_state.host_guide
+    assert guide is not None and guide.act_2_intro_script == "Ladies and gentlemen"
+    detective = guide.host_act2_detective_role
+    assert detective is not None
+    assert detective.character_name == "Inspector Ruiz"
+    assert detective.final_solution_script == "It was Carlos."
+    # Later writers see what the earlier ones wrote
+    assert "Torn letter" in requests["guide"] and "Torn letter" in requests["solution"]
 
 
 def test_run_without_killer_selection() -> None:
@@ -335,119 +357,77 @@ def test_run_with_empty_characters() -> None:
     assert result.clues is not None
 
 
-def test_user_message_includes_all_context(complete_game_state: GameState) -> None:
-    """Test that user message includes all necessary context."""
+def test_each_writer_gets_what_it_needs(complete_game_state: GameState) -> None:
+    """The clue writer sees costumes and the plan; the solution writer sees the testimony."""
     complete_game_state.config.dry_run = False
-    agent = ContentGenerationAgent()
+    complete_game_state.characters[0].costume_suggestion = "Grey suit with gold cufflinks"
 
-    from mystery_agents.models.state import DetectiveRole, HostGuide
+    requests = _run(ContentGenerationAgent(), complete_game_state)
 
-    mock_host_guide = HostGuide(
-        spoiler_free_intro="Test intro",
-        host_act1_role_description="Test role",
-        setup_instructions=[],
-        runtime_tips=[],
-        live_action_murder_event_guide="Test guide",
-        act_2_intro_script="Test script",
+    assert "gold cufflinks" in requests["clues"]
+    assert "DEDUCTION PLAN" in requests["clues"] and "Write at least" in requests["clues"]
+    assert "RELATIONSHIPS" in requests["guide"]
+    assert "TESTIMONY PLAYERS HOLD" in requests["solution"]
+    assert "WHAT REALLY HAPPENED" in requests["solution"]
+    assert complete_game_state.killer_selection is not None
+    assert complete_game_state.killer_selection.truth_narrative not in requests["solution"]
+    assert all("REVISION" not in request for request in requests.values())
+
+
+def _failed_review(state: GameState, *issues: ValidationIssue) -> None:
+    from mystery_agents.models.state import DetectiveRole
+
+    state.host_guide = HostGuide(
+        spoiler_free_intro="Previous intro",
         host_act2_detective_role=DetectiveRole(
-            character_name="Test Detective",
-            public_description="Test description",
-            clues_to_reveal=[],
-            guiding_questions=[],
-            final_solution_script="Test solution",
+            public_description="Sharp", clues_to_reveal=[], final_solution_script="Old reveal."
+        ),
+    )
+    state.content_validation = ValidationReport(is_consistent=False, issues=list(issues))
+
+
+def test_a_solution_issue_rewrites_only_the_solution(complete_game_state: GameState) -> None:
+    """The clues and guide passed the review, so only the reveal is written again."""
+    complete_game_state.config.dry_run = False
+    _failed_review(
+        complete_game_state,
+        ValidationIssue(type="logic_gap", description="Cites 22:24", fix_in="solution"),
+    )
+
+    requests = _run(ContentGenerationAgent(), complete_game_state)
+
+    assert list(requests) == ["solution"]
+    assert "REVISION" in requests["solution"] and "Old reveal." in requests["solution"]
+    assert "- logic_gap: Cites 22:24" in requests["solution"]
+    assert complete_game_state.host_guide is not None
+    assert complete_game_state.host_guide.spoiler_free_intro == "Previous intro"
+
+
+def test_a_clue_issue_rewrites_every_part_after_it(complete_game_state: GameState) -> None:
+    """The guide and solution cite the clues, so they follow; only the clue writer gets the issue."""
+    complete_game_state.config.dry_run = False
+    _failed_review(
+        complete_game_state,
+        ValidationIssue(type="spoiler", description="Clue 2 names the killer", fix_in="clues"),
+        ValidationIssue(
+            type="contradiction", description="Ana sees the corridor", fix_in="timelines"
         ),
     )
 
-    mock_output = A8Output(
-        host_guide=mock_host_guide,
-        clues=[],
-    )
+    requests = _run(ContentGenerationAgent(), complete_game_state)
 
-    with patch.object(agent, "invoke", return_value=mock_output) as mock_invoke:
-        agent.run(complete_game_state)
-
-        call_args = mock_invoke.call_args
-        user_message = call_args[0][1] if len(call_args[0]) > 1 else ""
-
-        # Should include key information
-        assert "GAME INFO" in user_message
-        assert "SETTING" in user_message
-        assert "VICTIM" in user_message
-        assert "CHARACTERS" in user_message
-        assert "CRIME" in user_message
-        assert "WHAT REALLY HAPPENED" in user_message
-        assert "Write at least" in user_message
-
-        # Should include specific values
-        assert str(complete_game_state.config.duration_minutes) in user_message
-        assert str(len(complete_game_state.characters)) in user_message
-        if complete_game_state.killer_selection:
-            assert complete_game_state.killer_selection.killer_id in user_message
-
-        # Clues must be written against the same facts as the player sheets
-        assert "RELATIONSHIPS" in user_message
-        assert "GLOBAL TIMELINE" in user_message
-        assert "PERSONAL TIMELINES" in user_message
-        assert f"Difficulty: {complete_game_state.config.difficulty}" in user_message
-        character = complete_game_state.characters[0]
-        assert f"Relation to victim: {character.relation_to_victim}" in user_message
-        assert "REVISION" not in user_message
+    assert list(requests) == list(PARTS)
+    assert "Clue 2 names the killer" in requests["clues"]
+    assert "Clue 2 names the killer" not in requests["solution"]
+    assert "Ana sees the corridor" not in requests["clues"]
+    assert "texts written before yours were revised" in requests["solution"]
+    assert "sheets were rewritten" in requests["guide"]
 
 
-def test_user_message_includes_review_issues_on_retry(complete_game_state: GameState) -> None:
-    """After a failed content review, A8 edits its previous version and is told what to fix."""
-    complete_game_state.config.dry_run = False
-    complete_game_state.host_guide = HostGuide(spoiler_free_intro="Previous intro")
-    complete_game_state.content_validation = ValidationReport(
-        is_consistent=False,
-        issues=[ValidationIssue(type="spoiler", description="Clue 2 names the killer")],
-        suggested_fixes=["Rename clue 2"],
-    )
-    agent = ContentGenerationAgent()
-    output = A8Output(host_guide=HostGuide(spoiler_free_intro="Intro"), clues=[])
-
-    with patch.object(agent, "invoke", return_value=output) as mock_invoke:
-        agent.run(complete_game_state)
-
-    user_message = mock_invoke.call_args[0][1]
-    assert "REVISION" in user_message
-    assert "Previous intro" in user_message
-    assert "- spoiler: Clue 2 names the killer" in user_message
-    assert "- Rename clue 2" in user_message
-    assert "timelines (global and personal) are what players hold" in user_message
-
-
-def test_retry_feedback_leaves_out_timeline_issues(complete_game_state: GameState) -> None:
-    """Issues inside the personal timelines were fixed upstream, so A8 isn't asked to fix them."""
-    complete_game_state.config.dry_run = False
-    complete_game_state.host_guide = HostGuide(spoiler_free_intro="Previous intro")
-    complete_game_state.content_validation = ValidationReport(
-        is_consistent=False,
-        issues=[
-            ValidationIssue(type="spoiler", description="Clue 2 names the killer"),
-            ValidationIssue(
-                type="contradiction",
-                description="Ana sees the corridor from the garden",
-                fix_in="timelines",
-            ),
-        ],
-    )
-    agent = ContentGenerationAgent()
-    output = A8Output(host_guide=HostGuide(spoiler_free_intro="Intro"), clues=[])
-
-    with patch.object(agent, "invoke", return_value=output) as mock_invoke:
-        agent.run(complete_game_state)
-
-    user_message = mock_invoke.call_args[0][1]
-    assert "Clue 2 names the killer" in user_message
-    assert "Ana sees the corridor" not in user_message
-    assert "Some personal timelines were rewritten" in user_message
-
-
-def test_a8_output_schema_has_no_const_fields() -> None:
+def test_writer_schemas_have_no_const_fields() -> None:
     """Gemini's native structured output ignores JSON Schema `const`, so avoid it."""
-    schema_text = str(A8Output.model_json_schema())
-    assert "'const'" not in schema_text
+    for schema in (CluesOutput, GuideOutput, SolutionOutput):
+        assert "'const'" not in str(schema.model_json_schema())
 
 
 def test_red_herring_material_lists_innocents_hidden_moments(
