@@ -766,3 +766,59 @@ def test_unaware_killer_events_always_show_a_place(
     content = _sheet(basic_game_state, tmp_path)
 
     assert "**22:00** · Study: You went to fetch your shawl." in content
+
+
+def test_solution_explains_the_deduction_plan(basic_game_state: GameState) -> None:
+    """The host sees which pieces break the killer's account and what clears each innocent."""
+    from mystery_agents.models.state import DeductionPlan, EvidencePiece, RedHerringPlan
+    from mystery_agents.utils.i18n import get_document_labels
+
+    state = basic_game_state
+    state.killer_selection = KillerSelection(
+        killer_id=state.characters[0].id, rationale="r", truth_narrative="t"
+    )
+    killer = state.killer_selection.killer_id
+    innocent = state.characters[0].model_copy(update={"id": "char-002", "name": "Rosa Díaz"})
+    state.characters.append(innocent)
+    state.killer_selection.deduction_plan = DeductionPlan(
+        breaking_pieces=[
+            EvidencePiece(
+                kind="observation",
+                holder_id=innocent.id,
+                about_id=killer,
+                time="22:10",
+                description="Lo ve subir por la escalera de servicio.",
+            )
+        ],
+        means_piece=EvidencePiece(
+            kind="clue", holder_id="", about_id=killer, time="21:00", description="Abrecartas."
+        ),
+        red_herrings=[
+            RedHerringPlan(
+                character_id=innocent.id,
+                suspicion=EvidencePiece(
+                    kind="clue",
+                    holder_id="",
+                    about_id=innocent.id,
+                    time="22:00",
+                    description="Recibo de guardarropa.",
+                ),
+                clearing=EvidencePiece(
+                    kind="observation",
+                    holder_id=killer,
+                    about_id=innocent.id,
+                    time="22:05",
+                    description="Sale por la puerta principal.",
+                ),
+            )
+        ],
+    )
+
+    text = PackagingAgent()._build_deduction_keys(state, get_document_labels("es"))
+
+    assert "## Claves de la deducción" in text
+    assert (
+        f"Lo ve subir por la escalera de servicio. *(observación de {innocent.name}, 22:10)*"
+        in text
+    )
+    assert "descartado por" in text

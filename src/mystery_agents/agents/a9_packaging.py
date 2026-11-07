@@ -545,7 +545,7 @@ ZIP file: {zip_path}
 ## {labels["truth_narrative"]}
 
 {state.killer_selection.truth_narrative if state.killer_selection else labels["no_truth_narrative"]}
-
+{self._build_deduction_keys(state, labels)}
 ## {labels["timeline_events"]}
 
 {self._format_timeline(state, labels) if state.timeline_global else labels["no_timeline"]}
@@ -553,6 +553,45 @@ ZIP file: {zip_path}
 
         content = self._number_clue_references(state, content)
         path.write_text(content, encoding="utf-8")
+
+    @staticmethod
+    def _build_deduction_keys(state: GameState, labels: dict[str, str]) -> str:
+        """
+        Build the 'Keys to the deduction' section from the deduction plan.
+
+        It tells the host which pieces break the killer's account and what clears
+        each innocent, so they can steer a stuck table.
+        """
+        plan = state.killer_selection.deduction_plan if state.killer_selection else None
+        if not plan:
+            return ""
+        names = {char.id: char.name for char in state.characters}
+
+        def piece(p: Any) -> str:
+            source = (
+                f"{labels['deduction_observation_of']} {names.get(p.holder_id, p.holder_id)}"
+                if p.kind == "observation"
+                else labels["deduction_clue"]
+            )
+            return f"{p.description} *({source}, {p.time})*"
+
+        herrings = "\n".join(
+            f"- **{names.get(e.character_id, e.character_id)}**: {piece(e.suspicion)} "
+            f"→ {labels['deduction_cleared_by']}: {piece(e.clearing)}"
+            for e in plan.red_herrings
+        )
+        return f"""
+## {labels["deduction_title"]}
+
+### {labels["deduction_breaking"]}
+
+{chr(10).join(f"- {piece(p)}" for p in plan.breaking_pieces)}
+- {labels["deduction_means"]}: {piece(plan.means_piece)}
+
+### {labels["deduction_red_herrings"]}
+
+{herrings}
+"""
 
     def _format_timeline(self, state: GameState, labels: dict[str, str]) -> str:
         """Format the timeline with complete event details including the murder."""
