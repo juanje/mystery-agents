@@ -434,3 +434,16 @@ def test_solution_times_nothing_players_hold_has_are_flagged() -> None:
         and "22:24" in issues[0].description
         and "22:10" not in issues[0].description
     )
+
+
+def test_a_single_initial_only_the_killer_has_is_flagged() -> None:
+    """'Signed with the initial A' names Álvaro, the only suspect whose name starts with A."""
+    state = _game_with_killer()
+    state.clues[0].description = "Una nota firmada con la inicial 'A' citándole a las 22:15."
+
+    issues = find_clues_naming_killer(state)
+
+    assert [issue.related_ids[0] for issue in issues] == ["c1"]
+
+    state.clues[0].description = "Una nota firmada con la inicial 'E'."
+    assert find_clues_naming_killer(state) == []

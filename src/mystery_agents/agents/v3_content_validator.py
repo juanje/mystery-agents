@@ -193,7 +193,9 @@ def find_clue_notes_naming_killer(state: GameState) -> list[ValidationIssue]:
     Find the detective's clue notes that name the killer.
 
     The host reads them in Act 2 before the reveal, often aloud; a note saying a
-    clue "contradicts Carmen's alibi" solves the case for the table.
+    clue "contradicts Carmen's alibi" solves the case for the table. Not part of the
+    review: A8 never fixed it in measured runs, and the flags used up the revisions
+    that fix what players do see.
     """
     guide = state.host_guide
     detective = guide.host_act2_detective_role if guide else None
@@ -316,6 +318,54 @@ def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
                         related_ids=[clue.id, killer.id],
                     )
                 )
+    issues.extend(_single_initial_issues(state, killer))
+    return issues
+
+
+# A lone capital in quotes or after "initial" ("signed with the initial 'L'", "firmada con una «L»")
+_SINGLE_INITIAL = re.compile(
+    r"['\"‘’“”«»]\s*([A-ZÁÉÍÓÚÑ])\.?\s*['\"‘’“”«»]|inicial(?:es)?\s+['\"«]?([A-ZÁÉÍÓÚÑ])\b",
+    re.IGNORECASE,
+)
+
+
+def _single_initial_issues(state: GameState, killer: CharacterSpec) -> list[ValidationIssue]:
+    """
+    Flag clues showing a single initial that only the killer's first name starts with.
+
+    A note "signed with the initial 'L'" named the only suspect called Lucía: the
+    two-letter initials check missed it.
+    """
+
+    def plain(letter: str) -> str:
+        return unicodedata.normalize("NFKD", letter).encode("ascii", "ignore").decode().upper()
+
+    first_letters = {
+        char.id: plain(_name_parts(char.name)[0][0])
+        for char in state.characters
+        if _name_parts(char.name)
+    }
+    letter = first_letters.get(killer.id)
+    if not letter or list(first_letters.values()).count(letter) > 1:
+        return []
+    issues = []
+    for number, clue in enumerate(state.clues, 1):
+        found = {
+            plain(match.group(1) or match.group(2))
+            for match in _SINGLE_INITIAL.finditer(clue.description)
+        }
+        if letter in found:
+            issues.append(
+                ValidationIssue(
+                    type="over_obvious",
+                    description=(
+                        f"Clue {number} '{clue.title}' shows the initial {letter}, and only "
+                        f"{killer.name}'s name starts with it. Remove it or use one several "
+                        "suspects share."
+                    ),
+                    related_ids=[clue.id, killer.id],
+                )
+            )
     return issues
 
 
@@ -339,10 +389,10 @@ def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
     Find clues whose personal object only one costume explains, against the case.
 
     In measured games the key clue was a crest cufflink only the victim wore, or a
-    handkerchief from an innocent's costume the solution gave the killer. Flagged:
-    an incriminating clue whose object only the victim wears, any clue whose object
-    only the killer wears, and an object only one innocent wears in a clue that
-    incriminates the killer.
+    thread "azul noche" only the killer wore. Flagged: an incriminating clue whose
+    object only the victim wears, and any clue whose object only the killer wears.
+    Matching an innocent's costume isn't flagged: word overlap there was mostly
+    noise ("sobre", "madera") and used up A8's revisions.
     """
     killer = _killer(state)
     if not killer or not state.clues:
@@ -356,7 +406,6 @@ def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
     victim_words = (
         _costume_words(state.crime.victim.costume_suggestion or "") if state.crime else set()
     )
-    names = {char.id: char.name for char in state.characters}
     issues = []
     for number, clue in enumerate(state.clues, 1):
         for word in sorted(_costume_words(clue.description)):
@@ -366,11 +415,6 @@ def find_clue_objects_worn_by_one(state: GameState) -> list[ValidationIssue]:
                 problem = "only the victim's costume has it, so it can't point at a suspect"
             elif owners == [killer.id]:
                 problem = f"only {killer.name}'s costume has it, so it names them"
-            elif len(owners) == 1 and killer.id in clue.incriminates:
-                problem = (
-                    f"only {names[owners[0]]}'s costume has it, yet the clue incriminates "
-                    f"{killer.name}"
-                )
             else:
                 continue
             issues.append(
@@ -450,7 +494,6 @@ def find_rule_violations(state: GameState) -> list[ValidationIssue]:
     return [
         *find_suspect_names_in_titles(state),
         *find_killer_in_guiding_questions(state),
-        *find_clue_notes_naming_killer(state),
         *find_over_obvious_clues(state),
         *find_clues_naming_killer(state),
         *find_clue_objects_worn_by_one(state),
