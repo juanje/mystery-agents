@@ -522,9 +522,10 @@ Use related_ids for the suspects and events involved.
 
 WHERE THE FIX BELONGS (fix_in)
 Use fix_in "timelines" when the problem is inside the suspects' personal timelines (a sheet contradicts
-itself, another sheet or the facts), with the IDs of the suspects whose sheets must change in related_ids:
-only those sheets are rewritten. Use "content" for problems in the crime, the global timeline or the truth
-narrative, which make the whole timeline be written again.
+itself, another sheet or the facts, or doesn't contain what the deduction plan assigns it), with the IDs of
+the suspects whose sheets must change in related_ids: only those sheets are rewritten, following the plan.
+Use "content" only for problems in the crime, the global timeline, the route or the truth narrative, which
+make the whole timeline be written again.
 """
 
 # V3: Content Validator
