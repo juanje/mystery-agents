@@ -21,6 +21,7 @@ from mystery_agents.utils.timeline_checks import (
     find_impossible_sightings,
     find_killer_sheet_stands_out,
     find_misplaced_observations,
+    find_murder_heard_out_of_range,
     find_observation_time_errors,
     find_timeline_violations,
     find_too_many_killer_witnesses,
@@ -357,3 +358,47 @@ def test_suspects_must_be_where_shared_events_put_them(state: GameState) -> None
 
     state.timeline_global.murder_event.discovered_by = ["ana"]
     assert [issue.related_ids for issue in find_absent_from_shared_events(state)] == [["ana"]]
+
+
+def test_the_murder_is_only_heard_where_it_reaches(state: GameState) -> None:
+    """A thud heard in the library is fine; heard from the cellar it isn't."""
+    from mystery_agents.models.state import (
+        GlobalTimeline,
+        HostCharacter,
+        MurderEvent,
+        Room,
+        WorldBible,
+    )
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name=n, floor="0", description="x", connects_to=[])
+            for n in ("Study", "Library", "Cellar")
+        ],
+    )
+    state.timeline_global = GlobalTimeline(
+        time_blocks=[],
+        murder_event=MurderEvent(
+            time="22:00",
+            room="Study",
+            what_happens="x",
+            heard_elsewhere="A thud",
+            heard_in=["Library"],
+            scene_when_found="x",
+            discovered_at="22:10",
+            discovered_by=[],
+        ),
+    )
+    thud = _seen("22:00", "", "Study").model_copy(update={"sense": "sound"})
+    state.personal_timelines["ana"].events[1].info_they_observed = [thud]
+    state.personal_timelines["berta"].events[1].info_they_observed = [thud]
+
+    issues = find_murder_heard_out_of_range(state)
+
+    assert [issue.related_ids for issue in issues] == [["berta"]]

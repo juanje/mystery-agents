@@ -250,6 +250,47 @@ def find_absent_from_shared_events(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def find_murder_heard_out_of_range(state: GameState) -> list[ValidationIssue]:
+    """
+    Find suspects who hear the murder from a room the murder event says it doesn't reach.
+
+    The murder event fixes where it can be heard; a sheet that hears it from
+    elsewhere tells players that suspect was somewhere else.
+    """
+    if not state.timeline_global or not state.world or not state.world.rooms:
+        return []
+    murder = state.timeline_global.murder_event
+    times = _minutes(murder.time)
+    if not times:
+        return []
+    audible = {murder.room, *murder.heard_in}
+    names = {char.id: char.name for char in state.characters}
+    issues = []
+    for char_id, timeline in state.personal_timelines.items():
+        for event in timeline.events:
+            for seen in event.info_they_observed:
+                heard_at = _minutes(seen.time)
+                if (
+                    seen.sense == "sound"
+                    and heard_at
+                    and abs(heard_at[0] - times[0]) <= TIME_TOLERANCE_MINUTES
+                    and event.location not in audible
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            type="timeline_conflict",
+                            description=(
+                                f"{names.get(char_id, char_id)} hears the murder from "
+                                f"{event.location} ('{seen.text}'), but it can only be heard in "
+                                f"{', '.join(sorted(audible))}. Remove it or move them there."
+                            ),
+                            related_ids=[char_id],
+                            fix_in="timelines",
+                        )
+                    )
+    return issues
+
+
 def _killer_sightings(state: GameState) -> dict[str, list[Observation]]:
     """
     Observations of the killer during the moments they hide, by innocent witness.
@@ -388,6 +429,7 @@ def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
         *find_misplaced_observations(state),
         *find_impossible_sightings(state),
         *find_absent_from_shared_events(state),
+        *find_murder_heard_out_of_range(state),
         *find_too_many_killer_witnesses(state),
         *find_killer_sheet_stands_out(state),
     ]
