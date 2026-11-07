@@ -13,6 +13,7 @@ from mystery_agents.models.state import (
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.floor_plan import (
     find_room,
+    floor_plan_problems,
     format_floor_plan,
     normalize_floor_plan,
     room_names,
@@ -117,3 +118,32 @@ def test_crime_keeps_the_victim_decided_with_the_world() -> None:
     victim = result.crime.victim
     assert (victim.name, victim.age, victim.gender) == ("Elvira", 70, "female")
     assert result.crime.crime_scene.room_id == "Despacho"
+
+
+def test_plans_need_every_room_reachable_and_two_ways_per_floor() -> None:
+    """A floor reachable only by the service stair makes that 'secret' route the only one."""
+
+    def room(name: str, floor: str, connects: list[str]) -> Room:
+        return Room(name=name, floor=floor, description="x", connects_to=connects)
+
+    one_way_up = _state(
+        [
+            room("Hall", "Planta baja", ["Escalera de servicio"]),
+            room("Escalera de servicio", "Planta alta", ["Hall", "Galería"]),
+            room("Galería", "Planta alta", ["Escalera de servicio"]),
+            room("Bodega", "Sótano", []),
+        ]
+    ).world
+    good = _state(
+        [
+            room("Hall", "Planta baja", ["Escalera principal", "Escalera de servicio"]),
+            room("Escalera principal", "Planta alta", ["Hall"]),
+            room("Escalera de servicio", "Planta alta", ["Hall"]),
+        ]
+    ).world
+
+    problems = floor_plan_problems(normalize_floor_plan(one_way_up))
+
+    assert any("Bodega" in problem for problem in problems)
+    assert any("'Planta alta' has 1" in problem for problem in problems)
+    assert floor_plan_problems(normalize_floor_plan(good)) == []

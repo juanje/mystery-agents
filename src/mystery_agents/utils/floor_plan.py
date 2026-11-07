@@ -81,3 +81,50 @@ def format_floor_plan(state: GameState) -> str:
             line += f" From here you can see: {', '.join(room.can_see)}."
         lines.append(line)
     return "\n".join(lines)
+
+
+def floor_plan_problems(world: WorldBible) -> list[str]:
+    """
+    Find plans that can't stage the evening.
+
+    Every room must be reachable, and each floor must have at least two ways to the
+    rest of the house: a plan whose only way upstairs was the "secret" service stair
+    turned that secret route into the obvious one.
+    """
+    rooms = {room.name: room for room in world.rooms}
+    if not rooms:
+        return ["The floor plan has no rooms."]
+    problems = []
+
+    start = next(iter(rooms))
+    reached = {start}
+    pending = [start]
+    while pending:
+        for linked in rooms[pending.pop()].connects_to:
+            if linked in rooms and linked not in reached:
+                reached.add(linked)
+                pending.append(linked)
+    unreachable = [name for name in rooms if name not in reached]
+    if unreachable:
+        problems.append(
+            f"Floor plan: no connection leads to {', '.join(unreachable)} from {start}. "
+            "Connect every room to the rest of the house."
+        )
+
+    floors = {room.floor for room in rooms.values()}
+    if len(floors) > 1:
+        for floor in sorted(floors):
+            exits = {
+                (room.name, linked)
+                for room in rooms.values()
+                if room.floor == floor
+                for linked in room.connects_to
+                if linked in rooms and rooms[linked].floor != floor
+            }
+            if len(exits) < 2:
+                problems.append(
+                    f"Floor plan: '{floor}' has {len(exits)} connection(s) to the rest of the house. "
+                    "Give it at least two (e.g. the main stairs and a service stair), so a secondary "
+                    "route isn't the only way in."
+                )
+    return problems

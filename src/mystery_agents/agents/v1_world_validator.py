@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from mystery_agents.models.state import GameState
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.constants import GAME_TONE_STYLE
-from mystery_agents.utils.floor_plan import format_floor_plan
+from mystery_agents.utils.floor_plan import floor_plan_problems, format_floor_plan
 from mystery_agents.utils.prompts import V1_WORLD_VALIDATOR_SYSTEM_PROMPT
 
 from .base import BaseAgent
@@ -160,9 +160,11 @@ Return the validation result in JSON format."""
         # Store validation result in state
         from mystery_agents.models.state import WorldValidation
 
+        # Whether the plan can stage the evening is measurable, so code checks it
+        plan_problems = floor_plan_problems(state.world)
         state.world_validation = WorldValidation(
-            is_coherent=result.is_coherent,
-            issues=result.issues,
+            is_coherent=result.is_coherent and not plan_problems,
+            issues=[*result.issues, *plan_problems],
             suggestions=result.suggestions,
         )
 
