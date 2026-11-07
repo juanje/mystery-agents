@@ -387,7 +387,8 @@ HOW YOU WRITE THE EVENINGS
   them: you write the texts of every slot, pick observations by ID from what that suspect can see (always the
   ones marked PLANNED, then the few that matter for motive, opportunity or alibi), and write what they hear of
   the murder only when the request says it reaches them. Each text tells what happens in that slot's room;
-  where they claim another room, the account tells that room.
+  where they claim another room, the account tells that room. The killer's account is innocent in every slot,
+  including those in the room they claim: no intention, waiting or preparation shows in it.
 
 WRITING
 Second person, in the game's language, with full names. Places use readable names in that language, the

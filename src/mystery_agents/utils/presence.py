@@ -207,6 +207,19 @@ def presence_problems(state: GameState) -> list[str]:
                     "rooms don't connect. Add a slot for the room they pass through."
                 )
 
+    # An unaware killer's sheet shows the rooms they claim, and players check that walk too
+    unaware = _unaware_killer(state)
+    shown = [
+        slot.claimed_room if _hides(slot) else slot.room for slot in grid.get(unaware or "", [])
+    ]
+    for from_room, to_room in zip(shown, shown[1:], strict=False):
+        start_room = rooms.get(from_room)
+        if start_room and to_room != from_room and to_room not in start_room.connects_to:
+            problems.append(
+                f"The killer's account goes from {from_room} to {to_room}, which don't connect: players "
+                "read that walk on their sheet. Make their claimed rooms a possible route."
+            )
+
     timeline = state.timeline_global
     if timeline:
         shared = [

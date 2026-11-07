@@ -127,12 +127,17 @@ def build_timeline(state: GameState, sheet: SuspectSheet) -> PersonalTimeline | 
     if not slots:
         return None
     texts = {entry.slot: entry for entry in sheet.slots}
+    # The killer hides what they do even where they claim the right room (taking a key,
+    # waiting for the body to be found), and an unaware killer's sheet shows only the account
+    is_killer = bool(
+        state.killer_selection and state.killer_selection.killer_id == sheet.character_id
+    )
     events = []
     for number, slot in enumerate(slots, 1):
         entry = texts.get(number)
         did = entry.what_they_really_did if entry else slot.doing
         hides = slot_hides(slot)
-        told = entry.what_they_will_tell_others if entry and hides else did
+        told = entry.what_they_will_tell_others if entry and (hides or is_killer) else did
         events.append(
             PersonalEvent(
                 time=slot.time,

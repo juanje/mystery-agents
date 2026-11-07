@@ -431,3 +431,34 @@ def test_alignment_keeps_an_observation_on_the_sighting_it_tells(state: GameStat
     align_observations(state)
 
     assert state.personal_timelines["ana"].events[0].info_they_observed[0].location == "Library"
+
+
+def test_killer_account_is_their_own_even_where_they_claim_the_right_room(
+    state: GameState,
+) -> None:
+    """Slot 1 isn't hidden by room, but the killer's account there is still the innocent one."""
+    from mystery_agents.agents.a7_5_personal_timelines import SlotText, SuspectSheet, build_timeline
+
+    sheet = SuspectSheet(
+        character_id="killer",
+        slots=[
+            SlotText(
+                slot=1,
+                what_they_really_did="You pocket the desk key, ready to act.",
+                what_they_will_tell_others="You enjoy the dinner.",
+            )
+        ],
+        subjective_narrative="x",
+    )
+
+    timeline = build_timeline(state, sheet)
+
+    assert timeline is not None
+    assert timeline.events[0].what_they_will_tell_others == "You enjoy the dinner."
+
+
+def test_the_killer_claimed_walk_must_follow_the_floor_plan(state: GameState) -> None:
+    """Claiming the cellar right after the library is a walk the plan doesn't allow."""
+    _slots(state, "killer")[2] = _slot("21:35-21:50", "Study", claimed="Cellar")
+
+    assert any("account goes from Library to Cellar" in p for p in presence_problems(state))
