@@ -801,6 +801,18 @@ def test_image_generation(mock_llm):
 - **CLI tests**: All flags and error cases
 - **I18n tests**: All languages have same keys
 
+### Measuring Game Quality
+
+Unit tests check the code; whether the games are good needs real runs. To measure a change:
+
+```bash
+scripts/eval.sh 4                 # 4 games from game.example.yml into eval/<timestamp>/
+```
+
+Then review each game with one agent using `docs/EVAL_RUBRIC.md`, and compare the SUMMARY blocks
+(contradictions, spoilers, the six scores) with the previous batch. Single games vary a lot, so judge a
+change by the batch, and keep the rubric unchanged between the batches you compare.
+
 ---
 
 ## Contributing

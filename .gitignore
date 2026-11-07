@@ -49,6 +49,7 @@ dmypy.json
 
 # Output files
 output/
+eval/
 *.zip
 
 # Configuration files (keep example)
