@@ -348,21 +348,29 @@ def format_sightings(state: GameState) -> str:
 
 def apply_presence(timeline: PersonalTimeline, slots: list[PresenceSlot]) -> bool:
     """
-    Give a sheet's events the grid's times and places, one event per slot.
+    Give a sheet's events the grid's times and places.
 
     The writer is asked for one event per slot; when it returns that, the grid wins
-    over whatever it wrote for times and places.
+    over whatever it wrote for times and places. When the counts differ, each event
+    still takes the place of the slot it starts in: a measured game kept the
+    writer's own places on those sheets, and their sightings broke the floor plan.
 
     Returns:
-        Whether the events matched the slots and were aligned
+        Whether the events matched the slots one to one
     """
-    if len(timeline.events) != len(slots):
-        return False
-    for event, slot in zip(timeline.events, slots, strict=True):
-        event.time = slot.time
-        event.location = slot.room
-        event.claimed_location = slot.claimed_room if _hides(slot) else ""
-    return True
+    if len(timeline.events) == len(slots):
+        for event, slot in zip(timeline.events, slots, strict=True):
+            event.time = slot.time
+            event.location = slot.room
+            event.claimed_location = slot.claimed_room if _hides(slot) else ""
+        return True
+    for event in timeline.events:
+        start = minutes_in(event.time)
+        covering = slot_at(slots, start[0]) if start else None
+        if covering:
+            event.location = covering.room
+            event.claimed_location = covering.claimed_room if _hides(covering) else ""
+    return False
 
 
 def _matching_sighting(

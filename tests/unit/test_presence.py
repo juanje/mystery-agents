@@ -297,7 +297,7 @@ def test_sightings_the_grid_rules_out_are_removed(state: GameState) -> None:
 
 
 def test_sheet_events_take_the_grid_times_and_places(state: GameState) -> None:
-    """One event per slot: the grid wins; any other count is left as written."""
+    """One event per slot takes the grid's times and places; any other count, at least its places."""
     slots = _slots(state, "killer")
     events = [
         PersonalEvent(
@@ -312,7 +312,11 @@ def test_sheet_events_take_the_grid_times_and_places(state: GameState) -> None:
     assert timeline.events[2].claimed_location == "Library"
 
     timeline.events.pop()
+    timeline.events[2].location = "Hall"
+    timeline.events[2].time = "21:40-21:45"
     assert not apply_presence(timeline, slots)
+    assert timeline.events[2].location == "Study"
+    assert timeline.events[2].claimed_location == "Library"
 
 
 def test_unaware_killer_observes_only_where_their_account_puts_them(state: GameState) -> None:
