@@ -31,16 +31,16 @@ def test_openai_is_the_default_provider() -> None:
     assert api_key_var() == "OPENAI_API_KEY"
 
 
-def test_openai_reasoning_effort_is_low_unless_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Left at the model's default, most of the output was hidden reasoning; a tier can raise it."""
-    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "medium")
-
+def test_openai_reasoning_effort_per_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Medium where the logic is, low for the mechanical tier; each tier can be overridden."""
     tier1 = LLMConfig.get_model("tier1")
     tier2 = LLMConfig.get_model("tier2")
-
     assert isinstance(tier1, ChatOpenAI) and isinstance(tier2, ChatOpenAI)
-    assert tier1.reasoning_effort == "medium"
-    assert tier2.reasoning_effort == "low"
+    assert (tier1.reasoning_effort, tier2.reasoning_effort) == ("medium", "low")
+
+    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "high")
+    tier1 = LLMConfig.get_model("tier1")
+    assert isinstance(tier1, ChatOpenAI) and tier1.reasoning_effort == "high"
 
 
 def test_google_provider_and_model_override(monkeypatch: pytest.MonkeyPatch) -> None:

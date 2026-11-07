@@ -54,10 +54,11 @@ LLM_MODELS = {
         "tier3": "gemini-3.5-flash-lite",
     },
 }
-# OpenAI reasoning effort per tier (LLM_REASONING_EFFORT_TIER1..3 override it). Left at
-# the model's default (medium), 85% of GPT-6 Luna's output was hidden reasoning and games
-# took twice as long; the code checks already cover much of the logic. Gemini isn't sent one.
-LLM_REASONING_EFFORT = {"tier1": "low", "tier2": "low", "tier3": "low"}
+# OpenAI reasoning effort per tier (LLM_REASONING_EFFORT_TIER1..3 override it). Measured
+# with GPT-6 Luna: low everywhere was fast but its sheets, clues and solution averaged 11
+# contradictions per game; medium on tier 1 (plan, grid, sheets, content, reviews) brought
+# that to 6, near Gemini, while the mechanical tier 2 stays fast on low. Gemini gets none.
+LLM_REASONING_EFFORT = {"tier1": "medium", "tier2": "low", "tier3": "low"}
 # Environment variable holding each provider's API key
 LLM_API_KEY_VARS = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
 # Seconds per request. Without a timeout a dropped connection (e.g. the laptop
