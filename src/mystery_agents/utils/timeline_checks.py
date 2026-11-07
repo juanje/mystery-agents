@@ -464,6 +464,20 @@ def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]
             for event in timeline.events
             for seen in event.info_they_observed
         )
+        places = _place_at(timeline.events, planned_at[0])
+        if found and piece.from_room and places and piece.from_room not in places:
+            issues.append(
+                ValidationIssue(
+                    type="timeline_conflict",
+                    description=(
+                        f"The deduction plan has {names.get(piece.holder_id, piece.holder_id)} "
+                        f"seeing it from {piece.from_room} at {piece.time}, but their sheet puts "
+                        f"them in {' / '.join(dict.fromkeys(places))}. Put them in {piece.from_room}."
+                    ),
+                    related_ids=[piece.holder_id],
+                    fix_in="timelines",
+                )
+            )
         if not found:
             issues.append(
                 ValidationIssue(
@@ -478,6 +492,45 @@ def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]
                 )
             )
     return issues
+
+
+def find_impossible_planned_sightings(state: GameState) -> list[str]:
+    """
+    Find planned observations of the killer that the floor plan rules out.
+
+    The holder is in from_room at that time; the killer is where their route says.
+    A plan that asks for a sighting through walls can't be written consistently,
+    so it goes back to A7 before anyone builds on it.
+    """
+    selection = state.killer_selection
+    plan = selection.deduction_plan if selection else None
+    if not selection or not plan or not state.world or not state.world.rooms:
+        return []
+    rooms = {room.name: room for room in state.world.rooms}
+    route = [
+        (span, step.room)
+        for step in selection.route
+        if (times := _minutes(step.time))
+        for span in [(times[0], times[1] if len(times) > 1 else times[0])]
+    ]
+    problems = []
+    for piece in plan.breaking_pieces:
+        times = _minutes(piece.time)
+        here = rooms.get(piece.from_room)
+        if piece.kind != "observation" or piece.about_id != selection.killer_id:
+            continue
+        if not here or not times:
+            continue
+        killer_rooms = [room for span, room in route if _covers(span, times[0])]
+        visible = {here.name, *here.can_see}
+        if killer_rooms and not visible & set(killer_rooms):
+            problems.append(
+                f"The plan has the {piece.holder_id} sighting at {piece.time} made from "
+                f"{here.name}, but the killer is in {' / '.join(killer_rooms)} then, which can't be "
+                f"seen from there (visible: {', '.join(sorted(visible))}). Pick an observer room with "
+                "a view of the killer's route, or another moment of the route."
+            )
+    return problems
 
 
 def find_killer_sheet_stands_out(state: GameState) -> list[ValidationIssue]:

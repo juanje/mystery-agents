@@ -196,7 +196,7 @@ def format_deduction_plan(state: GameState) -> str:
 
     def piece(p: EvidencePiece) -> str:
         holder = (
-            f"observation on {names.get(p.holder_id, p.holder_id)}'s sheet"
+            f"observation on {names.get(p.holder_id, p.holder_id)}'s sheet, from {p.from_room}"
             if p.kind == "observation"
             else "clue"
         )

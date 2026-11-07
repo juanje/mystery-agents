@@ -20,6 +20,7 @@ from mystery_agents.utils.timeline_checks import (
     drop_excess_killer_sightings,
     event_ranges,
     find_absent_from_shared_events,
+    find_impossible_planned_sightings,
     find_impossible_sightings,
     find_killer_sheet_stands_out,
     find_misplaced_observations,
@@ -469,3 +470,31 @@ def test_planned_witnesses_keep_their_sightings(state: GameState) -> None:
         ]
 
     assert drop_excess_killer_sightings(state) == []
+
+
+def test_plans_with_sightings_through_walls_are_rejected(state: GameState) -> None:
+    """A planned sighting of the killer must come from a room with a view of their route."""
+    from mystery_agents.models.state import HostCharacter, Room, RouteStep, WorldBible
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name="Study", floor="0", description="x", connects_to=[]),
+            Room(name="Garden", floor="0", description="x", connects_to=[], can_see=["Study"]),
+            Room(name="Cellar", floor="0", description="x", connects_to=[]),
+        ],
+    )
+    assert state.killer_selection is not None
+    state.killer_selection.route = [RouteStep(time="21:55-22:10", room="Study", action="x")]
+    plan = _plan(["ana"])
+    plan.breaking_pieces[0].from_room = "Garden"
+    state.killer_selection.deduction_plan = plan
+    assert find_impossible_planned_sightings(state) == []
+
+    plan.breaking_pieces[0].from_room = "Cellar"
+    assert len(find_impossible_planned_sightings(state)) == 1

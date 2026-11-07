@@ -12,8 +12,12 @@ from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import find_room, format_floor_plan
 from mystery_agents.utils.prompts import A7_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import format_global_timeline
+from mystery_agents.utils.timeline_checks import find_impossible_planned_sightings
 
 from .base import BaseAgent, StructuredOutputError
+
+# Plans asked for when the first one has sightings the floor plan rules out
+PLAN_ATTEMPTS = 3
 
 
 class KillerSelectionAgent(BaseAgent):
@@ -95,9 +99,29 @@ SHARED TIMELINE AND MURDER EVENT (facts that can't change):
 DIFFICULTY: {state.config.difficulty}
 """
 
-        # Invoke LLM with structured output
-        result = self.invoke(state, user_message)
+        # A sighting the floor plan rules out can't be written into consistent sheets, so
+        # the plan is asked for again with the reason, a couple of times at most
+        feedback = ""
+        for _ in range(PLAN_ATTEMPTS):
+            result = self._checked_selection(state, self.invoke(state, user_message + feedback))
+            state.killer_selection = result
+            impossible = find_impossible_planned_sightings(state)
+            if not impossible:
+                break
+            feedback = (
+                "\nYOUR PREVIOUS PLAN HAD SIGHTINGS THE FLOOR PLAN RULES OUT. Fix them:\n"
+                + "\n".join(f"- {problem}" for problem in impossible)
+                + "\n"
+            )
+        return state
 
+    def _checked_selection(self, state: GameState, result: KillerSelection) -> KillerSelection:
+        """
+        Validate the selection and use the plan's exact room names.
+
+        Raises:
+            StructuredOutputError: If the killer isn't a suspect or the plan misses an innocent
+        """
         killer_ids = [c.id for c in state.characters]
         if result.killer_id not in killer_ids:
             raise StructuredOutputError(f"Killer {result.killer_id!r} is not a suspect")
@@ -117,11 +141,10 @@ DIFFICULTY: {state.config.difficulty}
         missing = [c for c in killer_ids if c != result.killer_id and c not in planned]
         if missing:
             raise StructuredOutputError(f"No red herring planned for suspects: {missing}")
-
-        # Update state
-        state.killer_selection = result
-
-        return state
+        for piece in [*plan.breaking_pieces, *(e.clearing for e in plan.red_herrings)]:
+            if piece.from_room:
+                piece.from_room = find_room(state, piece.from_room) or piece.from_room
+        return result
 
     def _mock_output(self, state: GameState) -> GameState:
         """Generate mock data for dry run mode."""

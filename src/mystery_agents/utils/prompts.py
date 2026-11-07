@@ -428,8 +428,9 @@ room and what they do. Their sheet will place them exactly there.
 
 THE DEDUCTION PLAN
 - breaking_pieces: 2 to 4 pieces that break the killer's account only when combined, each held by a
-  different player (an observation) or a clue. An observation is something its holder could see from where
-  they were (their room or one visible from it on the floor plan) or hear, and it is indirect: the killer
+  different player (an observation) or a clue. An observation says from which room its holder sees it
+  (from_room), and the killer's route must be in that room or one visible from it at that time; the
+  holder's sheet will place them there. It is indirect: the killer
   seen somewhere they later deny, at an odd time, coming back the wrong way. Nobody sees the crime itself.
 - means_piece: how players learn the killer could get the weapon or substance. Others had access too, so it
   doesn't settle the case.

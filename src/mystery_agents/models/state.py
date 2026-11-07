@@ -460,6 +460,10 @@ class EvidencePiece(BaseModel):
     time: str = Field(
         description="HH:MM the piece refers to (when it was seen, or when the clue places someone)."
     )
+    from_room: str = Field(
+        default="",
+        description="For an observation, the floor plan room the holder is in when they see or hear it; it must be the observed person's room or one visible from it. Empty for a clue.",
+    )
     description: str = Field(
         description="What the piece shows, as a fact players can compare (e.g., 'Ana sees Diego come back up the service stairs at 22:12')."
     )
