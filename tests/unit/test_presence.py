@@ -41,13 +41,29 @@ def _slot(time: str, room: str, claimed: str = "") -> PresenceSlot:
     return PresenceSlot(time=time, room=room, claimed_room=claimed, doing="x")
 
 
+def _ana_sees_killer() -> EvidencePiece:
+    return EvidencePiece(
+        kind="observation",
+        holder_id="ana",
+        about_id="killer",
+        time="21:40",
+        from_room="Library",
+        description="x",
+    )
+
+
+def _plan_with(*pieces: EvidencePiece) -> DeductionPlan:
+    return DeductionPlan(breaking_pieces=list(pieces), means_piece=pieces[0], red_herrings=[])
+
+
 @pytest.fixture
 def state() -> GameState:
     """
     Dinner at 21:00; the killer slips into the study at 21:30 claiming the library.
 
     The library overlooks the study; the cellar sees nothing. Ana reads in the
-    library, Berta is in the cellar. The body is found at 22:00 in the study.
+    library, where the plan has her see the killer; Berta is in the cellar. The
+    body is found at 22:00 in the study.
     """
     rooms = [
         Room(name="Dining room", floor="0", description="x", connects_to=["Library", "Cellar"]),
@@ -141,6 +157,7 @@ def state() -> GameState:
             rationale="r",
             truth_narrative="t",
             route=[RouteStep(time="21:35-21:50", room="Study", action="x")],
+            deduction_plan=_plan_with(_ana_sees_killer()),
         ),
         presence=PresenceGrid(
             suspects=[
@@ -221,6 +238,8 @@ def test_planned_sightings_must_be_possible(state: GameState) -> None:
 
 def test_hidden_killer_is_only_visible_to_planned_witnesses(state: GameState) -> None:
     """Ana overlooks the study, but only a planned sighting lets her see the killer there."""
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = None
     hidden = [
         s
         for s in possible_sightings(state)
@@ -228,18 +247,7 @@ def test_hidden_killer_is_only_visible_to_planned_witnesses(state: GameState) ->
     ]
     assert hidden == []
 
-    assert state.killer_selection is not None
-    piece = EvidencePiece(
-        kind="observation",
-        holder_id="ana",
-        about_id="killer",
-        time="21:40",
-        from_room="Library",
-        description="x",
-    )
-    state.killer_selection.deduction_plan = DeductionPlan(
-        breaking_pieces=[piece], means_piece=piece, red_herrings=[]
-    )
+    state.killer_selection.deduction_plan = _plan_with(_ana_sees_killer())
     assert any(
         s.observer_id == "ana" and s.observed_id == "killer" and s.room == "Study"
         for s in possible_sightings(state)
@@ -318,12 +326,18 @@ def test_unaware_killer_observes_only_where_their_account_puts_them(state: GameS
         from_room="Study",
         description="x",
     )
-    state.killer_selection.deduction_plan = DeductionPlan(
-        breaking_pieces=[], means_piece=piece, red_herrings=[]
-    )
+    state.killer_selection.deduction_plan = _plan_with(_ana_sees_killer(), piece)
 
     assert any("while they hide" in problem for problem in presence_problems(state))
 
     piece.time = "21:52"
     piece.from_room = "Library"
     assert not any("while they hide" in problem for problem in presence_problems(state))
+
+
+def test_unplanned_suspects_cant_overlook_the_hidden_killer(state: GameState) -> None:
+    """Without the plan making Ana a witness, her library seat would read as blindness."""
+    assert state.killer_selection is not None
+    state.killer_selection.deduction_plan = None
+
+    assert any("during their hidden moment" in problem for problem in presence_problems(state))

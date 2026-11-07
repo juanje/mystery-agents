@@ -114,19 +114,19 @@ def _unaware_killer(state: GameState) -> str | None:
     return None
 
 
-def possible_sightings(state: GameState) -> list[Sighting]:
+def _overlaps(state: GameState) -> list[tuple[Sighting, bool]]:
     """
-    Every stretch when one suspect can see another, by the grid and the floor plan.
+    Every stretch when one suspect has another in view, by the grid and the floor plan.
 
-    Left out: the killer while they hide something, unless the deduction plan has
-    that sighting (more witnesses than planned solve the case alone), and anything
-    an unaware killer would see from a place their own sheet says they weren't.
+    Each comes with whether it is the hidden killer seen by someone the deduction plan
+    doesn't make a witness. An unaware killer sees nothing from a place their own sheet
+    says they weren't, so those stretches are left out.
     """
     rooms = {room.name: room for room in state.world.rooms} if state.world else {}
     grid = _slots(state)
     killer_id = state.killer_selection.killer_id if state.killer_selection else None
     unaware = _unaware_killer(state)
-    sightings = []
+    found = []
     for observer_id, observer_slots in grid.items():
         for observer_slot, observer_span in zip(
             observer_slots, slot_spans(observer_slots), strict=True
@@ -143,21 +143,29 @@ def possible_sightings(state: GameState) -> list[Sighting]:
                     start, end = max(span[0], observer_span[0]), min(span[1], observer_span[1])
                     if start >= end:
                         continue
-                    if (
+                    unplanned = (
                         observed_id == killer_id
                         and _hides(slot)
                         and not any(
                             _planned_at(state, observer_id, observed_id, m)
                             for m in range(start, end + 1)
                         )
-                    ):
-                        continue
-                    sightings.append(
-                        Sighting(
-                            observer_id, observed_id, start, end, observer_slot.room, slot.room
-                        )
                     )
-    return sightings
+                    sighting = Sighting(
+                        observer_id, observed_id, start, end, observer_slot.room, slot.room
+                    )
+                    found.append((sighting, unplanned))
+    return found
+
+
+def possible_sightings(state: GameState) -> list[Sighting]:
+    """
+    Every stretch when one suspect can see another and may say so on their sheet.
+
+    The hidden killer is left out except for the deduction plan's witnesses: more
+    witnesses than planned solve the case alone.
+    """
+    return [sighting for sighting, unplanned in _overlaps(state) if not unplanned]
 
 
 def presence_problems(state: GameState) -> list[str]:
@@ -254,6 +262,17 @@ def presence_problems(state: GameState) -> list[str]:
             problems.append(
                 f"At the time of the murder the killer's slot {at_murder.time} has no claimed_room: "
                 "say where they will claim to have been."
+            )
+
+    for sighting, unplanned in _overlaps(state):
+        # Leaving it out of their sheet reads as blindness at the table: "you were
+        # overlooking the study and saw nobody leave?"
+        if unplanned and sighting.end - sighting.start > TIME_TOLERANCE_MINUTES:
+            problems.append(
+                f"{names.get(sighting.observer_id, sighting.observer_id)} is in "
+                f"{sighting.from_room} from {clock(sighting.start)} to {clock(sighting.end)}, "
+                f"overlooking the killer in {sighting.room} during their hidden moment. Move them somewhere "
+                "without a view of the killer's route then."
             )
 
     for piece in _observation_pieces(state):
