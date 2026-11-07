@@ -3,6 +3,7 @@
 import os
 from typing import Any, Literal
 
+import openai
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import Runnable
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -19,6 +20,8 @@ from mystery_agents.utils.constants import (
 
 Tier = Literal["tier1", "tier2", "tier3"]
 Provider = Literal["openai", "google"]
+# Attempts for an OpenAI call that answers 403 while a model's access propagates
+OPENAI_ACCESS_RETRIES = 5
 PROVIDERS: tuple[Provider, ...] = ("openai", "google")
 
 
@@ -56,8 +59,13 @@ def structured_output(llm: BaseChatModel, schema: type[BaseModel]) -> Runnable[A
     schema; every game schema was checked to work that way.
     """
     if isinstance(llm, ChatOpenAI):
+        # Newly enabled models answered 403 "does not have access" on a share of calls
+        # for a while; a few retries ride it out, and a real denial still fails after them
         return llm.with_structured_output(
             schema, method="json_schema", include_raw=True, strict=True
+        ).with_retry(
+            retry_if_exception_type=(openai.PermissionDeniedError,),
+            stop_after_attempt=OPENAI_ACCESS_RETRIES,
         )
     return llm.with_structured_output(schema, method="json_schema", include_raw=True)
 
@@ -111,6 +119,9 @@ class LLMConfig:
                 api_key=api_key,  # type: ignore[arg-type]
                 temperature=temperature,
                 timeout=LLM_REQUEST_TIMEOUT,
+                # GPT-6 models are only served by the Responses API: Chat Completions
+                # answers 403 "does not have access to model" for them
+                use_responses_api=True,
             )
         return ChatGoogleGenerativeAI(
             model=model,
