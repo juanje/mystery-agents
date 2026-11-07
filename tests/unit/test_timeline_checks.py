@@ -270,3 +270,29 @@ def test_sounds_can_come_from_rooms_out_of_sight(state: GameState) -> None:
     state.personal_timelines["berta"].events[1].info_they_observed = [heard]
 
     assert find_impossible_sightings(state) == []
+
+
+def test_unaware_killer_looks_from_the_place_their_sheet_shows(state: GameState) -> None:
+    """The unaware killer's sheet shows the claimed place, so sightings must fit it."""
+    from mystery_agents.models.state import HostCharacter, Room, WorldBible
+
+    state.world = WorldBible(
+        epoch="Modern",
+        location_type="Villa",
+        location_name="Villa",
+        summary="x",
+        host=HostCharacter(name="Victim", age=60, role_in_setting="Host"),
+        gathering_reason="x",
+        rooms=[
+            Room(name=n, floor="0", description="x", connects_to=[])
+            for n in ("Study", "Terrace", "Library", "Cellar", "Dining room", "Garden")
+        ],
+    )
+    state.config.killer_knows_identity = False
+    event = state.personal_timelines["killer"].events[1]
+    event.claimed_location = "Terrace"
+    event.info_they_observed = [_seen("22:00", "ana", "Study")]
+
+    issues = find_impossible_sightings(state)
+
+    assert [issue.related_ids for issue in issues] == [["killer"]]

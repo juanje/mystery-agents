@@ -155,10 +155,21 @@ def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
         return []
     rooms = {room.name: room for room in state.world.rooms}
     names = {char.id: char.name for char in state.characters}
+    # An unaware killer's sheet shows their claimed places, so that's where they look from
+    unaware_killer = (
+        state.killer_selection.killer_id
+        if state.killer_selection and not state.config.killer_knows_identity
+        else None
+    )
     issues = []
     for char_id, timeline in state.personal_timelines.items():
         for event in timeline.events:
-            here = rooms.get(event.location)
+            shown_place = (
+                event.claimed_location
+                if char_id == unaware_killer and event.claimed_location
+                else event.location
+            )
+            here = rooms.get(shown_place)
             if not here:
                 continue
             visible = {here.name, *here.connects_to, *here.can_see}
