@@ -13,7 +13,11 @@ from mystery_agents.utils.constants import LLM_MODELS, LLM_REQUEST_TIMEOUT
 @pytest.fixture(autouse=True)
 def _default_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     """Each test starts from the defaults, whatever the developer's .env says."""
-    for var in ("LLM_PROVIDER", "LLM_MODEL_TIER1", "LLM_MODEL_TIER2", "LLM_MODEL_TIER3"):
+    for var in (
+        "LLM_PROVIDER",
+        *(f"LLM_MODEL_TIER{n}" for n in (1, 2, 3)),
+        *(f"LLM_REASONING_EFFORT_TIER{n}" for n in (1, 2, 3)),
+    ):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -25,6 +29,18 @@ def test_openai_is_the_default_provider() -> None:
     assert isinstance(model, ChatOpenAI)
     assert model.model_name == LLM_MODELS["openai"]["tier1"]
     assert api_key_var() == "OPENAI_API_KEY"
+
+
+def test_openai_reasoning_effort_is_low_unless_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Left at the model's default, most of the output was hidden reasoning; a tier can raise it."""
+    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "medium")
+
+    tier1 = LLMConfig.get_model("tier1")
+    tier2 = LLMConfig.get_model("tier2")
+
+    assert isinstance(tier1, ChatOpenAI) and isinstance(tier2, ChatOpenAI)
+    assert tier1.reasoning_effort == "medium"
+    assert tier2.reasoning_effort == "low"
 
 
 def test_google_provider_and_model_override(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -15,6 +15,7 @@ from mystery_agents.utils.constants import (
     LLM_API_KEY_VARS,
     LLM_MODELS,
     LLM_PROVIDER_DEFAULT,
+    LLM_REASONING_EFFORT,
     LLM_REQUEST_TIMEOUT,
 )
 
@@ -101,6 +102,7 @@ class LLMConfig:
             Model names and temperatures can be overridden via environment variables:
             - LLM_MODEL_TIER1, LLM_MODEL_TIER2, LLM_MODEL_TIER3
             - LLM_TEMPERATURE_TIER1, LLM_TEMPERATURE_TIER2, LLM_TEMPERATURE_TIER3
+            - LLM_REASONING_EFFORT_TIER1..3 (OpenAI only: none, low, medium, high...)
             Default model names per provider are configured in constants.py. Temperature
             is not sent unless overridden: Gemini 3.6+ models use fixed sampling
             defaults and ignore custom sampling parameters.
@@ -119,6 +121,9 @@ class LLMConfig:
                 api_key=api_key,  # type: ignore[arg-type]
                 temperature=temperature,
                 timeout=LLM_REQUEST_TIMEOUT,
+                reasoning_effort=os.getenv(
+                    f"LLM_REASONING_EFFORT_TIER{number}", LLM_REASONING_EFFORT[tier]
+                ),
                 # GPT-6 models are only served by the Responses API: Chat Completions
                 # answers 403 "does not have access to model" for them
                 use_responses_api=True,

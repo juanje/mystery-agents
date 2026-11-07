@@ -317,6 +317,7 @@ GOOGLE_API_KEY=xxx           # Portraits (always Gemini), and text with google
 LLM_MODEL_TIER1=gpt-6-luna   # Optional override of the provider's default
 LLM_MODEL_TIER2=gpt-6-luna
 LLM_MODEL_TIER3=gpt-6-luna
+LLM_REASONING_EFFORT_TIER1=low  # OpenAI only; low by default for every tier
 ```
 
 Loaded via `python-dotenv` in `cli.py`, accessed via `os.getenv()` in `config.py`.

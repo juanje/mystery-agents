@@ -54,6 +54,10 @@ LLM_MODELS = {
         "tier3": "gemini-3.5-flash-lite",
     },
 }
+# OpenAI reasoning effort per tier (LLM_REASONING_EFFORT_TIER1..3 override it). Left at
+# the model's default (medium), 85% of GPT-6 Luna's output was hidden reasoning and games
+# took twice as long; the code checks already cover much of the logic. Gemini isn't sent one.
+LLM_REASONING_EFFORT = {"tier1": "low", "tier2": "low", "tier3": "low"}
 # Environment variable holding each provider's API key
 LLM_API_KEY_VARS = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
 # Seconds per request. Without a timeout a dropped connection (e.g. the laptop
