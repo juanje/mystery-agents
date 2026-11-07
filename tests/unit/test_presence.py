@@ -401,3 +401,33 @@ def test_slot_request_lists_slots_sightings_and_the_plan(state: GameState) -> No
     assert "1. 21:00-21:30 @ Dining room" in request
     assert "PLANNED, write it" in request
     assert "The murder doesn't reach them" in request
+
+
+def test_alignment_keeps_an_observation_on_the_sighting_it_tells(state: GameState) -> None:
+    """At 21:50 the killer steps from the study into the library; Ana's library sighting stays there."""
+    state.personal_timelines = {
+        "ana": PersonalTimeline(
+            character_id="ana",
+            subjective_narrative="",
+            events=[
+                PersonalEvent(
+                    time="21:30-21:55",
+                    location="Library",
+                    what_they_really_did="x",
+                    what_they_will_tell_others="x",
+                    info_they_observed=[
+                        Observation(
+                            time="21:50",
+                            observed_character_id="killer",
+                            location="Library",
+                            text="x",
+                        )
+                    ],
+                )
+            ],
+        )
+    }
+
+    align_observations(state)
+
+    assert state.personal_timelines["ana"].events[0].info_they_observed[0].location == "Library"

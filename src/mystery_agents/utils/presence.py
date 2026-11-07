@@ -359,19 +359,28 @@ def apply_presence(timeline: PersonalTimeline, slots: list[PresenceSlot]) -> boo
 def _matching_sighting(
     sightings: list[Sighting], observer_id: str, seen: Observation
 ) -> Sighting | None:
+    """
+    The sighting an observation tells, preferring the one at its exact minute and place.
+
+    Matching only by a few minutes of slack picked another sighting of the same person
+    (in the dining room five minutes later) and moved the observation there, out of
+    the observer's view.
+    """
     times = minutes_in(seen.time)
     if not times:
         return None
-    return next(
-        (
-            s
-            for s in sightings
-            if s.observer_id == observer_id
-            and s.observed_id == seen.observed_character_id
-            and s.start - TIME_TOLERANCE_MINUTES <= times[0] <= s.end + TIME_TOLERANCE_MINUTES
-        ),
-        None,
-    )
+    candidates = [
+        s
+        for s in sightings
+        if s.observer_id == observer_id
+        and s.observed_id == seen.observed_character_id
+        and s.start - TIME_TOLERANCE_MINUTES <= times[0] <= s.end + TIME_TOLERANCE_MINUTES
+    ]
+
+    def rank(s: Sighting) -> tuple[bool, bool]:
+        return (s.room != seen.location, not s.start <= times[0] <= s.end)
+
+    return min(candidates, key=rank, default=None)
 
 
 def align_observations(state: GameState) -> list[str]:

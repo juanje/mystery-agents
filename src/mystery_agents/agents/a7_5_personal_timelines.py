@@ -145,15 +145,14 @@ def build_timeline(state: GameState, sheet: SuspectSheet) -> PersonalTimeline | 
 
     spans = slot_spans(slots)
 
-    def event_at(minute: int) -> PersonalEvent | None:
-        return next(
-            (
-                e
-                for e, span in zip(events, spans, strict=True)
-                if span and span[0] <= minute <= span[1]
-            ),
-            None,
-        )
+    def event_at(minute: int, room: str | None = None) -> PersonalEvent | None:
+        """The event covering a minute; at a change of room, the one in the given room."""
+        covering = [
+            event
+            for event, span in zip(events, spans, strict=True)
+            if span and span[0] <= minute <= span[1]
+        ]
+        return next((e for e in covering if e.location == room), covering[0] if covering else None)
 
     sightings = dict(numbered_sightings(state, sheet.character_id))
     used = set()
@@ -165,8 +164,9 @@ def build_timeline(state: GameState, sheet: SuspectSheet) -> PersonalTimeline | 
             used.add(seen.sighting)
             wanted = minutes_in(seen.time)
             minute = min(max(wanted[0] if wanted else sighting.start, sighting.start), sighting.end)
-            event = event_at(minute)
-            if event:
+            # A sighting starting as the observer walks in belongs to the room they see it from
+            event = event_at(minute, sighting.from_room)
+            if event and event.location == sighting.from_room:
                 event.info_they_observed.append(
                     Observation(
                         time=clock(minute),
