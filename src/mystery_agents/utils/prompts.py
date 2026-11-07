@@ -434,6 +434,9 @@ THE DEDUCTION PLAN
   seen somewhere they later deny, at an odd time, coming back the wrong way. Nobody sees the crime itself.
 - means_piece: how players learn the killer could get the weapon or substance. Others had access too, so it
   doesn't settle the case.
+- A clue piece fits several suspects on its own: no name, initials or personal item only the killer has
+  (their monogrammed handkerchief, a photo of them with the weapon). What singles the killer out is the
+  combination of pieces, never one of them.
 - red_herrings: one for every innocent suspect. suspicion is means or opportunity players will hold (their
   hidden moment, their access to the means), not only motive. clearing is a later piece that clears them,
   held by another player or a clue, never their own word.

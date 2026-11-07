@@ -7,6 +7,7 @@ import pytest
 from mystery_agents.agents.v3_content_validator import (
     ContentValidatorAgent,
     drop_questions_naming_killer,
+    find_clues_naming_killer,
     find_killer_in_guiding_questions,
     find_over_obvious_clues,
     find_rule_violations,
@@ -293,3 +294,16 @@ def test_questions_naming_the_killer_are_dropped() -> None:
     assert detective.guiding_questions == [
         "¿Quién pasó por el pasillo entre las 22:10 y las 22:20?"
     ]
+
+
+def test_clues_that_identify_the_killer_alone_are_flagged() -> None:
+    """Two clues naming the killer, or their unique initials on an object, solve the case."""
+    state = _game_with_killer()
+    state.clues[0].description = "Una foto de Manrique con la corbata del crimen."
+    state.clues[1].description = "Un pañuelo bordado con las iniciales Á.M. junto a la puerta."
+    state.clues[2].description = "Un recibo firmado por Álvaro Manrique."
+
+    issues = find_clues_naming_killer(state)
+
+    assert any("name the killer" in issue.description for issue in issues)
+    assert any("initials" in issue.description for issue in issues)

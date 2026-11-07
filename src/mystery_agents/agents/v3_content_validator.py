@@ -180,6 +180,61 @@ def find_over_obvious_clues(state: GameState) -> list[ValidationIssue]:
     return issues
 
 
+def _initials(name: str) -> str:
+    """Initials of a name's distinctive parts, e.g. 'H.M.' for 'Hugo Morales del Castillo'."""
+    parts = _name_parts(name)[:2]
+    return ".".join(part[0].upper() for part in parts) + "." if len(parts) == 2 else ""
+
+
+def find_clues_naming_killer(state: GameState) -> list[ValidationIssue]:
+    """
+    Find clues that identify the killer by themselves.
+
+    One clue may name the killer if it's ambiguous on its own (a motive others
+    share). Several clues naming them, or their initials on an object at the scene,
+    settle the case before anyone compares testimonies.
+    """
+    killer = _killer(state)
+    if not killer or not state.clues:
+        return []
+    shared = _parts_shared_with_others(state, killer.id)
+    initials = _initials(killer.name)
+    others_initials = {_initials(c.name) for c in state.characters if c.id != killer.id}
+    issues = []
+
+    naming = [
+        number
+        for number, clue in enumerate(state.clues, 1)
+        if _mentions(clue.description, killer.name, ignore=shared)
+    ]
+    if len(naming) > 1:
+        issues.append(
+            ValidationIssue(
+                type="over_obvious",
+                description=(
+                    f"Clues {', '.join(map(str, naming))} name the killer ({killer.name}). At most one "
+                    "clue may, and it must be ambiguous alone; describe the others without names."
+                ),
+                related_ids=[killer.id],
+            )
+        )
+    if initials and initials not in others_initials:
+        for number, clue in enumerate(state.clues, 1):
+            compact = re.sub(r"\s", "", clue.description)
+            if initials in compact or initials.replace(".", "") + " " in clue.description:
+                issues.append(
+                    ValidationIssue(
+                        type="over_obvious",
+                        description=(
+                            f"Clue {number} '{clue.title}' shows the initials {initials}, which only "
+                            f"{killer.name} has. Remove them or make them fit several suspects."
+                        ),
+                        related_ids=[clue.id, killer.id],
+                    )
+                )
+    return issues
+
+
 def _killer(state: GameState) -> CharacterSpec | None:
     """The selected killer, if any."""
     if not state.killer_selection:
@@ -194,6 +249,7 @@ def find_rule_violations(state: GameState) -> list[ValidationIssue]:
         *find_suspect_names_in_titles(state),
         *find_killer_in_guiding_questions(state),
         *find_over_obvious_clues(state),
+        *find_clues_naming_killer(state),
         *find_timeline_violations(state),
     ]
 
