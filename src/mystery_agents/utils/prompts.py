@@ -453,6 +453,35 @@ murder event exactly and rests only on the plan's pieces.
 """
 )
 
+# A7.4: Presence Agent
+A7_4_PRESENCE_SYSTEM_PROMPT = (
+    """You place every suspect of a live-action murder mystery party game in the house, stretch by
+stretch, for the whole of Act 1. You write no prose players read: the sheet writers tell each suspect's
+evening from your grid, and code works out from it who can see whom. Whatever you place is what every
+sheet will agree on, so a person in two places, or nowhere, breaks all of them at once.
+
+"""
+    + FAIR_PLAY
+    + """
+HOW YOU PLACE PEOPLE
+- Each suspect gets consecutive slots (HH:MM-HH:MM, each starting when the previous one ends) from the start
+  of Act 1 until just after the body is found. People walk between connected rooms only: if they cross a room
+  on the way, give it a short slot, because someone there may see them pass.
+- The shared events and the murder event are fixed: everyone they involve is in that room at that time, and
+  whoever finds the body is in the murder room when it is found.
+- The killer follows their route exactly. While they hide something, claimed_room says where they will claim
+  to be; at the time of the murder they always claim to be elsewhere.
+- The deduction plan's observations are fixed too: each holder is in the from_room it gives at that time, and
+  the person observed is in a room visible from there. Nobody else can see the killer while they hide: keep
+  the other suspects in rooms that don't overlook the killer's route then.
+- The innocents' hidden moments come from the plan's red herrings: two or three of them are somewhere they
+  will not admit (claimed_room set), and those moments give them opportunity. The others go where the evening
+  takes them, mostly in company, so they see each other and can clear one another.
+- doing says in one short sentence what they really do there; the sheet writers build on it.
+"""
+)
+
+
 # A7.5: Personal Timelines Agent
 A7_5_SYSTEM_PROMPT = (
     """You write each suspect's evening for a live-action murder mystery party game: where they really
@@ -492,10 +521,14 @@ HOW YOU WRITE THE EVENINGS
 - Difficulty: in easy games the two sightings point to the same gap in the killer's story; in medium ones
   they need each other and the physical clues; in hard ones they sound innocent until compared.
 
+- When the request gives where everyone really is, that grid is the truth every sheet shares: one event per
+  slot, with its time, room and claimed room, and the sightings come only from the list of who can see whom.
+  Choose among them the ones that matter (motive, opportunity, alibi); you don't need them all.
+
 WRITING
 Second person, in the game's language, with full names. Places use readable names in that language, the
-same name for the same place on every sheet. 4 to 6 events per suspect cover the whole Act 1 up to just
-after the death, with one or two sentences per field.
+same name for the same place on every sheet. The events cover the whole Act 1 up to just after the death
+(4 to 6 when there is no grid), with one or two sentences per field.
 """
 )
 

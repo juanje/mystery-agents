@@ -61,7 +61,8 @@ Config (YAML)
 ├───────────────────────────────────────────────────────┤
 │  A5: Crime                                            │
 │  A6: Timeline                                         │
-│  A7: Killer Selection                                 │
+│  A7: Killer Selection (route, deduction plan)         │
+│  A7.4: Presence (where everyone is, who sees whom)    │
 │  A7.5: Personal Timelines (alibis, observations)      │
 │    └─ code checks → rewrite flagged suspects once     │
 │  V2: Game Logic Validator ──┐                         │
@@ -104,7 +105,8 @@ graph TD
     A4 --> A5[A5: Crime]
     A5 --> A6[A6: Timeline]
     A6 --> A7[A7: Killer Selection]
-    A7 --> A7_5[A7.5: Personal Timelines]
+    A7 --> A7_4[A7.4: Presence]
+    A7_4 --> A7_5[A7.5: Personal Timelines]
     A7_5 --> V2[V2: Game Logic Validator]
     V2 -->|pass| A8[A8: Content Generation]
     V2 -->|pass| A3_5[A3.5: Character Images]
@@ -233,6 +235,7 @@ class GameState:
     crime: Crime | None               # A5 output
     timeline: Timeline | None         # A6 output
     killer_id: str | None             # A7 output
+    presence: PresenceGrid | None     # A7.4 output
     content: GameContent | None       # A8 output
     packaging: PackagingResult | None # A9 output
     

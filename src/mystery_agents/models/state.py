@@ -617,6 +617,39 @@ class PersonalTimeline(BaseModel):
 PersonalTimelineByCharacter = dict[str, PersonalTimeline]
 
 
+class PresenceSlot(BaseModel):
+    """Where a suspect really is during one stretch of the evening."""
+
+    time: str = Field(description="HH:MM-HH:MM. Each slot starts when the previous one ends.")
+    room: str = Field(description="Name of the floor plan room they are really in.")
+    claimed_room: str = Field(
+        default="",
+        description="Room they will claim to have been in, only when it differs from room (they hide this stretch). Empty otherwise.",
+    )
+    doing: str = Field(description="What they really do there, in one short sentence.")
+
+
+class SuspectPresence(BaseModel):
+    """One suspect's evening as positions, before any sheet is written."""
+
+    character_id: str = Field(description="ID of the suspect.")
+    slots: list[PresenceSlot] = Field(
+        description="Consecutive slots from the start of Act 1 until just after the body is found."
+    )
+
+
+class PresenceGrid(BaseModel):
+    """
+    Where every suspect is, minute by minute, decided once for everybody.
+
+    Sheet writers working in batches each placed people on their own, so one sheet
+    put a suspect in the patio while theirs said the dining room. Fixing positions
+    first lets code work out who can see whom, and the sheets only tell it.
+    """
+
+    suspects: list[SuspectPresence] = Field(description="One entry for every suspect.")
+
+
 # --- Clues and Maps ---
 ClueType = Literal["note", "object", "forensic_report", "map_snippet", "photo", "other"]
 
@@ -933,6 +966,7 @@ class GameState(BaseModel):
     timeline_global: GlobalTimeline | None = None
     killer_selection: KillerSelection | None = None
 
+    presence: PresenceGrid | None = None
     personal_timelines: PersonalTimelineByCharacter = Field(default_factory=dict)
 
     clues: list[ClueSpec] = []

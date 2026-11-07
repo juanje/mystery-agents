@@ -173,6 +173,22 @@ def a7_killer_node(state: GameState) -> GameState:
     return cast(GameState, result)
 
 
+def a7_4_presence_node(state: GameState) -> GameState:
+    """A7.4: Presence node (where every suspect is, before any sheet is written)."""
+    from mystery_agents.agents.a7_4_presence import PresenceAgent
+    from mystery_agents.utils.presence import presence_problems
+
+    log = AgentLogger("a7_4_presence", state)
+    log.info("Placing every suspect in the house...")
+    agent = AgentFactory.get_agent(PresenceAgent)
+    result = cast(GameState, agent.run(state))
+    problems = presence_problems(result) if result.presence else []
+    for problem in problems:
+        log.warning(f"  presence: {problem}")
+    log.info(f"✓ Presence grid ready ({len(problems)} problems left)")
+    return result
+
+
 def a7_5_personal_timelines_node(state: GameState) -> GameState:
     """A7.5: Personal timelines node (alibis, cover stories, observations)."""
     from mystery_agents.agents.a7_5_personal_timelines import PersonalTimelinesAgent
@@ -196,6 +212,11 @@ def a7_5_personal_timelines_node(state: GameState) -> GameState:
 
 def _prune_sheets(state: GameState, log: AgentLogger) -> GameState:
     """Enforce in code what rewrites kept getting wrong: sightings through walls, too many witnesses."""
+    from mystery_agents.utils.presence import align_observations
+
+    unplaced = align_observations(state)
+    if unplaced:
+        log.info(f"Removed sightings the presence grid rules out from: {', '.join(unplaced)}")
     unseen = drop_impossible_sightings(state)
     if unseen:
         log.info(f"Removed sightings the floor plan rules out from: {', '.join(unseen)}")
@@ -487,6 +508,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_node("a5_crime", a5_crime_node)
     graph.add_node("a6_timeline", a6_timeline_node)
     graph.add_node("a7_killer", a7_killer_node)
+    graph.add_node("a7_4_presence", a7_4_presence_node)
     graph.add_node("a7_5_personal_timelines", a7_5_personal_timelines_node)
     graph.add_node("v2_game_logic_validator", v2_game_logic_validator_node)
     graph.add_node("a8_content", a8_content_node)
@@ -520,7 +542,8 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_edge("a4_relationships", "a5_crime")
     graph.add_edge("a5_crime", "a6_timeline")
     graph.add_edge("a6_timeline", "a7_killer")
-    graph.add_edge("a7_killer", "a7_5_personal_timelines")
+    graph.add_edge("a7_killer", "a7_4_presence")
+    graph.add_edge("a7_4_presence", "a7_5_personal_timelines")
     graph.add_edge("a7_5_personal_timelines", "v2_game_logic_validator")
 
     # Full validation loop; a valid game fans out to content and character portraits

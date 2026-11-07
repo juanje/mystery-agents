@@ -14,6 +14,7 @@ from mystery_agents.models.state import (
 )
 from mystery_agents.utils.cache import LLMCache
 from mystery_agents.utils.floor_plan import format_floor_plan, room_names
+from mystery_agents.utils.presence import apply_presence, format_presence, format_sightings
 from mystery_agents.utils.prompts import A7_5_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_deduction_plan,
@@ -227,6 +228,20 @@ KILLER'S REAL ROUTE (the killer's sheet places them exactly here):
 
 DEDUCTION PLAN (write every observation it assigns on its holder's sheet, at that time):
 {format_deduction_plan(state)}
+{self._presence_section(state)}"""
+
+    @staticmethod
+    def _presence_section(state: GameState) -> str:
+        """Where everyone is and who can see whom, when the grid exists."""
+        if not state.presence:
+            return ""
+        return f"""
+WHERE EVERYONE REALLY IS (fixed: write one event per slot, in the same order, with its time and room as
+location, and its claimed room as claimed_location):
+{format_presence(state)}
+
+WHO CAN SEE WHOM (the only people each suspect can see, when and where; any other sighting is removed):
+{format_sightings(state)}
 """
 
     def _write(
@@ -252,6 +267,9 @@ DEDUCTION PLAN (write every observation it assigns on its holder's sheet, at tha
             StructuredOutputError: If a suspect is left without a timeline
         """
         timelines: dict[str, PersonalTimeline] = {}
+        # Timelines whose events don't match the grid's slots, used only if nothing better comes
+        unaligned: dict[str, PersonalTimeline] = {}
+        slots = {s.character_id: s.slots for s in state.presence.suspects} if state.presence else {}
         returned: list[str] = []
         max_calls = math.ceil(len(suspect_ids) / SUSPECTS_PER_CALL) + EXTRA_CALLS
         for _ in range(max_calls):
@@ -262,14 +280,23 @@ DEDUCTION PLAN (write every observation it assigns on its holder's sheet, at tha
             request = context + self._batch_request(state, {**written, **timelines}, batch)
             result = self.invoke(state, request)
             returned = [t.character_id for t in result.timelines]
-            # An empty timeline leaves that player with nothing to say, so ask for it again
-            # Store plain models: the narrowed schema classes can't be checkpointed
-            timelines.update(
-                (t.character_id, PersonalTimeline.model_validate(t.model_dump()))
-                for t in result.timelines
-                if t.character_id in batch and len(t.events) >= MIN_EVENTS_PER_SUSPECT
-            )
+            for written_timeline in result.timelines:
+                # An empty timeline leaves that player with nothing to say, so ask for it again
+                if (
+                    written_timeline.character_id not in batch
+                    or len(written_timeline.events) < MIN_EVENTS_PER_SUSPECT
+                ):
+                    continue
+                # Store plain models: the narrowed schema classes can't be checkpointed
+                timeline = PersonalTimeline.model_validate(written_timeline.model_dump())
+                grid_slots = slots.get(timeline.character_id)
+                if grid_slots and not apply_presence(timeline, grid_slots):
+                    unaligned[timeline.character_id] = timeline
+                    continue
+                timelines[timeline.character_id] = timeline
 
+        for char_id, timeline in unaligned.items():
+            timelines.setdefault(char_id, timeline)
         missing = [char_id for char_id in suspect_ids if char_id not in timelines]
         if missing:
             # Raising lets the graph retry the node from scratch

@@ -215,7 +215,7 @@ def find_impossible_sightings(state: GameState) -> list[ValidationIssue]:
     ]
 
 
-def _plan_pieces(plan: DeductionPlan) -> list[EvidencePiece]:
+def plan_pieces(plan: DeductionPlan) -> list[EvidencePiece]:
     """Every piece of a deduction plan: breaking, means and each red herring's two."""
     return [
         *plan.breaking_pieces,
@@ -231,7 +231,7 @@ def _is_planned(state: GameState, holder_id: str, seen: Observation) -> bool:
     times = minutes_in(seen.time)
     if not plan or not times:
         return False
-    pieces = _plan_pieces(plan)
+    pieces = plan_pieces(plan)
     return any(
         piece.kind == "observation"
         and piece.holder_id == holder_id
@@ -517,7 +517,7 @@ def find_missing_planned_observations(state: GameState) -> list[ValidationIssue]
     if not plan:
         return []
     names = {char.id: char.name for char in state.characters}
-    pieces = _plan_pieces(plan)
+    pieces = plan_pieces(plan)
     issues = []
     for piece in pieces:
         timeline = state.personal_timelines.get(piece.holder_id)
@@ -650,7 +650,7 @@ def find_plan_problems(state: GameState) -> list[str]:
                 "wear, and list them all in fits_ids."
             )
 
-    pieces = _plan_pieces(plan)
+    pieces = plan_pieces(plan)
     if not state.config.killer_knows_identity and not any(
         piece.kind == "observation" and piece.holder_id == killer_id for piece in pieces
     ):
