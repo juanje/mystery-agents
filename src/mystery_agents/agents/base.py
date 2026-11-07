@@ -59,6 +59,21 @@ class BaseAgent(ABC):
         """
         pass
 
+    def get_response_format(self, state: GameState) -> type[BaseModel] | None:
+        """
+        Get the output schema for this call.
+
+        Override to narrow the schema to the current game (e.g., only its room
+        names), so the model can't produce values the game doesn't have.
+
+        Args:
+            state: Current game state
+
+        Returns:
+            The Pydantic model the response must follow
+        """
+        return self.response_format
+
     def _mock_output(self, state: GameState) -> GameState:
         """
         Generate mock output for dry run mode.
@@ -158,9 +173,17 @@ These requirements override any language assumptions in the instructions above.
             ),
         ]
 
-        result = self.runnable.invoke(messages)
+        response_format = self.get_response_format(state)
+        runnable: Runnable[Any, Any] = (
+            self.runnable
+            if response_format is self.response_format or response_format is None
+            else self.llm.with_structured_output(
+                response_format, method="json_schema", include_raw=True
+            )
+        )
+        result = runnable.invoke(messages)
 
-        if not self.response_format:
+        if not response_format:
             return result.content
 
         parsed = result["parsed"]
@@ -170,6 +193,6 @@ These requirements override any language assumptions in the instructions above.
 
         if parsed is None:
             raise StructuredOutputError(
-                f"The LLM did not return a valid {self.response_format.__name__}: {parsing_error}"
+                f"The LLM did not return a valid {response_format.__name__}: {parsing_error}"
             )
         return parsed

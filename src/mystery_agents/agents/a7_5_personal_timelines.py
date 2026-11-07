@@ -1,8 +1,9 @@
 """A7.5: Personal Timelines Agent - Alibis, cover stories and observations per suspect."""
 
 import math
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 from mystery_agents.models.state import (
     GameState,
@@ -12,6 +13,7 @@ from mystery_agents.models.state import (
     ValidationIssue,
 )
 from mystery_agents.utils.cache import LLMCache
+from mystery_agents.utils.floor_plan import format_floor_plan, room_names
 from mystery_agents.utils.prompts import A7_5_SYSTEM_PROMPT
 from mystery_agents.utils.state_helpers import (
     format_global_timeline,
@@ -41,6 +43,45 @@ class A7_5Output(BaseModel):
     )
 
 
+def output_schema_for_rooms(rooms: list[str]) -> type[A7_5Output]:
+    """
+    A7_5Output whose places can only be the plan's rooms.
+
+    Asked in the prompt, the model still invented corridors and passages, and the
+    sheets disagreed on who could see whom. An enum in the schema rules that out.
+    """
+    if not rooms:
+        return A7_5Output
+    place = Literal[tuple(rooms)]  # type: ignore[valid-type]
+    claimed = Literal[("", *rooms)]  # type: ignore[valid-type]
+
+    def field_with(model: type[BaseModel], name: str, annotation: Any) -> Any:
+        return (annotation, model.model_fields[name])
+
+    observation = create_model(
+        "Observation",
+        __base__=Observation,
+        location=field_with(Observation, "location", place),
+    )
+    event = create_model(
+        "PersonalEvent",
+        __base__=PersonalEvent,
+        location=field_with(PersonalEvent, "location", place),
+        claimed_location=field_with(PersonalEvent, "claimed_location", claimed),
+        info_they_observed=field_with(PersonalEvent, "info_they_observed", list[observation]),  # type: ignore[valid-type]
+    )
+    timeline = create_model(
+        "PersonalTimeline",
+        __base__=PersonalTimeline,
+        events=field_with(PersonalTimeline, "events", list[event]),  # type: ignore[valid-type]
+    )
+    return create_model(
+        "A7_5Output",
+        __base__=A7_5Output,
+        timelines=field_with(A7_5Output, "timelines", list[timeline]),  # type: ignore[valid-type]
+    )
+
+
 class PersonalTimelinesAgent(BaseAgent):
     """
     A7.5: Personal Timelines Agent.
@@ -64,6 +105,10 @@ class PersonalTimelinesAgent(BaseAgent):
             System prompt string
         """
         return A7_5_SYSTEM_PROMPT
+
+    def get_response_format(self, state: GameState) -> type[BaseModel]:
+        """Narrow the output schema to this game's rooms."""
+        return output_schema_for_rooms(room_names(state))
 
     def run(self, state: GameState) -> GameState:
         """
@@ -166,6 +211,9 @@ CRIME:
 - Location: {safe_get_crime_scene_description(state)}
 - Time of death: {safe_get_crime_time_of_death(state)}
 
+FLOOR PLAN (every location is one of these room names; people move only along connections, and can only see their own room or the rooms listed as visible from it):
+{format_floor_plan(state)}
+
 GLOBAL TIMELINE (DO NOT CONTRADICT):
 {format_global_timeline(state)}
 
@@ -207,8 +255,9 @@ TRUTH NARRATIVE (what really happened):
             result = self.invoke(state, request)
             returned = [t.character_id for t in result.timelines]
             # An empty timeline leaves that player with nothing to say, so ask for it again
+            # Store plain models: the narrowed schema classes can't be checkpointed
             timelines.update(
-                (t.character_id, t)
+                (t.character_id, PersonalTimeline.model_validate(t.model_dump()))
                 for t in result.timelines
                 if t.character_id in batch and len(t.events) >= MIN_EVENTS_PER_SUSPECT
             )
