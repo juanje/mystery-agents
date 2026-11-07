@@ -57,6 +57,17 @@ def test_google_provider_and_model_override(monkeypatch: pytest.MonkeyPatch) -> 
     assert api_key_var() == "GOOGLE_API_KEY"
 
 
+def test_gemini_reasoning_effort_only_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Gemini keeps its own default; an override reaches it like it does OpenAI."""
+    monkeypatch.setenv("LLM_PROVIDER", "google")
+    tier1 = LLMConfig.get_model("tier1")
+    assert isinstance(tier1, ChatGoogleGenerativeAI) and tier1.reasoning_effort is None
+
+    monkeypatch.setenv("LLM_REASONING_EFFORT_TIER1", "low")
+    tier1 = LLMConfig.get_model("tier1")
+    assert isinstance(tier1, ChatGoogleGenerativeAI) and tier1.reasoning_effort == "low"
+
+
 def test_unknown_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     """A typo in LLM_PROVIDER fails loudly instead of silently using another provider."""
     monkeypatch.setenv("LLM_PROVIDER", "openia")

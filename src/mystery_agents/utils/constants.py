@@ -47,18 +47,24 @@ LLM_MODELS = {
     # if a measured batch shows it needs more
     "openai": {"tier1": "gpt-6-luna", "tier2": "gpt-6-luna", "tier3": "gpt-6-luna"},
     # gemini-3.8-flash was tried for tier 1, but in real runs it took minutes per call and
-    # often refused prompts (block_reason OTHER); 3.6-flash is stable and fast for the same work.
+    # often refused prompts (block_reason OTHER). Much of the delay was its default thinking,
+    # twice 3.6's; with LLM_REASONING_EFFORT_TIER* set it can be measured again.
     "google": {
         "tier1": "gemini-3.6-flash",
         "tier2": "gemini-3.6-flash",
         "tier3": "gemini-3.5-flash-lite",
     },
 }
-# OpenAI reasoning effort per tier (LLM_REASONING_EFFORT_TIER1..3 override it). Measured
-# with GPT-6 Luna: low everywhere was fast but its sheets, clues and solution averaged 11
-# contradictions per game; medium on tier 1 (plan, grid, sheets, content, reviews) brought
-# that to 6, near Gemini, while the mechanical tier 2 stays fast on low. Gemini gets none.
-LLM_REASONING_EFFORT = {"tier1": "medium", "tier2": "low", "tier3": "low"}
+# Reasoning effort per provider and tier (LLM_REASONING_EFFORT_TIER1..3 override it for
+# either provider; None keeps the model's own default). Measured with GPT-6 Luna: low
+# everywhere was fast but its sheets, clues and solution averaged 11 contradictions per
+# game; medium on tier 1 (plan, grid, sheets, content, reviews) brought that to 6, near
+# Gemini, while the mechanical tier 2 stays fast on low. Gemini's defaults were measured
+# as they are, so it gets none unless overridden.
+LLM_REASONING_EFFORT: dict[str, dict[str, str | None]] = {
+    "openai": {"tier1": "medium", "tier2": "low", "tier3": "low"},
+    "google": {"tier1": None, "tier2": None, "tier3": None},
+}
 # Environment variable holding each provider's API key
 LLM_API_KEY_VARS = {"openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
 # Seconds per request. Without a timeout a dropped connection (e.g. the laptop

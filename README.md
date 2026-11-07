@@ -263,7 +263,8 @@ LLM_MODEL_TIER3=gpt-6-luna   # Placeholder: no text agent calls it
 # With LLM_PROVIDER=google the defaults are gemini-3.6-flash (tiers 1-2) and
 # gemini-3.5-flash-lite (tier 3)
 
-# Optional: OpenAI reasoning effort per tier (defaults: medium for tier 1, low for 2-3)
+# Optional: reasoning effort per tier (OpenAI defaults: medium for tier 1, low for 2-3;
+# Gemini keeps its model's default unless set)
 LLM_REASONING_EFFORT_TIER1=medium
 
 # Optional: Override temperatures (unset by default, so each model keeps its own;

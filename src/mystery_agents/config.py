@@ -102,7 +102,7 @@ class LLMConfig:
             Model names and temperatures can be overridden via environment variables:
             - LLM_MODEL_TIER1, LLM_MODEL_TIER2, LLM_MODEL_TIER3
             - LLM_TEMPERATURE_TIER1, LLM_TEMPERATURE_TIER2, LLM_TEMPERATURE_TIER3
-            - LLM_REASONING_EFFORT_TIER1..3 (OpenAI only: none, low, medium, high...)
+            - LLM_REASONING_EFFORT_TIER1..3 (low, medium, high...; Gemini only if set)
             Default model names per provider are configured in constants.py. Temperature
             is not sent unless overridden: Gemini 3.6+ models use fixed sampling
             defaults and ignore custom sampling parameters.
@@ -114,6 +114,9 @@ class LLMConfig:
         model = os.getenv(f"LLM_MODEL_TIER{number}", LLM_MODELS[provider][tier])
         # None keeps the model's own default
         temperature = _optional_temperature(f"LLM_TEMPERATURE_TIER{number}")
+        reasoning_effort = (
+            os.getenv(f"LLM_REASONING_EFFORT_TIER{number}") or LLM_REASONING_EFFORT[provider][tier]
+        )
 
         if provider == "openai":
             return ChatOpenAI(
@@ -121,9 +124,7 @@ class LLMConfig:
                 api_key=api_key,  # type: ignore[arg-type]
                 temperature=temperature,
                 timeout=LLM_REQUEST_TIMEOUT,
-                reasoning_effort=os.getenv(
-                    f"LLM_REASONING_EFFORT_TIER{number}", LLM_REASONING_EFFORT[tier]
-                ),
+                reasoning_effort=reasoning_effort,
                 # GPT-6 models are only served by the Responses API: Chat Completions
                 # answers 403 "does not have access to model" for them
                 use_responses_api=True,
@@ -133,4 +134,6 @@ class LLMConfig:
             google_api_key=api_key,
             temperature=temperature,
             timeout=LLM_REQUEST_TIMEOUT,
+            # Gemini 3.8 Flash thinks much more than 3.6 by default (twice as slow)
+            reasoning_effort=reasoning_effort,
         )
