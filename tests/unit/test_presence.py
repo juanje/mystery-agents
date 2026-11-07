@@ -345,3 +345,59 @@ def test_unplanned_suspects_cant_overlook_the_hidden_killer(state: GameState) ->
     state.killer_selection.deduction_plan = None
 
     assert any("during their hidden moment" in problem for problem in presence_problems(state))
+
+
+def test_sheets_are_built_from_the_grid_and_the_slot_texts(state: GameState) -> None:
+    """Times and rooms come from the grid; a sighting is placed where the observed person is."""
+    from mystery_agents.agents.a7_5_personal_timelines import (
+        SlotObservation,
+        SlotText,
+        SuspectSheet,
+        build_timeline,
+    )
+    from mystery_agents.utils.presence import numbered_sightings
+
+    hidden = next(
+        sid
+        for sid, s in numbered_sightings(state, "ana")
+        if s.observed_id == "killer" and s.room == "Study" and s.start < 21 * 60 + 50
+    )
+    sheet = SuspectSheet(
+        character_id="ana",
+        slots=[
+            SlotText(slot=1, what_they_really_did="Dinner.", what_they_will_tell_others="Dinner."),
+            SlotText(
+                slot=2,
+                what_they_really_did="You read.",
+                what_they_will_tell_others="Something else.",
+                observations=[
+                    SlotObservation(sighting=hidden, time="21:40", text="You see Diego."),
+                    SlotObservation(sighting="S99", time="21:41", text="Invented."),
+                ],
+            ),
+        ],
+        subjective_narrative="A quiet night.",
+    )
+
+    timeline = build_timeline(state, sheet)
+
+    assert timeline is not None
+    assert [e.location for e in timeline.events] == ["Dining room", "Library", "Study"]
+    # Ana hides nothing in the library, so her account is what she did
+    assert timeline.events[1].what_they_will_tell_others == "You read."
+    assert [
+        (o.observed_character_id, o.location) for o in timeline.events[1].info_they_observed
+    ] == [("killer", "Study")]
+    # A slot without text keeps what the grid says
+    assert timeline.events[2].what_they_really_did == "x"
+
+
+def test_slot_request_lists_slots_sightings_and_the_plan(state: GameState) -> None:
+    """The writer sees each slot, what the suspect can see by ID, and which sighting is planned."""
+    from mystery_agents.agents.a7_5_personal_timelines import PersonalTimelinesAgent
+
+    request = PersonalTimelinesAgent._slots_request(state, ["ana", "berta"])
+
+    assert "1. 21:00-21:30 @ Dining room" in request
+    assert "PLANNED, write it" in request
+    assert "The murder doesn't reach them" in request

@@ -63,7 +63,8 @@ Config (YAML)
 │  A6: Timeline                                         │
 │  A7: Killer Selection (route, deduction plan)         │
 │  A7.4: Presence (where everyone is, who sees whom)    │
-│  A7.5: Personal Timelines (alibis, observations)      │
+│  A7.5: Personal Timelines (texts per grid slot; code  │
+│        builds the sheets and places the sightings)    │
 │    └─ code checks → rewrite flagged suspects once     │
 │  V2: Game Logic Validator ──┐                         │
 │    ├─ pass → continue        │  (Logic Retry Loop)    │

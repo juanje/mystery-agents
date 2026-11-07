@@ -383,9 +383,11 @@ HOW YOU WRITE THE EVENINGS
 - Difficulty: in easy games the two sightings point to the same gap in the killer's story; in medium ones
   they need each other and the physical clues; in hard ones they sound innocent until compared.
 
-- When the request gives where everyone really is, that grid is the truth every sheet shares: one event per
-  slot, with its time, room and claimed room, and the sightings come only from the list of who can see whom.
-  Choose among them the ones that matter (motive, opportunity, alibi); you don't need them all.
+- When the request lists each suspect's slots, the times and rooms are fixed and code builds the sheet from
+  them: you write the texts of every slot, pick observations by ID from what that suspect can see (always the
+  ones marked PLANNED, then the few that matter for motive, opportunity or alibi), and write what they hear of
+  the murder only when the request says it reaches them. Each text tells what happens in that slot's room;
+  where they claim another room, the account tells that room.
 
 WRITING
 Second person, in the game's language, with full names. Places use readable names in that language, the

@@ -329,23 +329,6 @@ def format_presence(state: GameState) -> str:
     return "\n\n".join(blocks)
 
 
-def format_sightings(state: GameState) -> str:
-    """Who each suspect can see, when and where, for a prompt."""
-    names = {char.id: char.name for char in state.characters}
-    by_observer: dict[str, list[str]] = {}
-    for s in possible_sightings(state):
-        by_observer.setdefault(s.observer_id, []).append(
-            f"  - {clock(s.start)}-{clock(s.end)} from {s.from_room}: "
-            f"{names.get(s.observed_id, s.observed_id)} in {s.room}"
-        )
-    if not by_observer:
-        return "Nobody can see anybody"
-    return "\n".join(
-        f"{names.get(observer, observer)} can see:\n" + "\n".join(lines)
-        for observer, lines in by_observer.items()
-    )
-
-
 def apply_presence(timeline: PersonalTimeline, slots: list[PresenceSlot]) -> bool:
     """
     Give a sheet's events the grid's times and places.
@@ -425,3 +408,50 @@ def align_observations(state: GameState) -> list[str]:
         if removed:
             trimmed.append(char_id)
     return trimmed
+
+
+def numbered_sightings(state: GameState, observer_id: str) -> list[tuple[str, Sighting]]:
+    """What one suspect can see, numbered S1, S2... so the sheet writer can pick by ID."""
+    mine = [s for s in possible_sightings(state) if s.observer_id == observer_id]
+    mine.sort(key=lambda s: (s.start, s.observed_id))
+    return [(f"S{number}", sighting) for number, sighting in enumerate(mine, 1)]
+
+
+def planned_piece_for(state: GameState, sighting: Sighting) -> EvidencePiece | None:
+    """The deduction plan's observation this sighting carries, if any."""
+    return next(
+        (
+            piece
+            for piece in _observation_pieces(state)
+            if piece.holder_id == sighting.observer_id
+            and piece.about_id == sighting.observed_id
+            and (times := minutes_in(piece.time))
+            and sighting.start - PLANNED_TIME_SLACK_MINUTES
+            <= times[0]
+            <= sighting.end + PLANNED_TIME_SLACK_MINUTES
+        ),
+        None,
+    )
+
+
+def hears_the_murder(state: GameState, char_id: str) -> str | None:
+    """
+    The room someone hears the murder from, by the grid, or None if it doesn't reach them.
+
+    An unaware killer's sheet shows where they claim to be, so they hear it from there.
+    """
+    timeline = state.timeline_global
+    murder_at = minutes_in(timeline.murder_event.time) if timeline else []
+    if not timeline or not murder_at:
+        return None
+    slot = slot_at(_slots(state).get(char_id, []), murder_at[0])
+    if not slot:
+        return None
+    room = slot.claimed_room if char_id == _unaware_killer(state) and _hides(slot) else slot.room
+    murder = timeline.murder_event
+    return room if room in {murder.room, *murder.heard_in} else None
+
+
+def slot_hides(slot: PresenceSlot) -> bool:
+    """Whether the suspect claims to be somewhere else during this slot."""
+    return _hides(slot)
