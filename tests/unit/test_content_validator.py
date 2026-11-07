@@ -11,7 +11,10 @@ from mystery_agents.agents.v3_content_validator import (
     find_rule_violations,
     find_suspect_names_in_titles,
 )
-from mystery_agents.graph.workflow import should_retry_content_validation
+from mystery_agents.graph.workflow import (
+    route_after_game_validation,
+    should_retry_content_validation,
+)
 from mystery_agents.models.state import (
     CharacterSpec,
     ClueSpec,
@@ -115,6 +118,20 @@ def test_timeline_issues_are_sent_back_to_their_author(state: GameState) -> None
 
     state.content_retry_count = 3
     assert should_retry_content_validation(state) == "fail"
+
+
+def test_logic_issues_in_sheets_rewrite_only_the_sheets(state: GameState) -> None:
+    """V2 issues inside personal timelines don't need a new global timeline."""
+    state.validation = ValidationReport(
+        is_consistent=False,
+        issues=[ValidationIssue(type="timeline_conflict", description="x", fix_in="timelines")],
+    )
+    state.retry_count = 1
+
+    assert route_after_game_validation(state) == ["a7_5_revise_for_logic"]
+
+    state.validation.issues[0].fix_in = "content"
+    assert route_after_game_validation(state) == ["a6_timeline"]
 
 
 def _game_with_killer() -> GameState:

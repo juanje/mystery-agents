@@ -7,11 +7,14 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import RetryPolicy
 
 from mystery_agents.agents.base import StructuredOutputError
-from mystery_agents.models.state import GameState, ValidationIssue
+from mystery_agents.models.state import GameState, ValidationIssue, ValidationReport
 from mystery_agents.utils.cache import AgentFactory
 from mystery_agents.utils.constants import NODE_MAX_ATTEMPTS
 from mystery_agents.utils.logging_config import AgentLogger
-from mystery_agents.utils.timeline_checks import find_timeline_violations
+from mystery_agents.utils.timeline_checks import (
+    drop_excess_killer_sightings,
+    find_timeline_violations,
+)
 
 
 # Node functions for the graph (using cached agents for better performance)
@@ -186,7 +189,15 @@ def a7_5_personal_timelines_node(state: GameState) -> GameState:
             log.warning(f"  {issue.type}: {issue.description}")
         log.warning("⚠ Personal timelines need fixes - rewriting the flagged suspects")
         result = agent.revise(result, issues)
-    return cast(GameState, result)
+    return _limit_killer_witnesses(cast(GameState, result), log)
+
+
+def _limit_killer_witnesses(state: GameState, log: AgentLogger) -> GameState:
+    """Enforce the killer witness limit in code; asking the model for it didn't work."""
+    trimmed = drop_excess_killer_sightings(state)
+    if trimmed:
+        log.info(f"Removed killer sightings beyond the limit from: {', '.join(trimmed)}")
+    return state
 
 
 def v2_game_logic_validator_node(state: GameState) -> GameState:
@@ -206,10 +217,10 @@ def v2_game_logic_validator_node(state: GameState) -> GameState:
         log.info("✓ Validation passed")
         result.retry_count = 0
     else:
-        log.warning("⚠ Validation failed - will retry")
         if result.validation:
             for issue in result.validation.issues:
-                log.debug(f"  Issue: {issue.description}")
+                log.warning(f"  {issue.type} [{issue.fix_in}]: {issue.description}")
+        log.warning("⚠ Validation failed - will retry")
 
     return cast(GameState, result)
 
@@ -257,16 +268,25 @@ def v3_content_validator_node(state: GameState) -> GameState:
     return cast(GameState, result)
 
 
-def a7_5_revise_timelines_node(state: GameState) -> GameState:
-    """A7.5 (revision): Rewrite the personal timelines the content review found broken."""
+def _revise_timelines(state: GameState, issues: list[ValidationIssue]) -> GameState:
+    """Rewrite the personal timelines a review found broken."""
     from mystery_agents.agents.a7_5_personal_timelines import PersonalTimelinesAgent
 
     log = AgentLogger("a7_5_personal_timelines", state)
-    issues = timeline_issues(state)
     suspects = sorted({char_id for issue in issues for char_id in issue.related_ids})
     log.info(f"Rewriting personal timelines flagged by the review: {', '.join(suspects)}")
     agent = AgentFactory.get_agent(PersonalTimelinesAgent)
-    return cast(GameState, agent.revise(state, issues))
+    return _limit_killer_witnesses(cast(GameState, agent.revise(state, issues)), log)
+
+
+def a7_5_revise_timelines_node(state: GameState) -> GameState:
+    """A7.5 (revision): Rewrite the personal timelines the content review found broken."""
+    return _revise_timelines(state, timeline_issues(state.content_validation))
+
+
+def a7_5_revise_for_logic_node(state: GameState) -> GameState:
+    """A7.5 (revision): Rewrite the personal timelines the logic validation found broken."""
+    return _revise_timelines(state, timeline_issues(state.validation))
 
 
 def a8_5_host_images_node(state: GameState) -> GameState:
@@ -366,9 +386,8 @@ def should_retry_validation(state: GameState) -> Literal["pass", "retry", "fail"
     return "fail"
 
 
-def timeline_issues(state: GameState) -> list[ValidationIssue]:
-    """Content review issues that only a rewrite of the personal timelines can fix."""
-    report = state.content_validation
+def timeline_issues(report: ValidationReport | None) -> list[ValidationIssue]:
+    """Review issues that only a rewrite of the personal timelines can fix."""
     if not report or report.is_consistent:
         return []
     return [issue for issue in report.issues if issue.fix_in == "timelines"]
@@ -397,7 +416,7 @@ def should_retry_content_validation(
         return "fail"
 
     # A8 can't change the players' sheets, so those issues go back to their author first
-    return "retry_timelines" if timeline_issues(state) else "retry"
+    return "retry_timelines" if timeline_issues(report) else "retry"
 
 
 def route_after_game_validation(state: GameState) -> list[str]:
@@ -411,6 +430,9 @@ def route_after_game_validation(state: GameState) -> list[str]:
     if decision == "pass":
         return ["a8_content", "a3_5_character_images"]
     if decision == "retry":
+        # Problems inside the suspects' sheets don't need a new global timeline
+        if timeline_issues(state.validation):
+            return ["a7_5_revise_for_logic"]
         return ["a6_timeline"]
     return [END]
 
@@ -451,6 +473,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_node("a8_content", a8_content_node)
     graph.add_node("v3_content_validator", v3_content_validator_node)
     graph.add_node("a7_5_revise_timelines", a7_5_revise_timelines_node)
+    graph.add_node("a7_5_revise_for_logic", a7_5_revise_for_logic_node)
     graph.add_node("a8_5_host_images", a8_5_host_images_node)
     graph.add_node("a9_packaging", a9_packaging_node)
 
@@ -485,7 +508,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
     graph.add_conditional_edges(
         "v2_game_logic_validator",
         route_after_game_validation,
-        ["a8_content", "a3_5_character_images", "a6_timeline", END],
+        ["a8_content", "a3_5_character_images", "a6_timeline", "a7_5_revise_for_logic", END],
     )
 
     graph.add_edge("a8_content", "v3_content_validator")
@@ -502,6 +525,7 @@ def create_workflow(checkpointer: BaseCheckpointSaver[Any] | None = None) -> Any
         },
     )
     graph.add_edge("a7_5_revise_timelines", "a8_content")
+    graph.add_edge("a7_5_revise_for_logic", "v2_game_logic_validator")
     # Packaging waits for both branches
     graph.add_edge(["a8_5_host_images", "a3_5_character_images"], "a9_packaging")
     graph.add_edge("a9_packaging", END)

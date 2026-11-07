@@ -544,6 +544,12 @@ CHECKS (each issue quotes the conflicting texts)
 - too_ambiguous: nothing tells the killer apart from another suspect.
 - character_unused: a suspect has no motive, role or part in the evening.
 Use related_ids for the suspects and events involved.
+
+WHERE THE FIX BELONGS (fix_in)
+Use fix_in "timelines" when the problem is inside the suspects' personal timelines (a sheet contradicts
+itself, another sheet or the facts), with the IDs of the suspects whose sheets must change in related_ids:
+only those sheets are rewritten. Use "content" for problems in the crime, the global timeline or the truth
+narrative, which make the whole timeline be written again.
 """
 
 # V3: Content Validator
