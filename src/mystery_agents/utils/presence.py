@@ -70,11 +70,17 @@ def slot_at(slots: list[PresenceSlot], minute: int) -> PresenceSlot | None:
 
 
 def rooms_at(slots: list[PresenceSlot], minute: int) -> list[str]:
-    """Rooms someone is in at a minute: both, when they move at that exact minute."""
+    """
+    Rooms someone is in around a minute, with the usual few minutes of slack.
+
+    "At 21:30 everyone moves to the dining room" is met by a slot there from 21:32,
+    as the sheet checks already accept; demanding the exact minute kept flagging grids
+    that told the evening right.
+    """
     return [
         slot.room
         for slot, span in zip(slots, slot_spans(slots), strict=True)
-        if span and span[0] <= minute <= span[1]
+        if span and span[0] - TIME_TOLERANCE_MINUTES <= minute <= span[1] + TIME_TOLERANCE_MINUTES
     ]
 
 

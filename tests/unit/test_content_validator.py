@@ -323,7 +323,7 @@ def test_questions_citing_the_decisive_sightings_are_dropped() -> None:
     detective.guiding_questions = [
         "¿Qué vio Elena desde el salón?",
         "¿Quién cruzaba el patio hacia las 22:13?",
-        "¿Dónde estaba cada uno entre las 22:00 y las 22:20?",
+        "¿Dónde estaba cada uno entre las 22:12 y las 22:30?",
     ]
 
     removed = drop_revealing_questions(state)

@@ -170,10 +170,12 @@ def drop_revealing_questions(state: GameState) -> list[str]:
     decisive = _decisive_sighting_times(state)
 
     def reveals(question: str) -> bool:
-        return _mentions(question, killer.name, ignore=shared) or any(
-            abs(cited - minute) <= REVEALING_TIME_SLACK_MINUTES
-            for cited in minutes_in(question)
-            for minute in decisive
+        cited = minutes_in(question)
+        # A window ("between 22:15 and 22:34") asks about the evening; a single minute
+        # ("who was at the office door at 22:12?") asks about one sighting
+        return _mentions(question, killer.name, ignore=shared) or (
+            len(cited) == 1
+            and any(abs(cited[0] - minute) <= REVEALING_TIME_SLACK_MINUTES for minute in decisive)
         )
 
     removed = [q for q in detective.guiding_questions if reveals(q)]

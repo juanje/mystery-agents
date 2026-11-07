@@ -181,6 +181,19 @@ def test_people_must_be_where_shared_events_and_the_route_put_them(state: GameSt
     assert any("route has them in Study" in problem for problem in problems)
 
 
+def test_shared_events_allow_a_few_minutes_of_slack(state: GameState) -> None:
+    """Sitting down to dinner at 21:03 meets a 21:00 dinner; at 21:20 it doesn't."""
+    assert state.timeline_global is not None
+    dinner = state.timeline_global.time_blocks[0].events[0]
+    _slots(state, "ana")[0] = _slot("21:03-21:30", "Dining room")
+    _slots(state, "ana").insert(0, _slot("21:00-21:03", "Library"))
+    dinner.time_approx = "21:00"
+    assert not any("Ana Ruiz must be" in p for p in presence_problems(state))
+
+    dinner.time_approx = "21:40"
+    assert any("Ana Ruiz must be" in p for p in presence_problems(state))
+
+
 def test_killer_must_claim_another_room_at_the_murder(state: GameState) -> None:
     """Without a claimed room, the killer's sheet would admit being at the scene."""
     _slots(state, "killer")[2] = _slot("21:35-21:50", "Study")
@@ -203,7 +216,7 @@ def test_planned_sightings_must_be_possible(state: GameState) -> None:
         breaking_pieces=[piece], means_piece=piece, red_herrings=[]
     )
 
-    assert any("can't see Study" in problem for problem in presence_problems(state))
+    assert any("they can't see" in problem for problem in presence_problems(state))
 
 
 def test_hidden_killer_is_only_visible_to_planned_witnesses(state: GameState) -> None:
