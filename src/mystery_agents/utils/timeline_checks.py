@@ -15,6 +15,8 @@ TIME_TOLERANCE_MINUTES = 5
 # Most innocent suspects allowed to see the killer while the killer hides something.
 # More than this and players don't need to compare testimonies at all.
 MAX_KILLER_WITNESSES = {"easy": 3, "medium": 2, "hard": 2}
+# Innocent suspects kept hiding something when some must become truthful
+MAX_INNOCENTS_HIDING = 3
 # Words too generic to tell two places apart ("the corridor of the upper floor")
 MIN_PLACE_WORD_LENGTH = 4
 
@@ -193,10 +195,50 @@ def find_too_many_killer_witnesses(state: GameState) -> list[ValidationIssue]:
     ]
 
 
+def find_killer_sheet_stands_out(state: GameState) -> list[ValidationIssue]:
+    """
+    Find games where the unaware killer is the only suspect with nothing to hide.
+
+    That killer's sheet only shows their innocent-looking account, so it has no
+    "what you will tell" part. If every innocent sheet has one, the killer's player
+    can tell from the shape of their sheet alone.
+    """
+    if not state.killer_selection or state.config.killer_knows_identity:
+        return []
+    killer_id = state.killer_selection.killer_id
+    hiding = [
+        char_id
+        for char_id, timeline in state.personal_timelines.items()
+        if char_id != killer_id
+        and any(e.what_they_will_tell_others != e.what_they_really_did for e in timeline.events)
+    ]
+    innocents = [char_id for char_id in state.personal_timelines if char_id != killer_id]
+    if not innocents or len(hiding) < len(innocents):
+        return []
+
+    names = {char.id: char.name for char in state.characters}
+    keep = min(MAX_INNOCENTS_HIDING, len(innocents) - 1)
+    truthful = hiding[keep:]
+    return [
+        ValidationIssue(
+            type="spoiler",
+            description=(
+                "Every innocent suspect hides something, so the killer, who doesn't know they are "
+                "the killer and only sees their innocent account, is the only sheet with nothing to "
+                f"hide. Make {', '.join(names.get(c, c) for c in truthful)} tell the truth about "
+                "their whole evening (what they will tell equals what they really did)."
+            ),
+            related_ids=truthful,
+            fix_in="timelines",
+        )
+    ]
+
+
 def find_timeline_violations(state: GameState) -> list[ValidationIssue]:
     """Run every deterministic personal timeline check."""
     return [
         *find_observation_time_errors(state),
         *find_misplaced_observations(state),
         *find_too_many_killer_witnesses(state),
+        *find_killer_sheet_stands_out(state),
     ]

@@ -16,6 +16,7 @@ from mystery_agents.models.state import (
 from mystery_agents.utils.constants import TEST_DEFAULT_DURATION, TEST_DEFAULT_PLAYERS
 from mystery_agents.utils.timeline_checks import (
     event_ranges,
+    find_killer_sheet_stands_out,
     find_misplaced_observations,
     find_observation_time_errors,
     find_timeline_violations,
@@ -159,3 +160,24 @@ def test_seeing_the_killer_while_they_tell_the_truth_does_not_count(state: GameS
         ]
 
     assert find_too_many_killer_witnesses(state) == []
+
+
+def test_unaware_killer_alone_with_nothing_to_hide_is_flagged(state: GameState) -> None:
+    """If every innocent hides something, the unaware killer's sheet is the odd one out."""
+    state.config.killer_knows_identity = False
+    for char_id in ("ana", "berta", "carla"):
+        state.personal_timelines[char_id].events[1] = _event("21:50-22:20", "Library", hides=True)
+
+    issues = find_killer_sheet_stands_out(state)
+
+    assert len(issues) == 1
+    assert issues[0].fix_in == "timelines"
+    assert issues[0].related_ids  # at least one innocent becomes truthful
+
+
+def test_some_truthful_innocents_hide_the_killer_sheet(state: GameState) -> None:
+    """With a truthful innocent around, the killer's sheet looks like theirs."""
+    state.config.killer_knows_identity = False
+    state.personal_timelines["ana"].events[1] = _event("21:50-22:20", "Library", hides=True)
+
+    assert find_killer_sheet_stands_out(state) == []
