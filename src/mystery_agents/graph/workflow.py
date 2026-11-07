@@ -220,7 +220,10 @@ def v2_game_logic_validator_node(state: GameState) -> GameState:
         if result.validation:
             for issue in result.validation.issues:
                 log.warning(f"  {issue.type} [{issue.fix_in}]: {issue.description}")
-        log.warning("⚠ Validation failed - will retry")
+        if result.retry_count < result.max_retries:
+            log.warning("⚠ Validation failed - will retry")
+        else:
+            log.warning("⚠ Validation still failing - continuing if only the sheets have issues")
 
     return cast(GameState, result)
 
@@ -430,6 +433,9 @@ def route_after_game_validation(state: GameState) -> list[str]:
 
     Once the game is valid, written content and character portraits are independent,
     so both run in the same step. Portraits are only generated for valid games.
+
+    When retries run out and only the suspects' sheets still have problems, the plot
+    itself holds: the game continues (V3 checks the sheets again) instead of being lost.
     """
     decision = should_retry_validation(state)
     if decision == "pass":
@@ -439,6 +445,9 @@ def route_after_game_validation(state: GameState) -> list[str]:
         if timeline_issues(state.validation):
             return ["a7_5_revise_for_logic"]
         return ["a6_timeline"]
+    report = state.validation
+    if report and report.issues and len(timeline_issues(report)) == len(report.issues):
+        return ["a8_content", "a3_5_character_images"]
     return [END]
 
 
